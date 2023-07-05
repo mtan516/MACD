@@ -1,38 +1,39 @@
 #%%
+# Created 7/5/2023 by Michael Tan & Josh Green
+# Utilized for importing DXF shapes (curated file), generating a mask, than outputting a dxf
+# Parsing DXF
 import ezdxf as ez
-import sys
+# Maths
 import numpy as np
 import pandas as pd
+# Shapes
 import shapely.geometry as spg
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-import shapely as sp
-import geopandas as gpd
-import pylab as pl
-from descartes import PolygonPatch
 from shapely.ops import unary_union, polygonize
-from scipy.spatial import Delaunay
-import math
-from matplotlib.collections import LineCollection
+from descartes import PolygonPatch
+# Plotting
+import pylab as pl
 
 
 # %%
 class loaddxf():
-    def __init__(self,fn,poversize=1):
+    # This is a class object for loading a single DXF file
+    def __init__(self,fn):
+        # Initialization
         self.fn = fn
         self.dbf = False #debug flag
         self.components = []
         self.cnames = []
-        self.poversize = poversize
         
     def loaddrawing(self):
+        # Import DXF as a ezdxf object. 
         doc = ez.readfile(self.fn)
         msp = doc.modelspace()
+        # Iterate through all items
         for e in msp:
             if self.dbf == True:
                 print(e.dxf.layer)
                 print(e.dxftype())
-                
+            # If we encounter "PKG_OUTLINE" layer, export it to self.pkgout
             if e.dxf.layer == 'PKG_OUTLINE':
                 if e.dxftype() == 'LWPOLYLINE':
                     #print(e.vertices(),e.dxftype())
@@ -41,7 +42,7 @@ class loaddxf():
                     self.pkgout = spg.box(min(p)[0],min(p)[1],max(p)[0],max(p)[1])
                     print("Package Outline: ")
                     self.pkgout
-            
+            # If we encounter Soldermask_pads_btm, export SOLID objects to a list of components
             elif e.dxf.layer == 'SOLDERMASK_PADS_BTM':
                 if e.dxftype() == 'SOLID':
                     if self.dbf == True:
@@ -52,6 +53,7 @@ class loaddxf():
         print(str(len(self.components)) + " objects have been found on BSR layer.")
         
     def maptodataframe(self):
+        # Using the solid objects encountered, parse into a dataframe or 2.
         P1X,P1Y = [],[]
         P2X,P2Y = [],[]
         P3X,P3Y = [],[]
@@ -73,174 +75,65 @@ class loaddxf():
         CY = np.add(P1Y,DY/2)
         # One DF with centers and corners
         self.df = pd.DataFrame({"CNAME":self.cnames,"X":CX,"Y":CY,"P1X":P1X,"P1Y":P1Y,"P3X":P3X,"P3Y":P3Y})
-        self.dfs = pd.concat([pd.DataFrame({"X":P1X,"Y":P1Y}), pd.DataFrame({"X":P2X,"Y":P2Y}), pd.DataFrame({"X":P3X,"Y":P3Y}),
-                                pd.DataFrame({"X":P4X,"Y":P4Y})]).reset_index(drop=True)
-        self.dfs = self.dfs.mul(self.poversize)
-        print("Completed mapping to dataframes df & dfs")
+        # self.dfs = pd.concat([pd.DataFrame({"X":P1X,"Y":P1Y}), pd.DataFrame({"X":P2X,"Y":P2Y}), pd.DataFrame({"X":P3X,"Y":P3Y}),
+        #                         pd.DataFrame({"X":P4X,"Y":P4Y})]).reset_index(drop=True)
+        # self.dfs = self.dfs.mul(self.poversize)
+        print("Completed mapping to dataframes df")
 
-    def cmpoutline(self):
+    def maptolistofpoly(self):
+        # This is messy for now. We take points than shove it into a box. It would be better to go from dxf vector to polygon.
+        # Initialize an empty list
         self.pg_cmp = []
-        dt = self.df
-        for index, row in dt.iterrows():
-            # print(row.P1X)
+        for index, row in self.df.iterrows():
             p1 = (row.P1X,row.P1Y,row.P3X,row.P3Y)
-            # print(p1)
             poly1 = spg.box(p1[0],p1[1],p1[2],p1[3])
             self.pg_cmp.append(poly1)
             
     def process(self):
+        # Load data
         self.loaddrawing()
+        # Map to dataframe
         self.maptodataframe()
-        self.cmpoutline()
-        print("Completed")
+        # Map to list of polygons
+        self.maptolistofpoly()
+        print("Completed loading all the data")
         
 class generatemasks():
-    
+    # Class used to generate a mask
     def __init__(self,cmp,exp_cmp=500,exp_out=1.25):
+        # Initialize some variables
         self.df = df
         self.dbf = False #debug flag
         self.cmp = cmp
+        # Variable to expand components - polygons are extended with a buffer function - magnitude
         self.exp_cmp = exp_cmp
+        # Variable to expand outline - simple scaler/multiplier
         self.exp_out = exp_out
     
     def processcomp(self):
-        expand_n = 500
-        scaler = 1.25
+        # Create 3 masks: 
+            # cmp_mask: component mask
+            # cmp_out: component outline
+            # diff_mask: Mask of the difference between outline & mask
+        # Combine all smaller polygons & expand with exp_cmp
         cmp_mask = unary_union([x.buffer(self.exp_cmp) for x in self.cmp])
+        # Create an outline using the cmp_mask X&Y Min/Max values
         cmp_outline = spg.box(cmp_mask.bounds[0]*self.exp_out,cmp_mask.bounds[1]*self.exp_out,
                         cmp_mask.bounds[2]*self.exp_out,cmp_mask.bounds[3]*self.exp_out)#.buffer(1500)
         self.cmp_mask = cmp_mask
         self.cmp_out = cmp_outline
+        # Create a difference mask between outline & smaller polygons
         self.diff_mask = cmp_outline.difference(cmp_mask)
-        print("created component mask with: Expand = " + str(expand_n) + " and " + str(scaler) + "x outline.")
+        print("created component mask with: Expand = " + str(self.exp_cmp) + " and " + str(self.exp_out) + "x outline.")
 
         
     def process(self):
         print("Running mask script")
         self.processcomp()
         print("Completed")
-        
-    # boundary = gpd.GeoSeries(cmp_mask)
-    # outline = gpd.GeoSeries(cmp_outline)
-    # diff = gpd.GeoSeries(diff_poly)
-    
-                
-class generatepointmask():
-    def __init__(self,df,fs=(20,10)):
-        self.df = df
-        self.dbf = False #debug flag
-        self.fs = fs
-        
-    def maptopoints(self):
-        self.points = gpd.GeoDataFrame(self.df, geometry=gpd.points_from_xy(self.df.X, self.df.Y)).reset_index(drop=True)
-        self.points = self.points.geometry
-        if self.dbf == True:
-            print(self.points)
-        self.x = [p.coords.xy[0] for p in self.points]
-        self.y = [p.coords.xy[1] for p in self.points]
-        self.point_collection = sp.geometry.MultiPoint(list(self.points))
-        self.point_collection.envelope
-    
-    # def simpleconvexhull(self):
-    #     self.convex_hull_polygon = self.point_collection.convex_hull
-        
-    # def genalpha(self, alpha):
-    #     points = self.points
-    #     """
-    #     Compute the alpha shape (concave hull) of a set of points.
-
-    #     @param points: Iterable container of points.
-    #     @param alpha: alpha value to influence the gooeyness of the border. Smaller
-    #                 numbers don't fall inward as much as larger numbers. Too large,
-    #                 and you lose everything!
-    #     """
-    #     if len(points) < 4:
-    #         # When you have a triangle, there is no sense in computing an alpha
-    #         # shape.
-    #         return sp.geometry.MultiPoint(list(points)).convex_hull
-
-    #     def add_edge(edges, edge_points, coords, i, j):
-    #         """Add a line between the i-th and j-th points, if not in the list already"""
-    #         if (i, j) in edges or (j, i) in edges:
-    #             # already added
-    #             return
-    #         edges.add( (i, j) )
-    #         edge_points.append(coords[ [i, j] ])
-
-    #     coords = np.array([point.coords[0] for point in points])
-
-    #     tri = Delaunay(coords)
-    #     edges = set()
-    #     edge_points = []
-    #     # loop over triangles:
-    #     # ia, ib, ic = indices of corner points of the triangle
-    #     for ia, ib, ic in tri.vertices:
-    #         pa = coords[ia]
-    #         pb = coords[ib]
-    #         pc = coords[ic]
-
-    #         # Lengths of sides of triangle
-    #         a = math.sqrt((pa[0]-pb[0])**2 + (pa[1]-pb[1])**2)
-    #         b = math.sqrt((pb[0]-pc[0])**2 + (pb[1]-pc[1])**2)
-    #         c = math.sqrt((pc[0]-pa[0])**2 + (pc[1]-pa[1])**2)
-
-    #         # Semiperimeter of triangle
-    #         s = (a + b + c)/2.0
-
-    #         # Area of triangle by Heron's formula
-    #         area = math.sqrt(s*(s-a)*(s-b)*(s-c))
-    #         circum_r = a*b*c/(4.0*area)
-
-    #         # Here's the radius filter.
-    #         # print(circum_r)
-    #         if circum_r < 1000.0/alpha:
-    #             add_edge(edges, edge_points, coords, ia, ib)
-    #             add_edge(edges, edge_points, coords, ib, ic)
-    #             add_edge(edges, edge_points, coords, ic, ia)
-    #     m = sp.geometry.MultiLineString(edge_points)
-    #     triangles = list(polygonize(m))
-    #     self.concave_hull = unary_union(triangles)
-    #     self.edge_points = edge_points
-    #     self.plot_polygon(self.concave_hull)
-    #     return self.concave_hull, self.edge_points
-        
-    # def optimizealpha(self):
-    #     for i in range(10,13):
-    #         alpha = round((i+1)*.1,2)
-    #         print(alpha)
-    #         concave_hull, edge_points = self.genalpha(alpha)
-
-    #         #print concave_hull
-    #         lines = LineCollection(edge_points)
-    #         pl.figure(figsize=(20,10))
-    #         pl.title('Alpha={0} Delaunay triangulation'.format(alpha))
-    #         pl.gca().add_collection(lines)
-    #         delaunay_points = np.array([point.coords[0] for point in self.points])
-    #         pl.plot(delaunay_points[:,0], delaunay_points[:,1], 'o', color='#f13824')
-
-    #         _ = self.plot_polygon(concave_hull)
-            
-    # def drawverticies(self):
-    #         alpha = 1.3
-    #         lines = LineCollection(self.edge_points)
-    #         pl.figure(figsize=self.fs)
-    #         pl.title('Alpha={0} Delaunay triangulation'.format(alpha))
-    #         pl.gca().add_collection(lines)
-    #         delaunay_points = np.array([point.coords[0] for point in self.points])
-    #         pl.plot(delaunay_points[:,0], delaunay_points[:,1], 'o', color='#f13824')
-        
-    def process(self):
-        self.maptopoints()
-        #self.plot_points()
-        #self.simpleconvexhull()
-        #self.plot_polygon(self.point_collection.envelope)
-        #self.plot_polygon(self.convex_hull_polygon)
-        #self.optimizealpha()
-        self.concave_hull, self.edge_points = self.genalpha2(1.3)
-        #self.drawverticies()
-        
+               
 class plotfun():
-    
+    # Function to make plotting just a little easier as I am lazy
     def __init__(self,pg_cmp,diff_poly,fs=(20,10)):
         self.df = df
         self.dbf = False #debug flag
@@ -248,24 +141,27 @@ class plotfun():
         self.pg_cmp = pg_cmp
         self.diff_poly = diff_poly
         
-    def plot_polygon(self,data):
-        fig = pl.figure(figsize=self.fs)
-        ax = fig.add_subplot(111)
-        margin = 1
-        x_min, y_min, x_max, y_max = data.bounds
-        ax.set_xlim([x_min-margin, x_max+margin])
-        ax.set_ylim([y_min-margin, y_max+margin])
-        patch = PolygonPatch(data, fc='#999999', ec='#000000', fill=True, zorder=-1)
-        ax.add_patch(patch)
-        fig = pl.plot(self.x,self.y,'o', color='#f16824')
-        return fig
+    # def plot_polygon(self,data):
+    #     # Simple Function to plot polygons
+    #     fig = pl.figure(figsize=self.fs)
+    #     ax = fig.add_subplot(111)
+    #     margin = 1
+    #     x_min, y_min, x_max, y_max = data.bounds
+    #     ax.set_xlim([x_min-margin, x_max+margin])
+    #     ax.set_ylim([y_min-margin, y_max+margin])
+    #     patch = PolygonPatch(data, fc='#999999', ec='#000000', fill=True, zorder=-1)
+    #     ax.add_patch(patch)
+    #     fig = pl.plot(self.x,self.y,'o', color='#f16824')
+    #     return fig
     
-    def plot_points(self):
-        fig = pl.figure(figsize=self.fs)
-        fig = pl.plot(self.x,self.y,'o', color='#f16824')
-        return fig
+    # def plot_points(self):
+    #     # Simple function to plot points ()
+    #     fig = pl.figure(figsize=self.fs)
+    #     fig = pl.plot(self.x,self.y,'o', color='#f16824')
+    #     return fig
     
     def plot_results(self):
+        # Simple function to plot everything together - components & difference mask
         fig = pl.figure(figsize=self.fs)
         ax = fig.add_subplot(111)
         margin = 1
@@ -276,33 +172,41 @@ class plotfun():
         patch2 = PolygonPatch(unary_union(self.pg_cmp), fc='red', ec='#000000', fill=True, zorder=-1)
         ax.add_patch(patch1)
         ax.add_patch(patch2)
-        return fig
-        
-           
+        ax.set_title('Masky mask doing mask things')
+        # return fig
+    
+    # Temp
+    # boundary = gpd.GeoSeries(cmp_mask)
+    # outline = gpd.GeoSeries(cmp_outline)
+    # diff = gpd.GeoSeries(diff_poly)
+    
+class generatedxf():
+    def __init__():
+        print("derpyassmotherfucker")
+
+    
 #%%
 # Main script to run
-# fn = r"E:\Scripting\dxf\RPL_P682_BSR.dxf"
-fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
+fn = r"E:\Scripting\dxf\RPL_P682_BSR.dxf"
+# fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
 # fn = r"E:\Scripting\dxf\input_example.dxf"
 derp = loaddxf(fn)
 derp.process()
-df = derp.dfs
 herp = generatemasks(derp.pg_cmp)
 herp.process()
 meow = plotfun(derp.pg_cmp,herp.diff_mask)
 meow.plot_results()
 
-# Scratch pages for testing
-# # %%
+# %%
+for mask in diff_mask:
+    print(mask)
+    print(mask.area)
+# %%
 from shapelysmooth import chaikin_smooth
 #%%
-cmp_mask[0]
-smoothed_geometry = chaikin_smooth(cmp_mask[0], 5, keep_ends=False)
+smoothed_geometry = chaikin_smooth(pp, 5, keep_ends=False)
+# %%
+pp = diff_mask[3]
 # %%
 smoothed_geometry
-# # %%
-
-# %%
-for cmp in cmp_mask:
-    print(cmp.area)
 # %%
