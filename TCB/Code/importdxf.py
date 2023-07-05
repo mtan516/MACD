@@ -197,16 +197,16 @@ herp.process()
 meow = plotfun(derp.pg_cmp,herp.diff_mask)
 meow.plot_results()
 
-# %%
-for mask in diff_mask:
-    print(mask)
-    print(mask.area)
-# %%
-from shapelysmooth import chaikin_smooth
-#%%
-smoothed_geometry = chaikin_smooth(pp, 5, keep_ends=False)
-# %%
-pp = diff_mask[3]
-# %%
-smoothed_geometry
-# %%
+# # %%
+# for mask in diff_mask:
+#     print(mask)
+#     print(mask.area)
+# # %%
+# from shapelysmooth import chaikin_smooth
+# #%%
+# smoothed_geometry = chaikin_smooth(pp, 5, keep_ends=False)
+# # %%
+# pp = diff_mask[3]
+# # %%
+# smoothed_geometry
+# # %%
