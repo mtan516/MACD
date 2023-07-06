@@ -120,4 +120,63 @@ cmp_mask[0]
 smoothed_geometry = chaikin_smooth(meow, 5, keep_ends=False)
 # %%
 smoothed_geometry
-# # %%
+# %%
+import largestinteriorrectangle as lir
+import numpy as np
+
+grid = np.array([[0, 0, 1, 0, 0, 0, 0, 0, 0],
+                 [0, 0, 1, 0, 1, 1, 0, 0, 0],
+                 [0, 0, 1, 1, 1, 1, 1, 0, 0],
+                 [0, 0, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 0, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1, 1, 0, 0],
+                 [0, 0, 1, 1, 1, 1, 0, 0, 0],
+                 [0, 0, 1, 1, 1, 1, 0, 0, 0],
+                 [1, 1, 1, 1, 1, 1, 0, 0, 0],
+                 [1, 1, 0, 0, 0, 1, 1, 1, 1],
+                 [0, 0, 0, 0, 0, 0, 0, 0, 0]],
+                "bool")
+
+lir.lir(grid) # array([2, 2, 4, 7])
+# %%
+import cv2 as cv
+cv_grid = grid.astype("uint8") * 255
+contours, _ = \
+    cv.findContours(cv_grid, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+contour = contours[0][:, 0, :]
+# %%
+
+# %%
+from shapelysmooth import chaikin_smooth
+smoothed_geometry = chaikin_smooth(meow, 7, keep_ends=False)
+# %%
+smoothed_geometry
+# %%
+import largestinteriorrectangle as lir
+# %%
+diff_mask = herp.diff_mask
+dt = pd.DataFrame({"X":diff_mask[1].exterior.coords.xy[0], "Y":diff_mask[1].exterior.coords.xy[1]})
+dt['xy'] = dt.apply(lambda x: [x['X'], x['Y']], axis=1)
+dtnp = np.array(dt['xy'].tolist(),np.int32)
+# %%
+lir.lir(npar)
+# %%
+for msk in diff_mask:
+    msk.simplify(tolerance=0.3)
+    msk
+# %%
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+CH = ConvexHull(diff_mask[3].exterior.coords)
+# %%
+def plot_polygon(data):
+    # Simple Function to plot polygons
+    fig = pl.figure(figsize=(20,10))
+    ax = fig.add_subplot(111)
+    margin = 1
+    x_min, y_min, x_max, y_max = data.bounds
+    ax.set_xlim([x_min-margin, x_max+margin])
+    ax.set_ylim([y_min-margin, y_max+margin])
+    patch = PolygonPatch(data, fc='#999999', ec='#000000', fill=True, zorder=-1)
+    ax.add_patch(patch)
+    fig = pl.plot(self.x,self.y,'o', color='#f16824')
+    return fig

@@ -223,10 +223,3 @@ if __name__ == "__main__":
     # %%
     woof = generatedxf(fn,herp.cmp_mask,herp.diff_mask)
     woof.process()
-
-# %%
-from shapelysmooth import chaikin_smooth
-smoothed_geometry = chaikin_smooth(meow, 7, keep_ends=False)
-# %%
-smoothed_geometry
-# %%
