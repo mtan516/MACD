@@ -1,3 +1,22 @@
+# %%
+import JigStreet as mf
+# %%
+fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
+# fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
+# fn = r"E:\Scripting\dxf\input_example.dxf"
+derp = mf.loaddxf(fn)
+derp.process()
+# %%
+herp = mf.generatemasks(derp.pg_cmp,.5,1)
+herp.process()
+# %%
+meow = mf.plotfun(derp.pg_cmp,herp.diff_mask)
+meow.plot_results()
+# %%
+woof = mf.generatedxf(fn,herp.cmp_mask,herp.diff_mask)
+woof.process()
+
+# %%
 # Not used in final version but may be useful in the future# class generatepointmask():
     
     

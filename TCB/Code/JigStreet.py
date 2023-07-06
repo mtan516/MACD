@@ -103,7 +103,7 @@ class generatemasks():
     # Class used to generate a mask
     def __init__(self,cmp,exp_cmp=500,exp_out=1.25):
         # Initialize some variables
-        self.df = df
+        # self.df = df
         self.dbf = False #debug flag
         self.cmp = cmp
         # Variable to expand components - polygons are extended with a buffer function - magnitude
@@ -136,7 +136,7 @@ class generatemasks():
 class plotfun():
     # Function to make plotting just a little easier as I am lazy
     def __init__(self,pg_cmp,diff_poly,fs=(20,10)):
-        self.df = df
+        # self.df = df
         self.dbf = False #debug flag
         self.fs = fs
         self.pg_cmp = pg_cmp
