@@ -117,7 +117,7 @@
 from shapelysmooth import chaikin_smooth
 #%%
 cmp_mask[0]
-smoothed_geometry = chaikin_smooth(cmp_mask[0], 5, keep_ends=False)
+smoothed_geometry = chaikin_smooth(meow, 5, keep_ends=False)
 # %%
 smoothed_geometry
 # # %%
