@@ -12,7 +12,8 @@ from shapely.ops import unary_union, polygonize
 from descartes import PolygonPatch
 # Plotting
 import pylab as pl
-
+# Misc
+import os
 
 # %%
 class loaddxf():
@@ -61,14 +62,14 @@ class loaddxf():
         CX,CY = [],[]
         for comp in self.components:
             # Identify point# 1 - bottom left corner
-            P1X.append(round(comp[0][0],0))
-            P1Y.append(round(comp[0][1],0))
-            P3X.append(round(comp[2][0],0))
-            P3Y.append(round(comp[2][1],0))
-            P2X.append(round(comp[1][0],0))
-            P2Y.append(round(comp[1][1],0))
-            P4X.append(round(comp[3][0],0))
-            P4Y.append(round(comp[3][1],0))
+            P1X.append(round(comp[0][0],2))
+            P1Y.append(round(comp[0][1],2))
+            P3X.append(round(comp[2][0],2))
+            P3Y.append(round(comp[2][1],2))
+            P2X.append(round(comp[1][0],2))
+            P2Y.append(round(comp[1][1],2))
+            P4X.append(round(comp[3][0],2))
+            P4Y.append(round(comp[3][1],2))
         DX = np.subtract(P3X, P1X)
         DY = np.subtract(P3Y, P1Y)
         CX = np.add(P1X,DX/2)
@@ -118,8 +119,8 @@ class generatemasks():
         # Combine all smaller polygons & expand with exp_cmp
         cmp_mask = unary_union([x.buffer(self.exp_cmp) for x in self.cmp])
         # Create an outline using the cmp_mask X&Y Min/Max values
-        cmp_outline = spg.box(cmp_mask.bounds[0]*self.exp_out,cmp_mask.bounds[1]*self.exp_out,
-                        cmp_mask.bounds[2]*self.exp_out,cmp_mask.bounds[3]*self.exp_out)#.buffer(1500)
+        cmp_outline = spg.box(cmp_mask.bounds[0]-self.exp_out,cmp_mask.bounds[1]-self.exp_out,
+                        cmp_mask.bounds[2]+self.exp_out,cmp_mask.bounds[3]+self.exp_out)#.buffer(1500)
         self.cmp_mask = cmp_mask
         self.cmp_out = cmp_outline
         # Create a difference mask between outline & smaller polygons
@@ -181,32 +182,51 @@ class plotfun():
     # diff = gpd.GeoSeries(diff_poly)
     
 class generatedxf():
-    def __init__():
-        print("derpyassmotherfucker")
-
+    def __init__(self,fn,cmp_mask,diff_mask):
+        self.outfile = os.path.splitext(fn)[0]+"_jigstreet.dxf"
+        self.cmp_mask = cmp_mask
+        self.diff_mask = diff_mask
     
-#%%
-# Main script to run
-fn = r"E:\Scripting\dxf\RPL_P682_BSR.dxf"
-# fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
-# fn = r"E:\Scripting\dxf\input_example.dxf"
-derp = loaddxf(fn)
-derp.process()
-herp = generatemasks(derp.pg_cmp)
-herp.process()
-meow = plotfun(derp.pg_cmp,herp.diff_mask)
-meow.plot_results()
+    def addoutline(self):
+        for thispoly in self.cmp_mask:
+            dt = pd.DataFrame({"X":thispoly.exterior.coords.xy[0], "Y":thispoly.exterior.coords.xy[1]})
+            dt['xy'] = dt.apply(lambda x: (x['X'], x['Y']), axis=1)
+            self.msp.add_lwpolyline(dt['xy'].tolist())
+    
+    def addholes(self):
+        for thispoly in self.diff_mask:
+            dt = pd.DataFrame({"X":thispoly.exterior.coords.xy[0], "Y":thispoly.exterior.coords.xy[1]})
+            dt['xy'] = dt.apply(lambda x: (x['X'], x['Y']), axis=1)
+            self.msp.add_lwpolyline(dt['xy'].tolist())
 
-# # %%
-# for mask in diff_mask:
-#     print(mask)
-#     print(mask.area)
-# # %%
-# from shapelysmooth import chaikin_smooth
-# #%%
-# smoothed_geometry = chaikin_smooth(pp, 5, keep_ends=False)
-# # %%
-# pp = diff_mask[3]
-# # %%
-# smoothed_geometry
-# # %%
+    def process(self):
+        self.doc = ez.readfile(fn)
+        self.msp = self.doc.modelspace()
+        self.doc.layers.new("JIG_STREET")
+        self.addoutline()
+        self.addholes()
+        self.doc.saveas(self.outfile)
+        print("Saved "+ str(self.outfile))   
+#%%
+if __name__ == "__main__":
+    # Main script to run
+    fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
+    # fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
+    # fn = r"E:\Scripting\dxf\input_example.dxf"
+    derp = loaddxf(fn)
+    derp.process()
+    # %%
+    herp = generatemasks(derp.pg_cmp,.5,1)
+    herp.process()
+    meow = plotfun(derp.pg_cmp,herp.diff_mask)
+    meow.plot_results()
+    # %%
+    woof = generatedxf(fn,herp.cmp_mask,herp.diff_mask)
+    woof.process()
+
+# %%
+from shapelysmooth import chaikin_smooth
+smoothed_geometry = chaikin_smooth(meow, 7, keep_ends=False)
+# %%
+smoothed_geometry
+# %%
