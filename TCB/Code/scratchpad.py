@@ -1,4 +1,20 @@
-# %%
+#%%
+# Created 7/5/2023 by Michael Tan & Josh Green
+# Utilized for importing DXF shapes (curated file), generating a mask, than outputting a dxf
+# Parsing DXF
+import ezdxf as ez
+# Maths
+import numpy as np
+import pandas as pd
+# Shapes
+import shapely.geometry as spg
+from shapely.ops import unary_union, polygonize
+from descartes import PolygonPatch
+from shapely import affinity
+# Plotting
+import pylab as pl
+# Misc
+import os
 import JigStreet as mf
 # %%
 fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
@@ -7,7 +23,7 @@ fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
 derp = mf.loaddxf(fn)
 derp.process()
 # %%
-herp = mf.generatemasks(derp.pg_cmp,.5,1)
+herp = mf.generatemasks(derp.pg_cmp,.46,1)
 herp.process()
 # %%
 meow = mf.plotfun(derp.pg_cmp,herp.diff_mask)
@@ -16,6 +32,33 @@ meow.plot_results()
 woof = mf.generatedxf(fn,herp.cmp_mask,herp.diff_mask)
 woof.process()
 
+# %%
+pgroup = [x.envelope for x in herp.diff_mask[1:]]
+# %%
+diff_mask = herp.diff_mask
+def unroundpoly(diff_mask):
+    
+    plist = []
+    nopelist = []
+    
+    for x in diff_mask:
+        if (x.area / x.envelope.area) > .5:
+            # plist.append(x.envelope.buffer(-.25))
+            
+        else:
+            nopelist.append(x)
+            # print(str(x))+" not squared due to high area"
+    
+    print("unrounded")
+    
+    return plist,nopelist
+# %%
+hachi,kiska = unroundpoly(diff_mask)
+plist = spg.MultiPolygon(kiska+hachi)       
+#%%        
+meow = mf.plotfun(derp.pg_cmp,plist)
+meow.plot_results()
+# %%
 # %%
 # Not used in final version but may be useful in the future# class generatepointmask():
     

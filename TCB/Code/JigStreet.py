@@ -10,10 +10,12 @@ import pandas as pd
 import shapely.geometry as spg
 from shapely.ops import unary_union, polygonize
 from descartes import PolygonPatch
+from shapely import affinity
 # Plotting
 import pylab as pl
 # Misc
 import os
+import statistics
 
 # %%
 class loaddxf():
@@ -101,9 +103,8 @@ class loaddxf():
         
 class generatemasks():
     # Class used to generate a mask
-    def __init__(self,cmp,exp_cmp=500,exp_out=1.25):
+    def __init__(self,cmp,exp_cmp=1,exp_out=1.25):
         # Initialize some variables
-        # self.df = df
         self.dbf = False #debug flag
         self.cmp = cmp
         # Variable to expand components - polygons are extended with a buffer function - magnitude
@@ -111,21 +112,43 @@ class generatemasks():
         # Variable to expand outline - simple scaler/multiplier
         self.exp_out = exp_out
     
-    def processcomp(self):
+    def processcomp(self,expopt=True):
         # Create 3 masks: 
             # cmp_mask: component mask
             # cmp_out: component outline
             # diff_mask: Mask of the difference between outline & mask
         # Combine all smaller polygons & expand with exp_cmp
-        cmp_mask = unary_union([x.buffer(self.exp_cmp) for x in self.cmp])
-        # Create an outline using the cmp_mask X&Y Min/Max values
-        cmp_outline = spg.box(cmp_mask.bounds[0]-self.exp_out,cmp_mask.bounds[1]-self.exp_out,
-                        cmp_mask.bounds[2]+self.exp_out,cmp_mask.bounds[3]+self.exp_out)#.buffer(1500)
-        self.cmp_mask = cmp_mask
-        self.cmp_out = cmp_outline
-        # Create a difference mask between outline & smaller polygons
-        self.diff_mask = cmp_outline.difference(cmp_mask)
-        print("created component mask with: Expand = " + str(self.exp_cmp) + " and " + str(self.exp_out) + "x outline.")
+        if expopt == True:
+            for i in np.arange(0.1, 0.8, 0.1):          
+                pgroup = [x.buffer(i,8,2).envelope for x in self.cmp]
+                cmp_mask = unary_union(pgroup)
+                cmp_outline = spg.box(cmp_mask.bounds[0]-self.exp_out,cmp_mask.bounds[1]-self.exp_out,
+                    cmp_mask.bounds[2]+self.exp_out,cmp_mask.bounds[3]+self.exp_out)#.buffer(1500)
+                self.cmp_mask = cmp_mask
+                self.cmp_out = cmp_outline
+                # Create a difference mask between outline & smaller polygons
+                self.diff_mask = cmp_outline.difference(cmp_mask)
+                parea = [x.area for x in self.diff_mask]
+                print("Loop at " + str(i))
+                print(str(statistics.median(parea)))
+                if statistics.median(parea) >=1:
+                    print("Minimum small features detected. Buffer = "+str(i))
+                    print(str(parea))
+                    self.diff_mask = spg.MultiPolygon(list(filter(lambda x: x.area> 1, self.diff_mask)))
+                    break
+
+                
+        else:
+            pgroup = [x.buffer(self.exp_cmp).envelope.simplify(1) for x in self.cmp]
+            cmp_mask = unary_union(pgroup)
+            # Create an outline using the cmp_mask X&Y Min/Max values
+            cmp_outline = spg.box(cmp_mask.bounds[0]-self.exp_out,cmp_mask.bounds[1]-self.exp_out,
+                            cmp_mask.bounds[2]+self.exp_out,cmp_mask.bounds[3]+self.exp_out)#.buffer(1500)
+            self.cmp_mask = cmp_mask
+            self.cmp_out = cmp_outline
+            # Create a difference mask between outline & smaller polygons
+            self.diff_mask = cmp_outline.difference(cmp_mask)
+            print("created component mask with: Expand = " + str(self.exp_cmp) + " and " + str(self.exp_out) + "x outline.")
 
         
     def process(self):
@@ -136,7 +159,6 @@ class generatemasks():
 class plotfun():
     # Function to make plotting just a little easier as I am lazy
     def __init__(self,pg_cmp,diff_poly,fs=(20,10)):
-        # self.df = df
         self.dbf = False #debug flag
         self.fs = fs
         self.pg_cmp = pg_cmp
@@ -215,7 +237,6 @@ if __name__ == "__main__":
     # fn = r"E:\Scripting\dxf\input_example.dxf"
     derp = loaddxf(fn)
     derp.process()
-    # %%
     herp = generatemasks(derp.pg_cmp,.5,1)
     herp.process()
     meow = plotfun(derp.pg_cmp,herp.diff_mask)
@@ -223,3 +244,5 @@ if __name__ == "__main__":
     # %%
     woof = generatedxf(fn,herp.cmp_mask,herp.diff_mask)
     woof.process()
+
+# %%
