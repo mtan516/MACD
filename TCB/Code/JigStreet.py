@@ -245,4 +245,4 @@ if __name__ == "__main__":
     woof = generatedxf(fn,herp.cmp_mask,herp.diff_mask)
     woof.process()
 
-# %%
+ # %%

@@ -16,8 +16,12 @@ import pylab as pl
 # Misc
 import os
 import JigStreet as mf
+
 # %%
-fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
+root = r"E:\Scripting\MACD\MACD\TCB"
+dwgs = os.listdir(os.path.join(root,"Examples"))
+# %%
+fn = r"RPL_P682_BSR Scaled.dxf"
 # fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
 # fn = r"E:\Scripting\dxf\input_example.dxf"
 derp = mf.loaddxf(fn)
