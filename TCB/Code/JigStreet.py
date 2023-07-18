@@ -112,7 +112,7 @@ class generatemasks():
         # Variable to expand outline - simple scaler/multiplier
         self.exp_out = exp_out
     
-    def processcomp(self,expopt=True):
+    def processcomp(self,expopt=False):
         # Create 3 masks: 
             # cmp_mask: component mask
             # cmp_out: component outline
@@ -232,17 +232,18 @@ class generatedxf():
 #%%
 if __name__ == "__main__":
     # Main script to run
-    fn = r"E:\Scripting\MACD\MACD\TCB\Examples\RPL_P682_BSR Scaled.dxf"
+    fn = r"E:\Scripting\MACD\MACD\TCB\Examples\M54481-001_BSR_r01-Scaled.dxf"
     # fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
     # fn = r"E:\Scripting\dxf\input_example.dxf"
     derp = loaddxf(fn)
     derp.process()
-    herp = generatemasks(derp.pg_cmp,.5,1)
-    herp.process()
-    meow = plotfun(derp.pg_cmp,herp.diff_mask)
+    masks = generatemasks(derp.pg_cmp,.75,1)
+    masks.process()
+    meow = plotfun(derp.pg_cmp,masks.diff_mask,(10,20))
     meow.plot_results()
     # %%
-    woof = generatedxf(fn,herp.cmp_mask,herp.diff_mask)
+    woof = generatedxf(fn,masks.cmp_mask,masks.diff_mask)
     woof.process()
 
  # %%
+masks.cmp_mask[1]
