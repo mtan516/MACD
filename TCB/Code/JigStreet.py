@@ -78,6 +78,15 @@ class loaddxf():
         CY = np.add(P1Y,DY/2)
         # One DF with centers and corners
         self.df = pd.DataFrame({"CNAME":self.cnames,"X":CX,"Y":CY,"P1X":P1X,"P1Y":P1Y,"P3X":P3X,"P3Y":P3Y})
+        print("did it save?")
+        self.df_full = pd.DataFrame({"CNAME":self.cnames,"X":CX,"Y":CY,"P1X":P1X,"P1Y":P1Y,
+                                     "P2X":P2X,"P2Y":P2Y,
+                                     "P3X":P3X,"P3Y":P3Y,
+                                     "P4X":P4X,"P4Y":P4Y})
+        df_m1 = pd.melt(self.df_full, id_vars=['CNAME'], value_vars=['P1X', 'P2X', "P3X", "P4X"], value_name = "X")
+        df_m2 = pd.melt(self.df_full, id_vars=['CNAME'], value_vars=['P1Y', 'P2Y', "P3Y", "P4Y"], value_name = "Y")
+        self.df_melt = pd.concat([df_m1,df_m2],axis=1)
+        self.df_points = self.df_melt[['X','Y']].values.tolist()
         # self.dfs = pd.concat([pd.DataFrame({"X":P1X,"Y":P1Y}), pd.DataFrame({"X":P2X,"Y":P2Y}), pd.DataFrame({"X":P3X,"Y":P3Y}),
         #                         pd.DataFrame({"X":P4X,"Y":P4Y})]).reset_index(drop=True)
         # self.dfs = self.dfs.mul(self.poversize)
@@ -246,4 +255,3 @@ if __name__ == "__main__":
     woof.process()
 
  # %%
-masks.cmp_mask[1]

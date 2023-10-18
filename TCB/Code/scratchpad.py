@@ -21,7 +21,7 @@ import JigStreet as mf
 root = r"E:\Scripting\MACD\MACD\TCB"
 dwgs = os.listdir(os.path.join(root,"Examples"))
 # %%
-fn = r"RPL_P682_BSR Scaled.dxf"
+fn = r"E:\Scripting\MACD\MACD\TCB\Examples\M25268-001_BSR_LLT_r02-Scaled.dxf"
 # fn = r"E:\Scripting\dxf\M86710-001_BSR_Cleaned Up.dxf"
 # fn = r"E:\Scripting\dxf\input_example.dxf"
 derp = mf.loaddxf(fn)
@@ -35,6 +35,16 @@ meow.plot_results()
 # %%
 woof = mf.generatedxf(fn,herp.cmp_mask,herp.diff_mask)
 woof.process()
+# %%
+import matplotlib.pyplot as plt
+# %%
+fig, ax = plt.subplots()
+ax.scatter(x=dt.X,y=dt.Y)
+
+
+
+
+
 
 # %%
 pgroup = [x.envelope for x in herp.diff_mask[1:]]
