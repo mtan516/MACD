@@ -190,7 +190,46 @@ class plotfun():
     def process(self):
         self.plotstuff()
 
-def processjigstreet(fn):
+class generatedxf():
+    def __init__(self,fn,raw_cmp_mask,bff_cmp_mask,interior_sup_mask):
+        self.fn = fn
+        self.outfile = os.path.splitext(self.fn)[0]+"_jigstreet.dxf"
+        self.raw_cmp_mask = raw_cmp_mask
+        self.bff_cmp_mask = bff_cmp_mask
+        self.interior_sup_mask = interior_sup_mask
+    
+    def addtodxf(self, pgroup):
+        if pgroup.geom_type == 'Polygon':
+            print("found polygon to add")
+            dt = pd.DataFrame({"X":pgroup.exterior.coords.xy[0], "Y":pgroup.exterior.coords.xy[1]})
+            dt['xy'] = dt.apply(lambda x: (x['X'], x['Y']), axis=1)
+            self.msp.add_lwpolyline(dt['xy'].tolist())
+        elif pgroup.geom_type == 'MultiPolygon':
+            print("found multi-polygon to add")
+            for thispoly in pgroup:
+                dt = pd.DataFrame({"X":thispoly.exterior.coords.xy[0], "Y":thispoly.exterior.coords.xy[1]})
+                dt['xy'] = dt.apply(lambda x: (x['X'], x['Y']), axis=1)
+                self.msp.add_lwpolyline(dt['xy'].tolist())
+        else:
+            print("Neither polygon nor multi-polygon. Cannot create jig file")
+
+    def process(self):
+        self.doc = ez.readfile(self.fn)
+        self.msp = self.doc.modelspace()
+        self.doc.layers.new("JIG_STREET")
+        # self.addtodxf(self.raw_cmp_mask)
+        try:
+            self.addtodxf(self.bff_cmp_mask)
+        except:
+            print("No bounding feature found")
+        try:
+            self.addtodxf(self.interior_sup_mask)
+        except:
+            print("No interior features found")
+        self.doc.saveas(self.outfile)
+        print("Saved "+ str(self.outfile))   
+
+def processjigstreet(fn, cmargin=0.65):
     print("loading a single file")
     root = r"E:\Scripting\MACD\MACD\TCB"
     dxf = fn
@@ -200,22 +239,26 @@ def processjigstreet(fn):
     rawdxf.process()
     print(rawdxf.pkgout)
     print("Generated pg_cmp, df, df_melt, and df_points")
-    maskset = generatemasks(rawdxf.pg_cmp)
+    maskset = generatemasks(rawdxf.pg_cmp,cmargin)
     maskset.process()
     plotme = plotfun(rawdxf.pkgout,maskset.raw_cmp_mask, maskset.bff_cmp_mask, maskset.interior_sup_mask)
     plotme.process()
+    outdxf = generatedxf(dxffile,maskset.raw_cmp_mask, maskset.bff_cmp_mask, maskset.interior_sup_mask)
+    outdxf.process()
+
+
 # %%
-root = r"E:\Scripting\MACD\MACD\TCB"
-dxfs = []
-for file in os.listdir(os.path.join(root,"Examples")):
-    if file.endswith(".dxf"):
-        dxfs.append(os.path.join(root,"Examples",file))
-print(dxfs)
-for dxf in dxfs:
-    try:
-        processjigstreet(dxf)
-    except:
-        print("\n" + dxf + " had some issues ... moving on" + "\n")
-# derp = processjigstreet("M54481-001_BSR_r01-Scaled.dxf")
+# root = r"E:\Scripting\MACD\MACD\TCB"
+# dxfs = []
+# for file in os.listdir(os.path.join(root,"Examples")):
+#     if file.endswith(".dxf"):
+#         dxfs.append(os.path.join(root,"Examples",file))
+# print(dxfs)
+# for dxf in dxfs:
+#     try:
+#         processjigstreet(dxf)
+#     except:
+#         print("\n" + dxf + " had some issues ... moving on" + "\n")
+# # derp = processjigstreet("M54481-001_BSR_r01-Scaled.dxf")
 
 # %%

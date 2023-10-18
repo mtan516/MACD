@@ -2,7 +2,7 @@
 import os
 import wx
 import wx.lib.agw.multidirdialog as MDD
-import JigStreet_Rev1.0.py
+import JigStreet_Rev1 as js
 
 wildcard = "dxf (*.dxf)|*.dxf|" \
             "All files (*.*)|*.*"
@@ -28,10 +28,12 @@ class MyForm(wx.Frame):
         self.txt = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, value = "0.65")
         
         # Button to run
-        
         self.runJig = wx.Button(panel, label="Run the Script with selected file")
         self.runJig.Bind(wx.EVT_BUTTON, self.runscript)
         
+        # Button to export
+        # self.expJig = wx.Button(panel, label="Export to dxf")
+        # self.runJig.Bind(wx.EVT_BUTTON, self.exportdxf)
         
         # put the buttons in a sizer
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -73,9 +75,11 @@ class MyForm(wx.Frame):
         print(self.paths)
         cmargin = float(self.txt.GetValue())
         print(str(cmargin))
+        js.processjigstreet(self.paths[0], cmargin)
         
     # #----------------------------------------------------------------------
-
+    
+        
 
         
 #----------------------------------------------------------------------
