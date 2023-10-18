@@ -163,12 +163,13 @@ class generatemasks():
 
 class plotfun():
     
-    def __init__(self,raw_cmp_mask, bff_cmp_mask, interior_sup_mask):
+    def __init__(self,pkgout,raw_cmp_mask, bff_cmp_mask, interior_sup_mask):
         # Initialize some variables
         self.dbf = False #debug flag
         self.raw_cmp_mask = raw_cmp_mask
         self.bff_cmp_mask = bff_cmp_mask
         self.interior_sup_mask = interior_sup_mask
+        self.pkgout = pkgout
     
     def plotstuff(self):
         for geom in self.raw_cmp_mask.geoms:
@@ -181,6 +182,7 @@ class plotfun():
         if self.interior_sup_mask is not False:
             for geom in self.interior_sup_mask.geoms:
                 plt.plot(*geom.exterior.xy)
+        plt.plot(*self.pkgout.exterior.xy)
         # Set (current) axis to be equal before showing plot
         plt.gca().axis("equal")
         plt.show()
@@ -196,19 +198,24 @@ def processjigstreet(fn):
     print("File to process: " + dxffile)
     rawdxf = loaddxf(dxffile,scaledrawing=1)
     rawdxf.process()
+    print(rawdxf.pkgout)
     print("Generated pg_cmp, df, df_melt, and df_points")
     maskset = generatemasks(rawdxf.pg_cmp)
     maskset.process()
-    plotme = plotfun(maskset.raw_cmp_mask, maskset.bff_cmp_mask, maskset.interior_sup_mask)
+    plotme = plotfun(rawdxf.pkgout,maskset.raw_cmp_mask, maskset.bff_cmp_mask, maskset.interior_sup_mask)
     plotme.process()
 # %%
 root = r"E:\Scripting\MACD\MACD\TCB"
-dxfs = os.listdir(os.path.join(root,"Examples"))
+dxfs = []
+for file in os.listdir(os.path.join(root,"Examples")):
+    if file.endswith(".dxf"):
+        dxfs.append(os.path.join(root,"Examples",file))
+print(dxfs)
 for dxf in dxfs:
     try:
         processjigstreet(dxf)
     except:
-        print(dxf + " had some issues ... moving on")
+        print("\n" + dxf + " had some issues ... moving on" + "\n")
 # derp = processjigstreet("M54481-001_BSR_r01-Scaled.dxf")
 
 # %%
