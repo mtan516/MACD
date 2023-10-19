@@ -185,6 +185,7 @@ class plotfun():
         plt.plot(*self.pkgout.exterior.xy)
         # Set (current) axis to be equal before showing plot
         plt.gca().axis("equal")
+        print("CLOSE PLOT TO CONTINUE TO GENERATE FILE")
         plt.show()
     
     def process(self):
@@ -231,14 +232,14 @@ class generatedxf():
 
 def processjigstreet(fn, cmargin=0.65):
     print("loading a single file")
-    root = r"E:\Scripting\MACD\MACD\TCB"
-    dxf = fn
-    dxffile = os.path.join(root,"Examples",dxf)
-    print("File to process: " + dxffile)
+    # root = r"E:\Scripting\MACD\MACD\TCB"
+    # dxf = fn
+    # dxffile = os.path.join(root,"Examples",dxf)
+    dxffile = fn
+    # print("File to process: " + dxffile)
     rawdxf = loaddxf(dxffile,scaledrawing=1)
     rawdxf.process()
-    print(rawdxf.pkgout)
-    print("Generated pg_cmp, df, df_melt, and df_points")
+    print("\nGenerated pg_cmp, df, df_melt, and df_points\n")
     maskset = generatemasks(rawdxf.pg_cmp,cmargin)
     maskset.process()
     plotme = plotfun(rawdxf.pkgout,maskset.raw_cmp_mask, maskset.bff_cmp_mask, maskset.interior_sup_mask)

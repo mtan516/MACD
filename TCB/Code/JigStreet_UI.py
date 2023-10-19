@@ -1,5 +1,5 @@
 # %%
-import os
+import os, sys
 import wx
 import wx.lib.agw.multidirdialog as MDD
 import JigStreet_Rev1 as js
@@ -9,6 +9,13 @@ wildcard = "dxf (*.dxf)|*.dxf|" \
 
 # %%
 ########################################################################
+class RedirectText(object):
+    def __init__(self,aWxTextCtrl):
+        self.out = aWxTextCtrl
+
+    def write(self,string):
+        self.out.WriteText(string)
+        
 class MyForm(wx.Frame):
  
     #----------------------------------------------------------------------
@@ -31,9 +38,10 @@ class MyForm(wx.Frame):
         self.runJig = wx.Button(panel, label="Run the Script with selected file")
         self.runJig.Bind(wx.EVT_BUTTON, self.runscript)
         
-        # Button to export
-        # self.expJig = wx.Button(panel, label="Export to dxf")
-        # self.runJig.Bind(wx.EVT_BUTTON, self.exportdxf)
+        # logger
+        self.log = wx.TextCtrl(panel, -1, size=(500, 250), style=wx.TE_MULTILINE|wx.TE_READONLY|wx.HSCROLL)
+        redir = RedirectText(self.log)
+        sys.stdout = redir
         
         # put the buttons in a sizer
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -41,6 +49,7 @@ class MyForm(wx.Frame):
         sizer.Add(self.label, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.txt, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.runJig, 1, wx.ALL|wx.CENTER, 5)
+        sizer.Add(self.log, 1, wx.ALL|wx.CENTER, 5)
 
         # sizer.Add(saveFileDlgBtn, 0, wx.ALL|wx.CENTER, 5)
         # sizer.Add(dirDlgBtn, 0, wx.ALL|wx.CENTER, 5)
@@ -62,20 +71,19 @@ class MyForm(wx.Frame):
             # style=wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_CHANGE_DIR
             )
         if dlg.ShowModal() == wx.ID_OK:
-            self.paths = dlg.GetPaths()
-            print("You chose the following file(s):")
-            for path in self.paths:
-                print(path)
+            print("You chose the following file:")
+            self.path = dlg.GetPath()
+            print(self.path)
+            # for path in self.paths:
+            #     print(path)
         dlg.Destroy()
-        print("Add script execution step here next")
-        print(str(self.txt.GetValue()))
         
     # #----------------------------------------------------------------------
     def runscript(self,event):
-        print(self.paths)
+        print(self.path)
         cmargin = float(self.txt.GetValue())
-        print(str(cmargin))
-        js.processjigstreet(self.paths[0], cmargin)
+        print(str(cmargin) + " is the component boundary box expand multiplier.")
+        js.processjigstreet(self.path, cmargin)
         
     # #----------------------------------------------------------------------
     
