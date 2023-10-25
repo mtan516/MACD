@@ -203,20 +203,20 @@ class generatedxf():
             print("found polygon to add")
             dt = pd.DataFrame({"X":pgroup.exterior.coords.xy[0], "Y":pgroup.exterior.coords.xy[1]})
             dt['xy'] = dt.apply(lambda x: (x['X']*1000, x['Y']*1000), axis=1)
-            self.msp.add_lwpolyline(dt['xy'].tolist())
+            self.msp.add_lwpolyline(dt['xy'].tolist(), dxfattribs={"layer": "jigstreet"})
         elif pgroup.geom_type == 'MultiPolygon':
             print("found multi-polygon to add")
             for thispoly in pgroup:
                 dt = pd.DataFrame({"X":thispoly.exterior.coords.xy[0], "Y":thispoly.exterior.coords.xy[1]})
                 dt['xy'] = dt.apply(lambda x: (x['X']*1000, x['Y']*1000), axis=1)
-                self.msp.add_lwpolyline(dt['xy'].tolist())
+                self.msp.add_lwpolyline(dt['xy'].tolist(), dxfattribs={"layer": "jigstreet"})
         else:
             print("Neither polygon nor multi-polygon. Cannot create jig file")
 
     def process(self):
         self.doc = ez.readfile(self.fn)
         self.msp = self.doc.modelspace()
-        self.doc.layers.new("JIG_STREET")
+        self.doc.layers.new("jigstreet")
         # self.addtodxf(self.raw_cmp_mask)
         try:
             self.addtodxf(self.bff_cmp_mask)

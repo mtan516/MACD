@@ -36,15 +36,21 @@ class MyForm(wx.Frame):
         self.label = wx.StaticText(panel, label="Input the desired component margin")
         self.txt = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, value = "0.65")
         
+        #create input for scaling
+        self.scaler = wx.CheckBox(panel, label="Scale")
+        self.scaler.SetValue(True)
+        # self.check_box.Bind(wx.EVT_CHECKBOX, self.on_check_box_change)
+
+        
         # Button to run
-        self.runJigraw = wx.Button(panel, label="Run the Script with selected raw dxf file")
+        self.runJigraw = wx.Button(panel, label="Run the Script with selected dxf file")
         self.runJigraw.Bind(wx.EVT_BUTTON, self.runscriptraw)
-        self.runJig = wx.Button(panel, label="Run the Script with selected scaled file")
-        self.runJig.Bind(wx.EVT_BUTTON, self.runscript)
+        # self.runJig = wx.Button(panel, label="Run the Script with selected scaled file")
+        # self.runJig.Bind(wx.EVT_BUTTON, self.runscript)
 
         
         # logger
-        self.log = wx.TextCtrl(panel, -1, size=(500, 500), style=wx.TE_MULTILINE|wx.TE_READONLY|wx.HSCROLL)
+        self.log = wx.TextCtrl(panel, size=(800, 700), style=wx.TE_MULTILINE|wx.TE_READONLY)
         redir = RedirectText(self.log)
         sys.stdout = redir
         
@@ -53,10 +59,11 @@ class MyForm(wx.Frame):
         sizer.Add(openFileDlgBtn, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.label, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.txt, 0, wx.ALL|wx.CENTER, 5)
+        sizer.Add(self.scaler, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.runJigraw, 1, wx.ALL|wx.CENTER, 5)
-        sizer.Add(self.runJig, 1, wx.ALL|wx.CENTER, 5)
+        # sizer.Add(self.runJig, 1, wx.ALL|wx.CENTER, 5)
 
-        sizer.Add(self.log, 1, wx.ALL|wx.CENTER, 5)
+        sizer.Add(self.log, 1, wx.ALL|wx.CENTER, 10)
 
         # sizer.Add(saveFileDlgBtn, 0, wx.ALL|wx.CENTER, 5)
         # sizer.Add(dirDlgBtn, 0, wx.ALL|wx.CENTER, 5)
@@ -96,8 +103,13 @@ class MyForm(wx.Frame):
     def runscriptraw(self,event):
         print(self.path)
         cmargin = float(self.txt.GetValue())
+        scaletf = self.scaler.GetValue()
+        print("Scale is set to :" + str(scaletf))
         print(str(cmargin) + " is the component boundary box expand multiplier.")
-        js2.processjigstreetraw(self.path, cmargin)
+        if scaletf:
+            js2.processjigstreetraw(self.path, cmargin)
+        else:
+            js.processjigstreet(self.path,cmargin)
         
 
         
