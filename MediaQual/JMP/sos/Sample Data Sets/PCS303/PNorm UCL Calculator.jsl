@@ -1,0 +1,62 @@
+//********************************************************
+//	Title: PNorm UCL Calculator                           
+//	Author: Sherstin Mortensen
+//	Revision: 0
+//	Date: 11/6/2014
+//	JMP Version: 11.2.0 and beyond
+//********************************************************/
+
+
+
+/**********************Variable Definition***************************/
+Clear Globals();
+button = 1;
+_k = .;
+_p_bar = .;
+_lotsize = [100,500,1500,1700];
+_UCL = j(4,1,.);
+_reject = j(4,1,.);
+
+
+/***********Expression to compute PNorm UCL & # Rejects********/
+PNormUCL = Expr( 
+	For(i=1, i <= NRows(_lotsize), i++,
+		_UCL[i] = (_p_bar / 100 + (_k - 1.5) / _lotsize[i] + _k * Sqrt( (_p_bar / 100) * (1 - (_p_bar / 100)) / _lotsize[i] ))*100;
+		_reject[i] = Ceiling(_UCL[i]/100*_lotsize[i]);
+	);//end for
+);//end expression
+
+
+
+
+//***********Main Dialog Box**************//
+//Modal - continues until user cancels    //
+
+While(button==1,
+	db = New Window( "PNorm UCL Calculator", <<modal,
+		V List Box(
+			lineup =
+			Lineup Box( N Col( 2 ),
+				Text Box( "Enter p_bar (%): " ),
+				inputp = Number Edit Box( _p_bar ),
+				Text Box( "Enter k_sigma: " ),
+				inputk = Number Edit Box( _k ),
+				Text Box(" ")
+			),
+			tb=TableBox(
+				lot1 = Number Col Edit Box("Lot Size",_lotsize),
+				ucl1 = Number Col Box("UCL %", _UCL, << Set Format( 6, 2 )),
+				reject1 = Number Col Box("Minimum # Defects for OOC", _reject)
+			),
+			H List Box(
+				Button Box( "OK" ),
+				Button Box( "Cancel", button=0 )
+			)
+		)
+	);
+
+	_p_bar = inputp << get;
+	_k = inputk << get;
+	_lotsize = lot1 << Get As Matrix;
+	Eval(PNormUCL);
+);//close while

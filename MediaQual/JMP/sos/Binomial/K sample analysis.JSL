@@ -1,0 +1,36 @@
+/*******************************************************************************************
+K Sample Binomial Comparison
+
+Starting Condition: None
+Output: Shortcut to Fit Y by X
+
+Revision History (Descending Order, Newest at the top):
+Rev 1 - Jeff Baumann - 2020WW19
+	- Add commenting and logging throughout script.
+Rev 0 - Paul Wenz - 2005
+	- Initial Creation
+
+
+********************************************************************************************/
+//Log Line
+	Print("K_Sample_Binomial_Comparison_Script starting.");
+
+//Create windo for shortcut to Contingency Analysis
+	w=New Window("K Sample Binomial Comparison", 
+		textbox(" "),
+		tb1=textbox(
+			" To perform a K Sample Binomial Comparison, go to 'Analyze >> Fit Y by X' ", 
+			<<Set Wrap(1000),
+			<<Set Font Size(10)
+		),
+		Button Box("Shortcut: Analyze >> Fit Y by X", Contingency()),
+		Button Box("Cancel", w<<Close Window)
+	);
+
+//Log Line
+	Print("K_Sample_Binomial_Comparison_Script completed.");
+
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

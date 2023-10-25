@@ -1,0 +1,100 @@
+/*
+Control Chart Simulation
+Rev: 1.2
+Date: Feb 2010
+Author: Wang Fang
+JMP Version: 7 or 8
+This script demonstrates SPC
+
+Changes: 1.2 made datatable invisible so that you can see the control chart window.
+
+*/
+
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+dt = New Table( "Process Data", invisible );
+col = dt << New Column( "Parameter" );
+
+pMean = 12;
+pSD = 1;
+
+x = J( 30, 1, 0 );
+For( i = 1, i < 31, i++,
+	x[i] = pMean + pSD * Random Normal()
+);
+
+col << Values( x );
+keepRunning = 0;
+
+w = New Window( "Control Chart Simulation",
+	H List Box(
+		V List Box(
+			Control Chart(
+				Sample Label( Empty() ),
+				KSigma( 3 ),
+				Chart Col( :Parameter, Individual Measurement ),
+				Show Zones( 1 ),
+				Test 1,
+				Test 2,
+				Test 3,
+				Test 4,
+				Alarm Script(
+					Write( "\!rOut of Control for test ", qc_test, " in column ", qc_col, " in sample ", qc_sample );
+					Speak( "The data is out of control limit" );
+				)
+			)//end control chart
+		),
+		V List Box(
+			Outline Box( "Historical Baseline Distribution", Text Box( "Mean = 12  Std Dev = 1" ) ),
+			Outline Box( "Current Distribution", H List Box( Global Box( pMean, "Mean" ), Global Box( pSD, "Std Dev" ) ) ),
+			Outline Box( "Controls",
+				Button Box( "Continue Process", keepRunning = 1 ), 
+				Button Box( "Change Distribution",
+					Pen Color( "Red" );
+					diagfilt = Dialog(
+						vlist(
+							"Please enter new process mean and standard deviation",
+							"",
+							Lineup( 2,
+								" ", " ",
+								"Mean", mean = EditNumber( 12 ),
+								"Standard Deviation", std = EditNumber( 1 ),
+								"", ""
+							),
+							"",
+							hlist( button( "OK" ), button( "Cancel" ) )
+						)
+					);
+					If( diagfilt["button"] == 1,
+						pMean = diagfilt["mean"];
+						pSD = diagfilt["std"];
+					);
+				),
+				Button Box( "Stop Process", keepRunning = 0 ),
+				Button Box( "Revert back to Historical Distribution",
+					pMean = 12;
+					pSD = 1;
+					Pen Color( "Black" );
+					keepRunning = 0;
+					dt << Add Rows( 1 );
+					col[i++] = pMean + pSD * Random Normal();
+				),  
+				Button Box( "Exit Demo",
+					w << close window;
+					Close( dt, No Save );
+					keepRunning = -1;
+				)
+			)
+		)
+	)
+);
+
+While( keepRunning >= 0,
+	While( keepRunning > 0,
+		Wait( 1 );
+		dt << Add Rows( 1 );
+		col[i++] = pMean + pSD * Random Normal();
+	);
+	Wait( .1 );
+);
+w << Append( FooterBox );

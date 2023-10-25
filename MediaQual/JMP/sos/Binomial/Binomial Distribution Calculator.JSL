@@ -1,0 +1,387 @@
+/*******************************************************************************************
+Binomial Distribution Calculator Script
+
+Starting Condition: User inputs the Binomial parameters (n and p) and a filter point for negligible probabilities.
+Output: A JMP data table containing the following:
+			p(X=x)
+			p(X<=x)
+			p(X>=x)
+		for those values of x that are within the filter point, and a histogram of the probability distribution.
+
+Revision History (Descending Order, Newest at the top):
+Rev 2 - Jeff Baumann - 2020WW19
+	- Add commenting and logging throughout script for easier debug in future.
+	- Update all Dialog boxes to instead be New Windows as Dialog is being phased out by JMP.
+Rev 1 - Philip Brown / Paul Wenz - 2005
+	- Changed the variable "x" in the Binomial Functions to be an explicit column variable ":x"
+	- Modified caps, wording, and spelling in dialog box.
+	- Added show major grid on plot.
+Rev 0 - Jonathan Gatlin - 2005
+	- Initial Creation
+
+********************************************************************************************/
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script starting.");
+
+/*************************************************************
+Divider - Set Initial Values of Variables
+
+**************************************************************/
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Set initial values of variables starting.");
+
+//Clear globals and Set Initial Values of Variables
+	clear globals();
+	button=1;				//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+	n=.;					//Default setting of binomial parameter N
+	p=.;					//Default setting of binomial parameter P
+	cutoff=.0001;			//Default setting of cutoff negligible probability value
+
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Set initial values of variables completed.");
+
+/*************************************************************
+Divider - Create user window and determine Binomial Distribution results
+
+**************************************************************/
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create user window and determine Binomial Distribution results starting.");
+
+//User Window is active until the user clicks Cancel or generates a Plot
+While(button==1,
+
+	/*************************************************************
+	Divider - Create user window and determine user inputs
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create user window and determine user inputs starting.");
+
+	//User Window
+	result=New Window("Binomial Distribution Calculator",
+		<<modal,
+		<<Return Result,
+		vlistbox(
+			textbox("Enter values for the binomial parameters N and P."),
+			textbox("Check to filter the results with negligible probability."),
+			textbox(" "),
+			lineupbox(NCol(5),
+				textbox("N"), n=numbereditbox(n), textbox(" "), textbox("P"), p=numbereditbox(p),
+				textbox(" "), textbox(" "), textbox(" "), textbox(" "), textbox(" ")
+			),
+			lineupbox(NCol(2),
+				filter=checkbox("Filter results with negligible probability <"), cutoff=numbereditbox(cutoff)
+			),
+			textbox(" "),
+			hlistbox(spacerbox(Size(200, 5)), Button Box("OK"), Button Box("Cancel"))
+		)
+	);
+	
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=result["Button"];
+	n=result["n"];
+	p=result["p"];
+	cutoff=result["cutoff"];
+	filterlist=result["filter"];
+	
+	//Set filter to 1 or 0 depending on list
+	If(
+		//if (filterlist is empty)
+		NItems(filterlist)==0,
+		//then (set to 0)
+		filter=0,
+		//else (set to 1)
+		filter=1
+	);
+	
+	//Determine largest integer less than or equal to users defined n to ensure it is not a decimal
+	ntemp=floor(n);
+	
+	//Define nmod variable as the decimal portion of the user defined n (if any exists)
+	If(
+		//if (ntemp is greater than or equal to 1)
+		ntemp>=1,
+		//then (determine any decimal remainder)
+		nmod=modulo(n,ntemp),
+		//else (set to 0)
+		nmod=0
+	); 
+	
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("Binomial_Distribution_Calculator_Script: Ending Script, Cancel chosen.");
+		Print("Binomial_Distribution_Calculator_Script: Create user window and determine user inputs completed.");
+		Print("Binomial_Distribution_Calculator_Script: Create user window and determine Binomial Distribution results completed.");
+		Print("Binomial_Distribution_Calculator_Script completed.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create user window and determine user inputs completed.");
+
+	/*************************************************************
+	Divider - Error checking for N, P, and cutoff
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Error checking for N, P, and cutoff starting.");
+
+ 
+	//N Error Testing
+	If(
+		//if (n is less than or equal to 1, missing, or not an integer)
+			n<=1 | Is Missing(n) | nmod > 0,
+		//then (show error window and set ntest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("N must be an integer > 1"),
+					textbox(""),
+					hlistbox(spacerbox(Size(75,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set alphatest variable
+			ntest="out";
+			//Log Line
+			Print("Binomial_Distribution_Calculator_Script: Error with value of N."),
+		//else
+			ntest="OK"
+	); 
+	
+	//P Error Testing
+	If(
+		//if (P is not between 0 and 1 or is missing)
+			p<=0 | p>=1 | Is Missing(p), 
+		//then (show error window and set ptest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("P must be 0 < p < 1"),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set ptest variable
+			ptest="out";
+			//Log Line
+			Print("Binomial_Distribution_Calculator_Script: Error with value of P."),
+		//else
+			ptest="OK"
+	);
+	
+	//Cutoff Error Testing 
+	If(
+		//if (cutoff is not between 0 and 1 or is missing)
+			cutoff<=0 | cutoff>=1 | Is Missing(cutoff),
+		//then (show error window and set nptest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Negligible Probability must be 0 < p < 1"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set nptest variable
+			nptest="out";
+			//Log Line
+			Print("Binomial_Distribution_Calculator_Script: Error with value of cutoff probability."),
+		//else
+			nptest="OK"
+	); 
+
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Error checking for N, P, and cutoff completed.");
+
+	/*************************************************************
+	Divider - Determine the bounds of x based on the cut-off point
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Determine the bounds of x based on the cut-off point starting.");
+
+	//Determine the bounds of x based on the cutoff point
+	If(
+		//if (input variables are ok and filter was selected)
+			ntest=="OK" & ptest=="OK" & nptest=="OK" & filter==1, 
+ 		//then
+			//Determine starting point for xlow
+			xlow=ceiling(n*p); 
+			//Set flaglow to 0
+			flaglow=0;
+			//While flaglow is 0 determine the binomial probability while iterating xlow
+			While(flaglow==0,
+				//Determine probability that a binomial distributed random variable n with prob p is equal to xlow
+				problow=Binomial Probability(p,n,xlow); 
+				//Iterate xlow as required
+				If(
+					//if (probability is greater than or equal to cutoff and xlow is above 0)
+					problow >= cutoff & xlow > 0, 
+					//then (subtract 1 from xlow)
+					xlow=xlow-1,
+					//if (probability is greater than or equal to cutoff and xlow is 0)
+					problow >= cutoff & xlow == 0, 
+					//then (set flaglow to 1 to end the iteration and set the lower bound of x to 0)
+					flaglow=1;
+					xlower=0,
+					//if (probability is less than cutoff)
+					problow < cutoff, 
+					//then (set flaglow to 1 to end the iteration and set the lower bound of x to xlow+1)
+					flaglow=1;
+					xlower=xlow+1
+				); 
+			);
+			
+			//Determine starting point for xupp
+			xupp=floor(n*p); 
+			//Set flagupp to 0
+			flagupp=0;
+			//While flagupp is 0 determine the binomial probability while iterating xupp
+			While(flagupp==0,
+				//Determine probability that a binomial distributed random variable n with prob p is equal to xupp
+				probupp=Binomial Probability(p,n,xupp); 
+				//Iterate xupp as required
+				If(
+					//if (probability is greater than or equal to cutoff and xupp is below n)
+					probupp >= cutoff & xupp < n, 
+					//then (add 1 from xupp)
+					xupp=xupp+1,
+					//if (probability is greater than or equal to cutoff and xupp is n)
+					probupp >= cutoff & xupp == n, 
+					//then (set flagupp to 1 to end the iteration and set the upper bound of x to n)
+					flagupp=1;
+					xupper=n,
+					//if (probability is less than cutoff)
+					probupp < cutoff, 
+					//then (set flagupp to 1 to end the iteration and set the upper bound of x to xupp-1)
+					flagupp=1;
+					xupper=xupp-1
+				); 
+			);
+	);
+
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Determine the bounds of x based on the cut-off point completed.");
+
+	/*************************************************************
+	Divider - Create table and graph
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create table and graph starting.");
+
+	//Create Table
+	If(
+		//if (input variables are ok)
+			ntest=="OK" & ptest=="OK" & nptest=="OK",
+		//then (create table and graph)
+			//Determine number of rows for table
+			If(
+				//if (filter is not used)
+				filter==0,
+				//then (set numrows to n+1 and the starting xvalue to 0)
+				numrows=n+1;
+				xvalue=0,
+				//if (filter is used)
+				filter==1, 
+				//then (set numrows to the difference in the upper and lower bounds of x + 1 and the starting xvalue to lower bound of x)
+				numrows=xupper-xlower+1;
+				xvalue=xlower
+			);
+			
+			//Create a new table
+			binomialdt=newtable();
+			//Set the name based on the user inputs
+			binomialdt<<Set Name("Binomial("||char(n)||","||char(p)||")");
+			//Add table variables and rows
+			binomialdt<<New Table Variable("n",n);
+			binomialdt<<New Table Variable("p",p);
+			binomialdt<<Add Rows(numrows);
+			//Set the name of the first column
+			col1=column(1);
+			col1<<Set Name("x");
+			//Fill in the x column with the appropriate xvalues
+			For Each Row(:x = Eval( row()-1+xvalue ) );
+			
+			//Add columns for the Binomial Probabilities
+			binomialdt<<New Column("P(X=x)");
+			For Each Row(Name("P(X=x)") = Binomial Probability(p,n,:x));
+			binomialdt<<New Column("P(X<=x)");
+			For Each Row(Name("P(X<=x)") = Binomial Distribution(p,n,:x));
+			binomialdt<<New Column("P(X>x)");
+			For Each Row(Name("P(X>x)") = 1-Binomial Distribution(p,n,:x));
+
+			//Create the histogram
+			If(
+				//if (number of rows is less than or equal to 1000)
+					numrows <= 1000,
+				//then (create the historgram) 
+					//Create Chart
+					chart1=Chart(
+						X(:x),
+						Y(:Name("P(X=x)")),
+						Separate Axes(1),
+						Show Level Legend(0),
+						Bar Chart(1),
+						colors(36)
+					);
+					//Set Chart Title
+					chart1<<title("Binomial("||char(n)||","||char(p)||")"); 
+					//Set xaxis labeling
+					If(
+						//if (numrows is more than 20)
+						numrows > 20, 
+						//then (set the label inclusion at the number of rows divided by 10)
+						labelinc=ceiling(numrows/10),
+						//else (set the label inclusion as 1)
+						labelinc=1
+					);
+					//Label the xaxis and set other chart settings
+					eval(parse("chart1 << (x axis << label(level(" || char(labelinc) || ")))"));
+					chart1<<(x axis<<Show Major Ticks(1));
+					chart1<<(y axis<<Show Major Grid(1));
+				,
+				//else (show error window for too many rows to create graph)
+					//Show error window
+					New Window("Error",
+						<<Modal,
+						vlistbox(
+							textbox(""),
+							textbox("X has more than 1000 levels, histogram will not be created."),
+							textbox(""),
+							hlistbox(spacerbox(Size(250,5)), Button Box("OK")),
+							textbox("")
+						)
+					);
+			); //End If (Create the histogram)
+
+	); //End If (Create Table)
+	
+	//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create table and graph completed.");
+	
+); //End While
+
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script: Create user window and determine Binomial Distribution results starting.");
+
+//Log Line
+	Print("Binomial_Distribution_Calculator_Script completed.");
+
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

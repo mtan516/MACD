@@ -1,0 +1,358 @@
+/*********************
+Central limit demon
+Author: Wang Fang
+Rev:  apha 1.0
+Date: 1/31/2006
+JMP Version: 5.1.1
+Starting condition: User distribution, sample size and number of sample generated at the same time.
+Output: The script will generate distribution for population and sample.
+**********************/
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl");
+m=1;
+// let user specify sampling plan and population distribution
+dlg = Dialog(
+	"Population Distribution",
+		dist = Radio Buttons(
+			"Normal Distribution",
+			"Bernoulli Distribution (special binomial distribution)",
+                                                  "Dice Distribution"
+		),
+	V List(
+		 	Line Up( 2,
+			"Sample Size (positive number)",	n = Edit Number(5),
+			"   "
+		)
+	),
+	H List( Button("OK"), Button("Cancel") )
+);
+
+If( dlg["Button"] == -1, Throw( "User cancelled" ) );
+Remove From( dlg ); Eval List( dlg );
+if(n<=0, 
+     while(n<=0,
+                      dlg = Dialog(
+	"Population Distribution",
+		dist = Radio Buttons(
+			"Normal Distribution",
+			"Bernoulli Distribution",
+                                                  "Dice Distribution"
+		),
+	V List(
+		"Data Entered should not negative or zero",
+                                 "  ",
+		Line Up( 2,
+			"Sample Size (positive number)",	n = Edit Number(n),
+			"  "
+		)
+	),
+	H List( Button("OK"), Button("Cancel") )
+             ); 
+           If( dlg["Button"] == -1, Throw( "User cancelled" ) );
+          Remove From( dlg ); Eval List( dlg );
+         )
+);
+
+//define the expression of the random sample and scale
+Choose(dist, 
+//Normal Distribution
+vdlg=Dialog("Normal Distribution",
+                          "",
+                           VList(
+                                      Line Up(2,
+                                                      "Mean", a=Edit Number(0),
+                                                       "Standard Deviation(postive number)", b=Edit Number(1)
+                                                     )
+                                      ),
+                            H List(Button("OK"), Button("Cancel"))
+                           );
+if(vdlg["Button"]==-1, Throw("User cancelled"));
+Remove From(vdlg); Eval List(vdlg);
+if(b<=0,
+   while(b<=0, 
+               vdlg=Dialog("Normal Distribution",
+                          "",
+                           VList(
+                                      Line Up(2,
+                                                      "Mean", a=Edit Number(a),
+                                                       "Standard Deviation(postive number)", b=Edit Number(b)
+                                                     )
+                                      ),
+                            H List(Button("OK"), Button("Cancel"))
+                           );
+                     if(vdlg["Button"]==-1, Throw("User cancelled"));
+                     Remove From(vdlg); Eval List(vdlg);
+                  )
+);
+preScale= 1/ Sqrt( 2 * Pi() * b^2 );
+pdf=Function({m, s, x}, Normal Density(x, m, s));
+rng=Expr(a+b*Random Normal()), //generate random number
+
+//Bernoulli Distribution
+vdlg=Dialog("Bernoulli Distribution",
+                          "",
+                           VList(
+                                       Line Up(2, 
+                                        "The probability of get one(between 0-1) p=", p=Edit Number(0.5)
+                                                     )
+                                      ),
+                            H List(Button("OK"), Button("Cancel"))
+                           );
+if(vdlg["Button"]==-1, Throw("User cancelled"));
+Remove From(vdlg); Eval List(vdlg);
+if(p<=0|p>=1, 
+   while(p<=0|p>=1,
+             vdlg=Dialog("Bernoulli Distribution",
+                          "",
+                           VList(
+                                       Line Up(2, 
+                                        "The probability of get one(between 0-1)", p=Edit Number(p)
+                                                     )
+                                      ),
+                            H List(Button("OK"), Button("Cancel"))
+                           );
+                  if(vdlg["Button"]==-1, Throw("User cancelled"));
+                  Remove From(vdlg); Eval List(vdlg);
+                )
+   );
+a=p;
+preScale=Maximum(a, 1-a);
+rng=Expr(if(Random Uniform()<=a, 1, 0)), //generate random number
+
+//dice distribution
+a=6; 
+preScale=1/a; 
+rng=Expr(Random Integer(a)) //generate random number
+);
+
+
+// sampling macro.
+newSample = Expr(
+	Choose( howMany,
+
+		// one more sample
+		k++;                                      // number of data across all samples.
+		sample = J( 1, n, rng );   //get n ramdom number in a matrix (1xn)
+                                  data=data|/sample,
+
+		// all samples at once
+		k += m;				
+		new = J( m, n, rng );		// column vector for data. (mxn)
+		data = data |/ new;
+	);
+              
+	stats = data * J( n, 1, 1 ) / n;                           //calculate the sample mean for all samples
+                 if(k>1, 
+	sortedY = stats[Rank(stats)];          //sorted stats 
+	range = sortedY[k] - sortedY[1];
+	nBins = Round( 3 * Log( k, 10 ) );   //how many bins
+	binWidth = Round( range / nBins, 2 );   
+	binCount = J( nBins+1, 1, 0 );
+	For( i=1, i<=k, i++,
+		bin = Floor( (sortedY[i] - sortedY[1]) / binWidth ) + 1;
+		binCount[bin]++;
+	);
+	maxHt = Max(binCount) / k;
+                  );
+);
+
+binWidth = 0;
+data = [];
+k = 0;
+
+demon=New Window( "Sampling Distributions",
+	H List Box(
+		Outline Box( "Population",
+			Text Box( Choose( dist, "Normal", "Bernoulli", "Dice") || " distribution" ),
+			Graph Box(
+				Frame Size( 300, 150 ),
+				X Name( "Y" ),
+				X Scale(
+					Choose( dist, a-4*b, -0.1, 0 ),
+					Choose( dist, a+4*b, 1.1, 7 )
+				),
+				Y Name( "Freq" ),
+				Y Scale( 0, 1.2*preScale ),
+				Double Buffer,
+				Choose( dist,
+					Y Function( pdf(a,b,x), x);
+                                                                                    rsqrt2pi = 1/sqrt(2*pi());
+                                                                                    Handle(a,rsqrt2pi/b,a=x;b=rsqrt2pi/y);
+					Text Color( "Gray" );
+					tx = a;
+					Text(
+						Center Justified,
+						{tx,1.05*preScale},
+						"mu (mean) = " || Char( a ) ||
+						", sigma = " || Char( b )
+					),		
+				Rect(-0.05,1-a,,0.05,0,1);
+                                                                  Rect(0.95,a,1.05,0,1);
+					Text Color( "Gray" );
+					 tx = 0.5;
+					Text(
+						Center Justified,
+						{tx,1.05*preScale},
+						" mu (mean)="||Char(a)||
+                                                                                                    ", sigma = " || Char( sqrt(a(1-a)) )
+
+					),
+                                                                                 
+                                                                                for(i=1, i<=6, i++, 
+                                                                      Rect(i-0.1,1/6, i+0.1, 0,1)
+                                                                                      );
+                                                                                Text Color( "Gray" );
+					 tx = 3;
+					Text(
+						Center Justified,
+						{tx,1.05*preScale},
+						"mu (mean)="||Char(Summation(i = 1, a, i / a))||
+                                                                                                    ", sigma = " || Char( Sqrt( Summation(i=1,a,i^2/a)-Summation(i = 1, a, i / a)^2  ) ) 
+                                                                                            )
+
+				)
+			)
+		),
+
+                                Outline Box("User Input",
+                                                          Table Box(
+                                                            String Col Box( "Parameter", Choose(Dist,{"Distribution", "Sample Size"}, {"Distribution", "Sample Size"}, {"Distribution","Sample Size"})),
+                                                            String Col Box("Value", Choose(Dist, {"Normal", char(n)}, {"Bernoulli", char(n)},{"Dice",char(n)}))
+                                                                               )),
+		Outline Box( "Controls",
+                                                  if(Dist==1, Global Box(a, "mu(mean)")),
+                                                  if(Dist==1, Global Box(b, "sigma")),
+                                                  if(Dist==2, Global Box(a, "p")),
+			Button Box( "One sample at a Time",
+				howMany = 1;
+				newSample;
+				g << Reshow;
+                                                                  ncb<<delete;
+                                                                  ncb = Number Col Box( "Value",
+						Choose( dist,
+							{a,b/Sqrt(n)},
+							{a,Sqrt( a*(1-a)/n )},
+                                                                                                                     {Summation(i = 1, a, i / a), Sqrt((Summation(i=1,a,i^2/a)-Summation(i = 1, a, i / a)^2)/n)}
+						));
+                                                                  tb<<append(ncb);
+			),
+			Button Box( "All at Once",
+                                                             dlg = Dialog(
+	                                                                      "How many samples you want to generate at once",
+                                                                                       line up(2, 
+                                                                                       "Please enter the number of samples",  m=Edit Number(5)
+                                                                                                    ),
+	                                                                       H List( Button("OK"), Button("Cancel") )
+                                                                                    );
+                                                                if( dlg["Button"] == -1, Throw( "User cancelled" ) );
+                                                         Remove From( dlg ); Eval List( dlg );
+                                                         while(m<=0, 
+                                                                                dlg = Dialog(
+	                                                                      "How many samples you want to generate at once",
+                                                                                       line up(2, 
+                                                                                       "Please enter the number of samples",  m=Edit Number(5)
+                                                                                                    ),
+	                                                                       H List( Button("OK"), Button("Cancel") )
+                                                                                    );
+                                                                if( dlg["Button"] == -1, Throw( "User cancelled" ) );
+                                                         Remove From( dlg ); Eval List( dlg );
+                                                                  );
+				howMany = 2;
+				newSample;
+				g << Reshow;
+                                                                  ncb<<delete;
+                                                                  ncb = Number Col Box( "Value",
+						Choose( dist,
+							{a,b/Sqrt(n)},
+							{a,Sqrt( a*(1-a)/n )},
+                                                                                                                     {Summation(i = 1, a, i / a), Sqrt((Summation(i=1,a,i^2/a)-Summation(i = 1, a, i / a)^2)/n)}
+						));
+                                                                  tb<<append(ncb);
+			),
+			Button Box( "Make Table",
+				dt = As Table( data );
+				dt << Set Name( "Simple Random Samples" );
+				For( i=1, i<=n, i++,
+					Column( i ) << Set Name( "Obs " || Char(i) );
+				);
+				dt << New Column( "Sample Mean", Values( stats ) );
+				dt << Distribution( Y( :Sample Mean ), Stack(1) );
+			),
+			Button Box( "Clear Samples",
+				data = [];
+				k=0;
+				g << Reshow
+			),
+                                                  Button Box( "Exit Demo", demon<<close window)
+		)
+	),
+	Outline Box( "Sample",
+		H List Box(
+			V List Box(
+				Text Box( "Distribution of the sample mean"),
+				g = Graph Box(
+					Frame Size( 300, 150 ),
+					X Name( "Sample Mean" ),
+					X Scale(
+						Choose( dist, a-4*b, -0.1, 0 ),
+					                 Choose( dist, a+4*b, 1.1, 7 )
+					),
+					Y Name( "Freq" ),
+					Y Scale( 0, 1 ),
+					X Axis(
+						Inc(binWidth),
+						Minor Ticks(0),
+						Rotated Labels
+					),
+					Double Buffer,
+                                                                                    if(k==1,     
+                                                                                      Fill Color( "Blue" );    
+                                                                                      Rect(stats[1]-0.1,1,stats[1]+0.1,0,1)
+                                                                                     );
+					If( k>1,
+						g[Axis Box(1)] << Max(1.2*maxHt);
+						Fill Color( "Blue" );
+						For( i=0, i<=nBins, i++,
+							Pen Color( "black" );
+							Rect(
+								sortedY[1] + i * binWidth,
+								binCount[i+1]/k,
+								sortedY[1] + (i+1) * binWidth,
+								0,
+								1
+							);
+						);
+						yBar = Mean(stats);
+						s = Std Dev(stats);
+						Text Color( "blue" );
+						tx = Choose( dist, a, 0.5, 3.5 );
+						Text(
+							Center Justified,
+							{tx,1.05*maxHt},
+							" mean= " || Char( Round( yBar, 3 ) ) ||
+							", sigma = " || Char( Round( s, 3 ) ) ||
+							", Sample Count = " || Char( k )
+						);
+					)
+				)
+			),
+			V List Box(
+				Text Box( "Expected Value" ),
+				tb = Table Box(
+					String Col Box( "Parameter", {"Mean","Std Err"} ),
+					ncb = Number Col Box( "Value",
+						Choose( dist,
+							{a,b/Sqrt(n)},
+							{a,Sqrt( a*(1-a)/n )},
+                                                                                                                     {Summation(i = 1, a, i / a), Sqrt((Summation(i=1,a,i^2/a)-Summation(i = 1, a, i / a)^2)/n)}
+						)
+					)
+				)
+			)
+		)
+	)
+
+);
+demon<<append(FooterBox);
+g[Axis Box(2)] << Rotated Labels(0);

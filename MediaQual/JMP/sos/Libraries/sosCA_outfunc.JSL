@@ -1,0 +1,430 @@
+ /**********************************************************
+ * SOS Commonality  OUTPUT Function Library
+ * This file contains output display related functions and expressions
+ * called by SOS Commonality Analysis scripts
+ *
+ * JMP Version: 5.1.1 - 10.0
+ *
+ * $Author: Pdbrown $
+ * $Revision: 11 $
+ * $Version:$
+ * $Date: 3/06/08 4:18a $
+ * $Modtime: 5/23/2012 10:45a $
+ * $Archive: /SOSdev/SOS2/LIBRARIES/sosCA_outfunc.JSL $
+ *
+ * $History: sosCA_outfunc.JSL $
+  * * *****************  Version 11  *****************
+ * User: stan27      Date: 5/23/2012    Time: 10:45a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Revise code if(CNTRL_MODE!=3, <<Close(1), <<Close(0)), so that able to display the plot by using the manual entry option
+ * * *****************  Version 10  *****************
+ * User: fwang3      Date: 8/26/08    Time: 4:18a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Reorganize the output by response instead of area.
+ * 
+ * *****************  Version 9  *****************
+ * User: Pdbrown      Date: 3/06/08    Time: 4:18a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix Summary by Response varchts.
+ * 
+ * *****************  Version 8  *****************
+ * User: Pdbrown      Date: 2/25/08    Time: 3:55p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update
+ * 
+ * *****************  Version 7  *****************
+ * User: Pdbrown      Date: 1/25/08    Time: 8:02a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * 1. Exclusion Report Box is displayed only if exclusions are actually
+ * made.
+ * 2. Enhance layout of display tree.
+ * 3. *Implement workaround to resolve problem with var-chart frame
+ * separation when row legend is displayed.
+ * 
+ * *****************  Version 6  *****************
+ * User: Pdbrown      Date: 1/14/08    Time: 5:11p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix case with multiple response analysis where one response has no
+ * data.
+ * Fix summary by response output.
+ * 
+ * *****************  Version 5  *****************
+ * User: Pdbrown      Date: 12/17/07   Time: 11:32a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update GenerateCAPlots()
+ * 
+ * *****************  Version 4  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 5:30p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Doappend now switches correctly.
+ *
+ * *****************  Version 3  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 12:41p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Increase OP_INDX resolution
+ * Enhance error handling
+ *
+ * *****************  Version 2  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 4:56a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ **********************************************************/
+
+::GenereateCAPlots = Expr(
+  SubAnalysisBox={};
+  SubTrend_Box={};
+  AreaAnalysisBox={};
+  GroupAnalysisBox={};
+  SubGroupAnalysisBox={};
+  Trend_Box={};
+  ::doappend=0;
+  ::p=1;
+  For(k=1,k<=Nitems(Response),k++,
+      _AnalysisBox<<Append(GroupAnalysisBox[k]=OutlineBox(Char("Analysis of "||Char(Response[k])),<<Close(1)));
+      AreaAnalysisBox={};
+	  For( h=1, h<=NItems( _Oneway_Chart ), h++,
+          GroupAnalysisBox[k]<<Append( AreaAnalysisBox[h]=OutlineBox( Char(GroupID[h][1]), if(CNTRL_MODE!=3, <<Close(1), <<Close(0)) ) );
+          For( m=1, m<=NItems( _Oneway_Chart[h][k] ), m++,
+              AreaAnalysisBox[h]<<Append( SubGroupAnalysisBox[p] = OutlineBox( Char("Analysis of " || Char(Response[k]) || " vs. " || Char(Input_and_Date_List[h][1][m][1]) ), HListBox( Trend_box[p]=VListBox(), SubAnalysisBox[p] = VListBox( _Oneway_Chart[h][k][m] ) ) ) );
+             _Oneway_Chart[h][k][m][ OutlineBox( "Significance Tests" ) ]<<Append(
+          TableBox(
+            StringColBox( "Statistic", Eval(stat_list[p]) ),
+            NumberColBox( "p Value", Eval(p_list[p]), <<SetFormat(6,97) ),
+            StringColBox( "Decision", Eval(decision_list[p]) ) )
+
+             );//End Append
+
+        If( Type(_levlist[h][k][m][1]) == "List",
+          If( NItems(_levlist[h][k][m][1]) != 0,
+            N_levs = ( NItems(_levlist[h][k][m][1])+ _levlist[h][k][m][3] );
+            Str_levexcl = _levlist[h][k][m][1];
+            N_Lots = Matrix(_levlist[h][k][m][2]),
+
+            Str_levexcl = {};
+          ),
+
+          N_levs = 1 + _levlist[h][k][m][3];
+          Str_levexcl = EvalList({_levlist[h][k][m][1]});
+          N_Lots = Matrix(_levlist[h][k][m][2]);
+        ); //EndIf Type
+        doappend = If( (Eval(_lotexcllist[p]) != 0 | NItems(Str_levexcl) != 0), 1, 0 );
+
+        If( doappend,
+          SubAnalysisBox[p]<<Append( Exclusion_Report_Box =
+            OutlineBox( "Exclusion Report",
+                If( NItems(_preexlist) != 0, TextBox("# Lots pre-excluded: " || Char(_preexlist[h]) ) ),
+                VListBox(),
+                If( Eval(_lotexcllist[p]) != 0,
+	                VListBox(
+	                  TextBox("# Lots excluded with less than " || Char( N_Lot_Excl ) || " units: " || Char( _lotexcllist[p] ) ),
+	                  TextBox(" ")
+                  ),
+                  
+                  VListBox()
+                ),
+                If( NItems(Str_levexcl) != 0,
+                  VListBox(
+                  	TextBox("# Levels excluded with less than " || Char( N_X_Excl ) || " lots: " || Char( N_levs - _levlist[h][k][m][3] ) || " out of " || Char( N_levs ) ),
+                  	TableBox(
+                  	StringColBox( "Level Excluded", Str_levexcl ),
+                  	NumberColBox( "# Lots", N_Lots )
+                  ) ), //EndTableBox VListBox
+                  
+                  VListBox()
+                ) //EndIf NItems            
+            ) ); //EndOutlineBox Append
+            Exclusion_Report_Box << Close(1);            
+          ); //EndIf doappend
+
+      p++;
+      ); //EndFor m
+    ); //EndFor h
+  ); //EndFor k
+
+  p=1;
+ For(k=1,k<=Nitems(Response),k++,
+  For( h=1, h<=NItems( _XTrend_Chart ), h++,
+      For( m=1, m<=NItems( _XTrend_Chart[h][k] ), m++,
+        Trend_Box[p]<<Append( _XTrend_Chart[h][k][m] ); Trend_Box[p]<<Append( _YTrend_Chart[h][k][m] );
+				If( _missxdatelist[h][k][m]+ _missydatelist[h][k][m] !=0,
+					Trend_Box[p]<<Append( OutlineBox( "Missing Dates Report",
+						VListBox(),
+						If( _missxdatelist[h][k][m] !=0, VListBox(
+							TextBox("# Lots missing " || Char(_xdatelist[h][1][m][2]) || ": " || Char( _missxdatelist[h][k][m] ) ),
+							TextBox(" ") ), //EndVlistBox
+							
+							VListBox()
+						), //EndIF
+						If( _missydatelist[h][k][m] !=0, VListBox(
+							TextBox("# Lots missing " || Char(Y_Date_ID[1]) || ": " || Char( _missydatelist[h][k][m] ) ),
+							TextBox(" ")  ), //EndVlistBox
+							
+							VListBox()
+						); //EndIf
+
+					) ); //EndOutlineBox Append
+				); //EndIf
+
+        p++;
+      ); //EndFor m
+    ); //EndFor h
+  ); //EndFor h
+
+); //EndExpr
+
+
+////////////////////////////////////////////////////////////
+//
+// CA_Summary_Report
+// Generates tabular summary of Commonality Analysis Results
+// Called from [Commonality_Output_Expr]
+// PB: 5/16/06
+////////////////////////////////////////////////////////////
+::CA_Summary_Report = Expr(
+
+::CA_box={};
+::CA_summ_box = {};
+::CA_Summary_Box = {};
+::CA_fmt = {.,.,.,97,97,.,97,.,.};
+::pval_grp_names = Insert( Grp_Cols, Eval(EvalExpr(AsName(Expr(outputvar_colname)))) );
+::n_row_excl_pval=0;
+For( ::fill=1, fill<=N_Grp_Cols, fill++, InsertInto(CA_fmt,.,1) );
+
+IncOP(); //503
+Try(
+  InputVar_tab=invar_sort_tab;
+  num_CA_summ_cols = NCol(InputVar_tab);
+  TrackTable(InputVar_tab);
+
+  CurrentDataTable(InputVar_tab);
+  InputVar_tab << NewColumn("Mean");
+  InputVar_tab << NewColumn("Variance");
+  Column( InputVar_tab, "Mean") << SetFormula(If( :p Value for mean < 0.0001, 0.0001 * 10 ^ (-Random Uniform()),:p Value for mean >= 0.0001,:p Value for mean, Empty()) );
+  Column( InputVar_tab, "Variance") << SetFormula(If( :p Value for Variance< 0.0001, 0.0001 * 10 ^ (-Random Uniform()),  :p Value for Variance >= 0.0001,:p Value for Variance, Empty()) );
+  InputVar_tab << RunFormulas;
+
+  ///////////////////////////////////////////////
+  // Create group table
+  out_summ_grp_tab = InputVar_tab<<Summary(  Group( Eval(Grp_Cols) ), Min(:Order), Invisible ); //Make Invisible
+  out_summ_grp_tab << Sort( By(:Name("Min(Order)")), ReplaceTable );
+  N_out_summ = NRow(out_summ_grp_tab);
+  TrackTable(out_summ_grp_tab);
+
+  // Generate CA summary window
+  CA_summary = NewWindow("Commonality Analysis Summary Report", CA_Summ_Report = OutlineBox("Commonality Analysis Summary Report", VListBox()) );
+  CA_Overall_Summary = NewWindow("Commonality Analysis Overall Summary", VListBox(CA_OverallSumm = OutlineBox("Commonality Analysis Overall Summary",
+    OutlineBox("Commonality Analysis Overall Summary Report", VListBox( TextBox("NOTE: Table below is sorted in ascending order of the \!"Min p Value\!" column.", <<SetWrap(10000)), TextBox(""), CA_Overalltab_box = TableBox() ))
+    ), CA_footer=VListBox()) );
+
+  IncOP(); //504
+  // Cycle through each group
+  For( j=1, j<=N_out_summ, j++,
+    CA_box={};
+    CA_Summary_Box[j] = OutlineBox( Char(GroupID[j][1]), HListBox( CA_Single_Summ = VListBox(), CA_All_Summ = VListBox()), CA_footer );
+    CA_summ_box[j] = OutlineBox("Commonality Analysis Summary Report for All Output and Input Variables", CAtab_box = TableBox() );
+
+    CurrentDataTable( out_summ_grp_tab );
+    Selected( RowState(j) )=1;
+    // Get group rows
+    CurrentDataTable(  InputVar_tab );
+    CA_grp_rows = InputVar_tab<<GetSelectedRows;
+//  CA_data_rows = InputVar_tab<<GetSelectedRows;
+
+    // Cycle through each output
+    For( i=1, i<=N_Outputs, i++,
+//    If( N_Grp_Cols != 0, CA_grp_rows = Loc( GetColAsTable( N_Grp_Cols, InputVar_tab )[2], Char( Grp_Names[1][1] ) ), CA_grp_rows = 1::NRow(InputVar_tab) ) ;
+      summ_subrws_expr = Expr( GetColAsTable( N_Grp_Cols+1, InputVar_tab )[2][CA_grp_rows] );
+      If( N_out_summ >= 1,
+        CA_summ_subrows = Loc( If( !IsList(Eval(summ_subrws_expr)), EvalExpr({Expr(summ_subrws_expr)}), EvalExpr(Expr(summ_subrws_expr))), Char( Response[i] ) );
+        CA_summ_rows = CA_grp_rows[CA_summ_subrows],
+
+        Ca_summ_rows = CA_grp_rows;
+      );
+      CA_box[i] = OutlineBox( "Commonality Analysis Summary Report for " || Char(Response[i]), CA_ind_tab_box = TableBox() );
+
+      // Cycle through each column in Input Variable-Results table
+      For( r=N_Grp_Cols+2, r<=num_CA_summ_cols-1, r++,
+        CA_all_Expr = Expr( GetColAsTable(r,InputVar_tab)[2] );
+        If( Type(CA_summ_rows) == "Matrix", CA_ind_Expr = Expr( GetColAsTable(r,InputVar_tab)[2][ CA_summ_rows ] ), CA_ind_Expr = Expr( EvalList({GetColAsTable(r,InputVar_tab)[2][ CA_summ_rows ]}) ) );
+        If( NRow(CA_grp_rows) >1, CA_grp_Expr = Expr( GetColAsTable(r,InputVar_tab)[2][ CA_grp_rows ] ), CA_grp_Expr = Expr( EvalList({GetColAsTable(r,InputVar_tab)[2][CA_grp_rows]}) ) );
+
+        If( Column( InputVar_tab, r )<<GetName != dates_colname,
+          If( Type( GetColAsTable(r,InputVar_tab)[2][1] )=="String",
+            CA_ind_tab_box << Append( StringColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_ind_Expr) ) );
+            If( i==N_Outputs, CAtab_box << Append( StringColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_grp_Expr) ) ); If( j==N_out_summ, CA_Overalltab_box << Append( StringColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_all_Expr) ) ) ) ),
+            If( !IsMissing(CA_fmt[r]),
+              CA_ind_tab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_ind_Expr), << SetFormat(6, CA_fmt[r]) ) );
+              If( i==N_Outputs, CAtab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_grp_Expr), << SetFormat(6, CA_fmt[r]) ) ); If( j==N_out_summ, CA_Overalltab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_all_Expr), << SetFormat(6, CA_fmt[r]) ) ) ) ),
+
+              CA_ind_tab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_ind_Expr) ) );
+              If( i==N_Outputs, CAtab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_grp_Expr) ) ); If( j==N_out_summ, CA_Overalltab_box << Append( NumberColBox( GetColAsTable(r,InputVar_tab)[1], Eval(CA_all_Expr) ) ) ) );
+
+            ); //EndIf !IsMissing
+            CA_ind_tab_box << Append( StringColBox( "",{} ) );
+            If( i==N_Outputs, CAtab_box << Append( StringColBox( "",{} ) ); If( j==N_out_summ, CA_Overalltab_box << Append( StringColBox( "",{} ) ) ) );
+
+          ) //EndIf Type
+        ); //EndIf
+      ); //EndFor r
+      CA_Single_Summ << Append(CA_box[i]);
+
+    ); //EndFor i
+
+    CA_All_Summ << Append( CA_summ_box[j] );
+    CA_Summ_Report << Append(CA_Summary_Box[j]);
+    CAtab_box << Prepend(
+			String Col Box( GetColAsTable( N_Grp_Cols + 1, InputVar_tab )[1],
+			If( N Row( CA_grp_rows ) > 1, GetColAsTable( N_Grp_Cols + 1, InputVar_tab )[2][CA_grp_rows], Eval List( {GetColAsTable( N_Grp_Cols + 1, InputVar_tab )[2][CA_grp_rows]} ));
+			)
+		);
+
+    CurrentDataTable( out_summ_grp_tab );
+    Selected( RowState(j) )=0;
+
+  ); //EndFor j
+
+  IncOP(); //505
+  InputVar_tab_stk = InputVar_tab << Stack(columns( :Mean,  :Variance), Source Label Column("Type"), Stacked Data Column("p Value"));
+  TrackTable(InputVar_tab_stk);
+  CurrentDataTable(InputVar_tab_stk);
+  If( NItems(Grp_Cols) != 0,
+    grp_listchk = Column(out_summ_grp_tab, Char(Grp_Cols[1]))<<GetValues;
+    Eval(EvalExpr(Column(InputVar_tab_stk,Char(Grp_Cols[1]))<<ListCheck( Expr(EvalList(grp_listchk)) )));
+  );
+  ForEachRow( If( IsMissing(:Min p value[]), Excluded(RowState()) = 1; Hidden(RowState()) = 1; n_row_excl_pval++ ) );
+  InputVar_tab_stk<<SelectWhere( !Excluded() );
+  If( NRow(InputVar_tab_stk<<GetSelectedRows) != 0,
+    pval_vcht_obj = GenerateVarChart( Insert(pval_grp_names,"Type"), Column(InputVar_tab_stk, "p Value"), "", 0 );
+    pval_cht_sel_obj  = Eval(EvalExpr( HListBox(Expr(Substitute( NameExpr(pval_vcht_obj),Expr(v_empt), Expr(Where(Selected())) )))));
+    pval_cht_sel_obj[TextBox(1)]<<SetText("p Value");
+    pval_cht_sel_obj[FrameBox(1)] << RowLegend( Column(InputVar_tab_stk, Eval(NItems(pval_grp_names)+1) ),Color(1),Marker(1) ) << MarkerSize(2);
+    pval_cht_sel_obj[AxisBox(1)] << AxisSettings( Min(If( ColMin(:p Value) <= 0.0001, 0.00001, 0.0001) ), Max(1), Inc(1), Scale("Log"), ShowMinorGrid(1), Format("Best"), AddRefLine(0.05, "Dashed", "Red") );
+    pval_cht_sel_obj[OutlineBox(2)]<<Append(HListBox(TextBox("Note:  p values < 0.0001 are randomly jittered between 0.0001 to 0.00001 in the graph", <<SetWrap(10000)) ));
+    If( Contains(jmpver, "7"), ((pval_cht_sel_obj[AxisBox(1)]<<Parent)<<Sib) << SibAppend(pval_cht_sel_obj[TableBox(1)]); pval_cht_sel_obj[TableBox(1)] << Delete );
+    InputVar_tab_stk<<ClearSelect,
+
+    pval_cht_sel_obj=VListBox(OutlineBox("",OutlineBox("Variability Chart", TextBox("There is no data to plot!", <<SetFontSize(12), <<FontColor(Red)) )) );
+  ); //EndIf
+  pcht_Outline_Box = OutlineBox("Commonality Analysis Overall Summary p-chart", pval_cht_sel_obj[OutlineBox(2)] );
+  CA_OverallSumm << Prepend( VListBox(pcht_Outline_Box) );
+  For( s=N_Grp_Cols+1, s>=1, s--, CA_Overalltab_box << Prepend( StringColBox(GetColAsTable(s,InputVar_tab)[1], GetColAsTable(s,InputVar_tab)[2]) ) );
+  CA_footer << Append( FooterBox );
+  If( NItems(Sample_Size)==0 & !ZeroOrMissing(N_Lot_Excl), CA_Overall_Summary << Prepend(Eval(MSG_nosmplsz_warn)) );
+  Eval(CASummaryByResp);
+  If( ref_select > 1 & ref_select != 4 & button[2]==1, DateRefSrcDlg << CloseWindow ),
+
+  Try(CA_summary << CloseWindow);
+  Try(CA_Overall_Summary << CloseWindow);
+  RET=-1;
+  ERR_MSG="Problem Generating Analysis Summary.";
+);
+//CleanUP();
+
+); //EndExpr
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CASummaryByResp = Expr(
+
+CA_SummbyResp_Box={};
+CA_SummbyResppcht_box={};
+CA_SummbyResptab_box={};
+
+IncOP(); //506
+Try(
+  grp_tab = InputVar_tab<<Summary(  Group( GetColAsTable( N_Grp_Cols+1, InputVar_tab )[1] ), Min(:Order), Invisible ); //Make Invisible
+  Nrow_grp_tab = NRow(grp_tab);
+  ::grp_tab_order_colvals = Column( grp_tab, "Min(Order)") << GetValues;
+  grp_tab << Sort( By(:Name("Min(Order)")), ReplaceTable );
+  
+  grp_tab_stk = InputVar_tab_stk << Summary(  Group( GetColAsTable( N_Grp_Cols+1, InputVar_tab_stk )[1] ), Invisible ); //Make Invisible
+  grp_tab_stk << NewColumn( "Order" );
+  Column( grp_tab_stk, "Order" ) << SetValues(grp_tab_order_colvals);
+  grp_tab_stk << Sort( By(:Name("Order")), ReplaceTable );
+  TrackTable(grp_tab);
+  TrackTable(grp_tab_stk);
+
+  If( Nrow_grp_tab > 1,
+    CA_SummbyResp_GrpBox = OutlineBox( "Commonality Analysis Summary by Response", CA_SummbyResp = VListBox(), CA_footer=VListBox());
+    IncOP(); //507
+    For( j=1, j<=Nrow_grp_tab, j++,
+      CA_SummbyResp_Box[j] = OutlineBox( "Commonality Analysis Summary Report for " || Char(Response[j]),
+        CA_SummbyResppcht_box[j] = VListBox(TextBox("NOTE: Table below is sorted in ascending order of the \!"Min p Value\!" column.", <<SetWrap(10000)), TextBox("")),
+        CA_SummbyResptab_box[j] = TableBox();
+      );
+      CurrentDataTable( grp_tab_stk );
+      Selected( RowState(j) )=1;
+
+      CurrentDataTable(  InputVar_tab_stk );
+			tab_rws = InputVar_tab_stk<<GetRowsWhere( !Excluded() & Selected() );
+			InputVar_tab_stk << ClearSelect << SelectRows(tab_rws);
+			If( NRow(tab_rws) != 0,
+        pval_vcht_obj = GenerateVarChart( Insert(Remove(pval_grp_names,NItems(pval_grp_names)),"Type"), Column(InputVar_tab_stk, "p Value"), "", 0 );
+        pval_cht_sel_obj  = Eval(EvalExpr( HListBox(Expr(Substitute( NameExpr(pval_vcht_obj),Expr(v_empt), Expr(Where(Selected())) )))));
+        pval_cht_sel_obj[TextBox(1)]<<SetText("p Value");
+        pval_cht_sel_obj[FrameBox(1)] << RowLegend( Column(InputVar_tab_stk, Eval(NItems(pval_grp_names)+1) ),Color(1),Marker(1) ) << MarkerSize(3);
+        pval_cht_sel_obj[AxisBox(1)] << AxisSettings( Min(If( ColMin(:p Value) <= 0.0001, 0.00001, 0.0001) ), Max(1), Inc(1), Scale("Log"), ShowMinorGrid(1), Format("Best"), AddRefLine(0.05, "Dashed", "Red") );
+        pval_cht_sel_obj[OutlineBox(2)]<<Append(HListBox(TextBox("Note:  p values < 0.0001 are randomly jittered between 0.0001 to 0.00001 in the graph", <<SetWrap(10000))));
+        If( Contains(jmpver, "7"), ((pval_cht_sel_obj[AxisBox(1)]<<Parent)<<Sib) << SibAppend(pval_cht_sel_obj[TableBox(1)]); pval_cht_sel_obj[TableBox(1)] << Delete );
+        InputVar_tab_stk<<ClearSelect,
+              
+        pval_cht_sel_obj=VListBox( OutlineBox("",OutlineBox("Variability Chart", TextBox("There is no data to plot!", <<SetFontSize(12), <<FontColor(Red))) ));
+      ); //EndIf
+      CA_SummbyResppcht_box[j] << Prepend( pval_cht_sel_obj[OutlineBox(2)] );
+
+      CurrentDataTable( grp_tab );
+      Selected( RowState(j) )=1;
+      // Get group rows
+      CA_SummbyResp_rows = InputVar_tab << GetSelectedRows;
+      CA_SummbyResp_subtab = InputVar_tab << Subset( Rows(CA_SummbyResp_rows) );
+      Column( CA_SummbyResp_subtab, "Min p value") << SetEachValue( If( IsMissing(Column(CA_SummbyResp_subtab, "Min p value")[]), 1, Column(CA_SummbyResp_subtab, "Min p value")[]) );
+      CA_SummbyResp_subtab << Sort( By( :Min p Value ), Order(Ascending), ReplaceTable );
+      Column( CA_SummbyResp_subtab, "Min p value") << SetEachValue( If( Column(CA_SummbyResp_subtab, "Min p value")[]==1,., Column(CA_SummbyResp_subtab, "Min p value")[]) );
+      TrackTable(CA_SummbyResp_subtab);
+
+      // Cycle through each column in Input Variable-Results table
+      For( r=N_Grp_Cols+2, r<=num_CA_summ_cols-1, r++,
+        If( NRow(CA_SummbyResp_rows) > 1,
+          CA_SummbyResp_Expr = Expr( GetColAsTable(r,CA_SummbyResp_subtab)[2] ),
+
+          CA_SummbyResp_Expr = Expr( EvalList({GetColAsTable(r,CA_SummbyResp_subtab)[2]}) )
+        );
+        If( Column( CA_SummbyResp_subtab, r )<<GetName != dates_colname,
+          If( Type( GetColAsTable(r,CA_SummbyResp_subtab)[2][1] )=="String",
+            CA_SummbyResptab_box[j] << Append( StringColBox( GetColAsTable(r,CA_SummbyResp_subtab)[1], Eval(CA_SummbyResp_Expr) ) ),
+
+            /*ELSE matrix*/
+            If( !IsMissing(CA_fmt[r]),
+              CA_SummbyResptab_box[j] << Append( NumberColBox( GetColAsTable(r,CA_SummbyResp_subtab)[1],  Eval(CA_SummbyResp_Expr), << SetFormat(6, CA_fmt[r]) ) ),
+
+              /*ELSE nofmt*/
+              CA_SummbyResptab_box[j] << Append( NumberColBox( GetColAsTable(r,CA_SummbyResp_subtab)[1], Eval(CA_SummbyResp_Expr) ) );
+            ); //EndIf !IsMissing
+            CA_SummbyResptab_box[j] << Append( StringColBox( "",{} ) );
+          ) //EndIf Type
+        ); //EndIf Column
+      ); //EndFor r
+      CA_SummbyResp << Append(CA_SummbyResp_Box[j]);
+			For( s=N_Grp_Cols, s>=1, s--,
+				CA_SummbyResptab_box[j] << Prepend( StringColBox(GetColAsTable(s,CA_SummbyResp_subtab)[1], GetColAsTable(s,CA_SummbyResp_subtab)[2]) )
+			);
+      
+      CurrentDataTable( grp_tab );
+      Selected( RowState(j) )=0;
+      Close(CA_SummbyResp_subtab, NoSave);
+    ), //EndFor j
+
+    CA_SummbyResp_GrpBox = VListBox();
+  ); //EndIf NRow
+  CA_OverallSumm << Append(CA_SummbyResp_GrpBox),
+
+  RET=-1;
+  ERR_MSG="Problem Generating Analysis Summary by Response.";
+);
+
+);//EndExpr
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+Print("SOS CA Analysis Output Functions Loaded.");
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////

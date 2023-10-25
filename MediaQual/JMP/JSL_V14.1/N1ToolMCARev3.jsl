@@ -1,0 +1,247 @@
+////////////////////////////////////////////////////
+//// Code to create Matching & Correlation plot ////
+//// comparing T130N to T130N1.						////
+Close All(Data Tables, No Save);
+Close All(Reports, NoSave);
+Close All(Journals, NoSave);
+// Matching scripts //
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+
+
+// User-defined data structure //
+ICOSdb = Dialog(
+	Title( "Finish Data Processing" ),
+	"This script organizes data from the N and N+1 tools in the Finish Module.",
+	"It will prompt the user for the location of specific files or folders.",
+	"You cannot have any JMP tables open for this script to run properly.",
+	"",
+	"How is your N T130 data organized?",
+	ref_data = Radio Buttons( "Folder of files (*.csv)", "Single formatted JMP file" ),
+	"",
+	"How is your N+1 T130 data organized?",
+	new_data = Radio Buttons( "Folder of files (*.csv)", "Single formatted JMP file" ),
+	HList( Button( "OK" ), Button( "Cancel" ) )
+);
+T130N_flag = ICOSdb["ref_data"];
+T130N1_flag = ICOSdb["new_data"];
+n = 1;
+
+
+If( ICOSdb["Button"] != -1, 
+
+// Save folder //
+	save_path = Pick Directory( "Select the folder where the final output will be saved." );
+
+// T130N files //
+	If(
+		T130N_flag == 2,
+			T130N_loc = Pick File(
+				"Select the JMP file that contains the T130N data.",
+				save_path,
+				{"JMP Files|jmp;jsl;jrn", "All Files|*"},
+				1,
+				0,
+				"T130N.jmp"
+			),
+		T130N_flag == 1 & n == 1,
+			T130N_folder = Pick Directory( "Select the folder containing T130N files" );
+	);
+
+// T130N1 files //
+	If(
+		T130N1_flag == 2,
+			T130N1_loc = Pick File(
+				"Select the JMP file that contains the T130N+1 data.",
+				save_path,
+				{"JMP Files|jmp;jsl;jrn", "All Files|*"},
+				1,
+				0,
+				"T130N1.jmp"
+			),
+		T130N1_flag == 1 & n == 1,
+			T130N1_folder = Pick Directory( "Select the folder containing T130N1 files" );
+	);
+
+
+
+	If( T130N_flag == 1, 
+	// T130 data scattered in a single folder //
+		img1 = Open( "$ADDIN_HOME(ATTD.FINISH)\face.jpg", jpg );
+		obj1 = New Window( "PROCESSING", img1 );
+		T130N_filelist = Files In Directory( T130N_folder );
+		
+		For( k = 1, k <= N Items( T130N_filelist ), k++,
+			cfile = T130N_filelist[k];
+			If( Contains( cfile, "Tray" ) > 0,
+				dts = Open( T130N_folder || cfile, invisible );
+				// Create a Tray identifying column //
+				dts << New Column( "T130N Tray", numeric, nominal, set each value( Num( Right( Word( 1, cfile, "." ), 4 ) ) ) );
+			);
+		);
+		obj1 << close window();
+		img1 = "";
+		// Concatenate all tables together //
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			Insert Into( openDTs, Data Table( i ) )
+		); 
+		// OpenDTs is now a list of all open tables in JMP //
+		T130dt = openDTS[1];
+		If( N Table() > 1,
+			T130dt = openDTS[1] << Concatenate( openDTs[2 :: N Table()] );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		T130dt << Current Data Table();
+
+//CO_RF [micron]
+		// Average in case of multiple runs //
+		mT130dt = T130dt << Summary( 
+			Group( :Name( "2DID" ), :Ball nominal X, :Ball nominal Y, :Ball name, :Batch name ), 
+			Mean(:Name( "CO [micron]" ))//, :Name( "CO_RF [micron]") ) 
+			);
+		Column( mT130dt, "Mean(CO [micron])" ) << Set Name( "T130_N_CO" );
+		//Column( mT130dt, "Mean(CO_RF [micron])" ) << Set Name( "T130_NBall_CORF" );
+		Column( mT130dt, "N Rows" ) << Set Name( "T130N Runs" );
+		Summarize( save_flag = By( :T130N Runs ) );
+		Close( mT130dt, save( save_path || "T130N.jmp" ) );
+		If( N Items( save_flag ) == 1 & save_flag[1] == "1",
+			Close( T130dt, nosave ),
+			Close( T130dt, save( save_path || "T130N_all_runs.jmp" ) )
+		);
+	);
+
+	If( T130N1_flag == 1, 
+		img2 = Open( "$ADDIN_HOME(ATTD.FINISH)\shoe.png", png );
+		obj2 = New Window( "PROCESSING", img2 );
+	// T130 data scattered in a single folder //
+		T130N1_filelist = Files In Directory( T130N1_folder );
+		
+		
+		For( k = 1, k <= N Items( T130N1_filelist ), k++,
+			cfile = T130N1_filelist[k];
+			If( Contains( cfile, "Tray" ) > 0,
+				dts = Open( T130N1_folder || cfile, invisible );
+				// Create a Tray identifying column //
+				dts << New Column( "T130N1 Tray", numeric, nominal, set each value( Num( Right( Word( 1, cfile, "." ), 4 ) ) ) );
+			);
+		);
+		obj2 << close window();
+		img2 = "";
+		// Concatenate all tables together //
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			Insert Into( openDTs, Data Table( i ) )
+		); 
+		// OpenDTs is now a list of all open tables in JMP //
+		T1302dt = openDTS[1];
+		If( N Table() > 1,
+			T1302dt = openDTS[1] << Concatenate( openDTs[2 :: N Table()] );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		T1302dt << Current Data Table();
+
+		// Average in case of multiple runs //
+		mT1302dt = T1302dt << Summary( 
+			Group( :Name( "2DID" ), :Ball nominal X, :Ball nominal Y, :Ball name, :Batch name ), 
+			Mean(:Name( "CO [micron]" ))//, :Name( "CO_RF [micron]") ) 
+			);
+		Column( mT1302dt, "Mean(CO [micron])" ) << Set Name( "T130_N1_CO" );
+		//Column( mT1302dt, "Mean(CO_RF [micron])" ) << Set Name( "T130_N1Ball_CORF" );
+		Column( mT1302dt, "N Rows" ) << Set Name( "T130N1 Runs" );
+		Summarize( save_flag = By( :T130N1 Runs ) );
+		Close( mT1302dt, save( save_path || "T130N1.jmp" ) );
+		If( N Items( save_flag ) == 1 & save_flag[1] == "1",
+			Close( T1302dt, nosave ),
+			Close( T1302dt, save( save_path || "T130N1_all_runs.jmp" ) )
+		);
+	);
+	
+// Create Key for Joining
+	If(
+		T130N_flag == 2, T130Ndt = Open( T130N_loc ),
+		T130N_flag == 1, T130Ndt = Open( save_path || "T130N.jmp" )
+	);
+	If(
+		T130N1_flag == 2, T130N1dt = Open( T130N1_loc ),
+		T130N1_flag == 1, T130N1dt = Open( save_path || "T130N1.jmp" )
+	);
+
+
+// Join tables & reorder
+		T130Ndt << Update(
+			With(T130N1dt),
+			By Matching Columns( :Name( "2DID" ) == :Name( "2DID" ), :Ball name == :Ball name)
+			);
+		close(T130N1dt, nosave);
+		T130Ndt << New Column( "T130N-T130N1 Bias", 
+			Width( 10 ), 
+			formula( :Name("T130_N_CO") - :Name("T130_N1_CO" )), 
+			EvalFormula 
+			);
+		Column( T130Ndt, "2DID" ) << Set Name( "DataMatrix");
+		T130Ndt << Move Selected Columns({"Batch name"}, To First);
+		T130Ndt << Move Selected Columns({"Ball name"}, After("DataMatrix"));
+		T130Ndt << Move Selected Columns({"Ball nominal X"}, After("Ball name"));
+		T130Ndt << Move Selected Columns({"Ball nominal Y"}, After("Ball nominal X"));
+		//T130Ndt << Move Selected Columns({"T130_Ball_CO"}, After("Ball nominal Y"));
+		//T130Ndt << Move Selected Columns({"T130_N1Ball_CO"}, After("T130_Ball_CO"));
+		T130Ndt << Sort( Replace table, By( :T130_N_CO ), Order( Ascending ) );
+		
+		T130Ndt << Add Properties to Table(
+			{New Script(
+				"Tune",
+				Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+				dt = currentdatatable();
+				Eval(Tune_fnct);
+				)
+			}
+		);
+		
+		T130Ndt << Add Properties to Table(
+			{New Script(
+				"Plot Matching",
+					Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+					dt = currentdatatable();
+					Matching_fnct( {}, Column( dt, "T130_N1_CO"), Column( dt, "T130_N_CO" ) );
+					if(Column( dt, 7) != column("T130_N1_CO"),
+						Matching_fnct( {}, Column( dt, 7), Column( dt, "T130_N_CO"));	
+					);
+				)
+			}
+		);	
+		
+		T130Ndt << Add Properties to Table(
+					{New Script(
+						"Convert to Unit Level",
+							Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+							dt = currentdatatable();
+							Eval(getmetrocol);
+							MCArdt = dt << Summary(
+								Group( :Name( "DataMatrix" ), :Batch name ),
+								Range( Eval(metro) ),
+								statistics column name format( "column" )
+							);
+							Column( MCArdt, "T130_N_CO" ) << Set Name( "T130_NCO" );
+							Column( MCArdt, "T130_N1_CO" ) << Set Name( "T130_N1CO" );
+							MCArdt << Sort( Replace table, By( :T130_NCO ), Order( Ascending ) );
+							//Matching_fnct( {}, Column( MCArdt, "T130_N1CO" ), Column( MCArdt, "T130_NCO" ) );
+							//if(Column( MCArdt, 5) != column("T130_N1CO"),
+								//Matching_fnct( {}, Column( MCArdt, 5), Column( MCArdt, "T130_NCO"));	
+							//);
+						)
+					}
+				);							
+		
+		Close( T130Ndt, save ( save_path || "Matching.jmp" ));
+		Close All(Data Tables, No Save);
+
+		
+		MCAdt = Open( save_path || "Matching.jmp" );
+		Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+		//logme("MatchingN1", "MCA");
+	);	
+

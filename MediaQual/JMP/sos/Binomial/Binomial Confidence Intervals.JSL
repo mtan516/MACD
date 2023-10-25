@@ -1,0 +1,411 @@
+/*******************************************************************************************
+Binomial Confidence Intervals Script
+
+Starting Condition: User inputs X and N
+Output Condition:	1-Sided Upper and Lower Confidence Intervals
+					2-Sided Upper and Lower Confidence Intervals
+
+Revision History (Descending Order, Newest at the top):
+Rev 1 - Jeff Baumann - 2020WW19
+	- Add commenting and logging throughout script for easier debug in future.
+	- Update all Dialog boxes to instead be New Windows as Dialog is being phased out by JMP.
+Rev 0 - Jonathan Gatlin - 2005
+	- Initial Creation
+
+********************************************************************************************/
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script starting.");
+
+/*************************************************************
+Divider - Set Initial Values of Variables
+
+**************************************************************/
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Set initial values of variables starting.");
+
+//Clear globals and Set Initial Values of Variables
+	clear globals();
+	button=1;			//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+	n=.;				//Default setting of binomial parameter N
+	x=.;				//Default setting of binomial parameter X
+	alpha=.05;			//Default alpha value
+	scale="%";			//Default scale (scale can be % of DPM)
+
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Set initial values of variables completed.");
+
+/*************************************************************
+Divider - Create user window and determine Binomial Confidence Interval results
+
+**************************************************************/
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create user window and determine Binomial Confidence Interval results starting.");
+
+//User Window is active until the user clicks Cancel or generates a Plot
+While(button==1,
+
+	/*************************************************************
+	Divider - Create user window and determine user inputs
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create user window and determine user inputs starting.");
+	
+	//ComboBox setup for scale, depending on user choices
+	If(
+		//if (choice is %)
+		scale=="%",
+		//then (order of buttons is %, DPM)
+		a1="%";
+		b1="DPM",
+		//if (choice is DPM)
+		scale=="DPM",
+		//then (order of buttons is DPM, %)
+		a1="DPM";
+		b1="%"
+	);
+
+
+	//User Window
+	result=New Window("Confidence Interval Calculator",
+		<<modal,
+		<<Return Result,
+		vlistbox(
+			textbox("Enter values for X and N."),
+			textbox(" "),
+			lineupbox(NCol(3),
+				textbox("X"), x=numbereditbox(x), textbox(" "), 
+				textbox("N"), n=numbereditbox(n), textbox(" "), 
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Output Format"), scale=combobox(Eval List({a1, b1})), textbox(" "), 
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Alpha"), alpha=numbereditbox(alpha), textbox(" "), 
+			),
+			textbox(" "),
+			hlistbox(spacerbox(Size(100, 5)), Button Box("OK"), Button Box("Cancel"))
+		)
+	);
+	
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=result["Button"];
+	x=result["x"];
+	n=result["n"];
+	tscale=result["scale"];
+	alpha=result["Alpha"];
+	
+	//Get the decimal portion of n if any exists
+	ntemp=floor(n);
+	If(
+		//if (ntemp is greater than or equal to 1)
+		ntemp>=1, 
+		//then (nmod is any decimal of n if it exists)
+		nmod=modulo(n,ntemp),
+		//else (nmod is 0)
+		nmod=0
+	); 
+	
+	//Get the decimal portion of x if any exists
+	xtemp=floor(x);
+	If(
+		//if (xtemp is greater than or equal to 1)
+		xtemp>=1, 
+		//then (xmod is any decimal of x if it exists)
+		xmod=modulo(x,xtemp),
+		//else (xmod is 0)
+		xmod=0
+	);
+	
+	//Set scale value based on user choise
+	If(
+		//if (scale value is first choice)
+		tscale==1,
+		//then (set scale value to a1)
+		scale=a1,
+		//if (scale value is second choice)
+		tscale==2,
+		//then (set scale value to b1)
+		scale=b1
+	);
+	
+	//Set the confidence interval based on users alpha input
+	conf=100*(1-alpha);
+
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("Binomial_Confidence_Intervals_Script: Ending Script, Cancel chosen.");
+		Print("Binomial_Confidence_Intervals_Script: Create user window and determine user inputs completed.");
+		Print("Binomial_Confidence_Intervals_Script: Create user window and determine Binomial Confidence Interval results completed.");
+		Print("Binomial_Confidence_Intervals_Script completed.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create user window and determine user inputs completed.");
+
+	/*************************************************************
+	Divider - Error checking for Alpha, N and X
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Error checking for alpha, n, and x starting.");
+ 
+	//Alpha error checking
+	If(
+		//if (alpha is greater than 0.4 or less than or equal to 0 or missing)
+			alpha > 0.4 | alpha <= 0 | Is Missing(alpha), 
+		//then (show error window and set alphatest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a value for Alpha between 0 and 0.4"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set alphatest variable
+			alphatest="out";
+			//Log Line
+			Print("Binomial_Confidence_Intervals_Script: Error with value of alpha."),
+		//else (set alphatest variable)
+			//Set alphatest variable
+			alphatest="OK"
+	);
+ 
+	//N error checking
+	If(
+		//if (n is less than 1 or missing or a decimal value)
+			n<1 | Is Missing(n) | nmod > 0, 
+		//then (show error window and set ntest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("N must be an integer >=1"),
+					textbox(""),
+					hlistbox(spacerbox(Size(75,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set ntest variable
+			ntest="out";
+			//Log Line
+			Print("Binomial_Confidence_Intervals_Script: Error with value of n."),
+		//else (set ntest variable)
+			//Set ntest variable
+			ntest="OK"
+	);
+	
+	//X error checking
+	If(
+		//if (x is less than 0 or greater than n or missing or a decimal value)
+			x<0 | x>n | Is Missing(x) | xmod > 0, 
+		//then (show error window and set xtest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("X must be an integer where 0 <= X <= N"),
+					textbox(""),
+					hlistbox(spacerbox(Size(75,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set xtest variable
+			xtest="out";
+			//Log Line
+			Print("Binomial_Confidence_Intervals_Script: Error with value of x."),
+		//else (set ntest variable)
+			//Set xtest variable
+			xtest="OK"
+	);
+	
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Error checking for alpha, n, and x completed.");
+
+	/*************************************************************
+	Divider - Calculate Confidence Intervals
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Calculate confidence intervals starting.");
+ 
+	//Calculation of Confidence Intervals
+	If(
+		//if (users inputs are OK)
+			ntest=="OK" & xtest=="OK" & alphatest=="OK",
+		//then (calculate confidence intervals)
+			tphat=x/n;
+			If(
+				//if (scale is %)
+				scale=="%", 
+				//then (multiply by 100)
+				phat=round(tphat*100,2),
+				//if (scale is DPM)
+				scale=="DPM", 
+				//then (multiply by 1,000,000)
+				phat=round(tphat*1000000,0)
+			); 
+			
+			//One sided upper confidence level
+			If(
+				//if (x equals n)
+				x==n, 
+				//then (set 1 sided upper confidence level to 1)
+				tt1u=1, 
+				//if (x does not equal n)
+				x!=n, 
+				//then (set 1 sided upper confidence level based on equation)
+				tt1u=((x+1)*FQuantile(1-alpha,2*(x+1),2*(n-x)))/((n-x)+(x+1)*FQuantile(1-alpha,2*(x+1),2*(n-x)))
+			);
+			
+			//One sided lower confidence level
+			If(
+				//if (x equals 0)
+				x==0, 
+				//then (set 1 sided lower confidence level to 0)
+				tt1l=0,
+				//if (x does not equal 0)
+				x!=0, 
+				//then (set 1 sided lower confidence level based on equation)
+				tt1l=(x*FQuantile(alpha,2*x,2*(n-x+1)))/((n-x+1)+x*FQuantile(alpha,2*x,2*(n-x+1)))
+			);
+			
+			//Two sided upper confidence level
+			If(
+				//if (x equals n)
+				x==n, 
+				//then (set 2 sided upper confidence level to 1)
+				tt2u=1, 
+				//if (x does not equal n)
+				x!=n,
+				//then (set 2 sided upper confidence level based on equation)
+				tt2u=((x+1)*FQuantile(1-alpha/2,2*(x+1),2*(n-x)))/((n-x)+(x+1)*FQuantile(1-alpha/2,2*(x+1),2*(n-x)))
+			);
+			
+			//Two sided lower confidence level
+			If(
+				//if (x equals 0)
+				x==0, 
+				//then (set 2 sided lower confidence level to 0)
+				tt2l=0,
+				//if (x does not equal 0)
+				x!=0, 
+				//then (set 2 sided lower confidence level based on equation)
+				tt2l=(x*FQuantile(alpha/2,2*x,2*(n-x+1)))/((n-x+1)+x*FQuantile(alpha/2,2*x,2*(n-x+1))));
+			
+			//Set confidence levels in correct scale
+			If(
+				//if (scale is %)
+				scale=="%", 
+				//then (multiply confidence levels by 100)
+				t1u=round(tt1u*100,3);
+				t1l=round(tt1l*100,3);
+				t2u=round(tt2u*100,3);
+				t2l=round(tt2l*100,3),
+				//if (scale is DPM)
+				scale=="DPM", 
+				//then (multiply confidence levels by 1,000,000)
+				t1u=round(tt1u*1000000,0);
+				t1l=round(tt1l*1000000,0);
+				t2u=round(tt2u*1000000,0);
+				t2l=round(tt2l*1000000,0)
+			);
+	); //End If (Calculation of Confidence Intervals)
+
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Calculate confidence intervals completed.");
+ 
+	/*************************************************************
+	Divider - Create Display of Results
+
+	**************************************************************/
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create display of results starting.");
+ 
+	//Create Display of Results
+	If(
+		//if (users inputs are OK)
+			ntest=="OK" & xtest=="OK" & alphatest=="OK",
+		//then (create display of results)
+			//Format % and DPM display
+			If(
+				scale=="%",
+				scalet="%",
+				scale=="DPM",
+				scalet=" DPM"
+			);
+			//Create Output Window
+			output=New Window("Binomial Confidence Intervals",
+				outlinebox("Sample Proportion",
+					hlistbox(
+						textbox("Proportion", <<Set Font Size(10)),
+						spacerbox(Size(25,5)),
+						textbox( char(x)||"/"||char(n)||" = "||char(phat)||scalet, <<Set Font Size(10) )
+					)
+				),
+				outlinebox(char(conf)||"% 1-Sided Confidence Intervals",
+					hlistbox(
+						vlistbox(
+							textbox("Lower", <<Set Font Size(10)),
+							textbox("Upper", <<Set Font Size(10))
+						),
+						spacerbox(Size(25,5)),
+						vlistbox(
+							textbox(char(t1l), <<Set Font Size(10)),
+							textbox(char(t1u), <<Set Font Size(10))
+						)
+					)
+				),
+				outlinebox(char(conf)||"% 2-Sided Confidence Interval",
+					hlistbox(
+						textbox("( "||char(t2l)||" , "||char(t2u)||" )", <<Set Font Size(10))
+					)
+				),
+				outlinebox("User Input",
+					hlistbox(
+						vlistbox(
+							textbox("X", <<Set Font Size(10)),
+							textbox("N", <<Set Font Size(10)),
+							textbox("Alpha", <<Set Font Size(10))
+						),
+						spacerbox(Size(25,5)),
+						vlistbox(
+							textbox(char(x), <<Set Font Size(10)),
+							textbox(char(n), <<Set Font Size(10)),
+							textbox(char(alpha), <<Set Font Size(10))
+						)
+					)
+				)
+			);
+			
+			//Wait
+			wait(.02);
+			//Size output window
+			output<<size window(300,400);
+			
+	); //End If (Create Display of Results)
+	
+	//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create display of results completed.");
+ 
+); //End While
+
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script: Create user window and determine Binomial Confidence Interval results completed.");
+
+//Log Line
+	Print("Binomial_Confidence_Intervals_Script completed.");
+
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

@@ -1,0 +1,1453 @@
+/**************************************************************************************
+	
+	2-Proportion Analysis
+	Author: Jonathan Gatlin and Paul Wenz
+	Revised by: Damien Chee
+	Rev: 2
+	Date: 11/27/07
+	JMP Version: 5.1.1 & 7
+	Starting Condition: User inputs Alpha, data type, hypothesis type, output format,
+                          target proportion, and sample size and X (# defects or #good units) 
+                          for both POR and NEW.
+	Output: The script will output both sample proportions, confidence limits, 
+              and a decision based upon the p-value.  If X NEW is left blank, the script
+              will output the extreme value of X NEW that allows passing the test.  
+	Changes:
+		3/7/06 (rev 1.1.1 by Paul Wenz) - Added global footerbox
+										Reformatted output boxes
+		11/27/07 (rev 2): 	Added batch processing
+							Added :: scoping prefix
+
+***************************************************************************************/
+
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"),
+	::FooterBox=VListBox(textbox(" "))
+    );
+
+/****************************************************************************/
+/************* Initialize, Launch Dialog and Extract Variables **************/
+/****************************************************************************/
+
+::i=0;
+::button = 1;
+::alpha = .05;
+::datatype="# Defective Units";
+::hyptype="SB";
+::scale="%";
+::xpor=.;
+::npor=.;
+::xnew=.;
+::nnew=.;
+::label="< optional >";
+::porlabel="POR";
+::newlabel="NEW";
+::alphatest="";
+::nportest="";
+::xportest="";
+::nnewtest="";
+::xnewtest="";
+::phatpor=.;
+::text="";
+::xloop=.;
+::phatloop=.;
+::df=.;
+::s=.;
+::t=.;
+::xpval=.;
+::flag=.;
+::iflag=.;
+::poolploop=.;
+::ls=.;
+::phatport=.;
+::xloopl=.;
+::phatloopl=.;
+::dfl=.;
+::sl=.;
+::tl=.;
+::xpvall=.;
+::flagl=.;
+::iflagl=.;
+::poolploopl=.;
+::il=.;
+::resultl="";
+::resultu="";
+::xloopu=.;
+::phatloopu=.;
+::dfu=.;
+::su=.;
+::tu=.;
+::xpvalu=.;
+::flagu=.;
+::iflagu=.;
+::poolploopu=.;
+::output = Textbox("");
+
+
+
+/***** MAIN BATCH FUNCTION *****/
+::Batch_Input = Expr(
+
+/***** Create Input Table *****/
+dt = New Table("2-Proportion Binomial Analysis", New Column ("Hypothesis Type"), addRows (2));
+	Column(1) << Data Type (Character);
+::incolhyp = Column(1);
+	incolhyp << List Check ({"SEB", "SB", "SE"});
+	incolhyp[1] = hyptype;
+	incolhyp[2] = "SEB";
+::incolun = New Column ("Unit", Character);
+	incolun << List Check ({"%", "DPM"});
+	incolun[1] = scale;
+	incolun[2] = "%";
+::incolityp = New Column ("Input Type", Character);
+	incolityp << Set Field Width (16);
+	incolityp << List Check ({"# Defective Units", "# Good Units"});
+	incolityp[1] = datatype;
+	incolityp[2] = "# Defective Units";
+::incollabel1 = New Column ("Sample Label 1", Character);
+	incollabel1[1] = porlabel;
+	incollabel1[2] = "POR";
+::incolx1 = New Column ("X1", Numeric, Continuous);
+	incolx1[1] = xpor;
+::incoln1 = New Column ("Sample Size 1", Numeric, Continuous);
+	incoln1[1] = npor;
+::incollabel2 = New Column ("Sample Label 2", Character);
+	incollabel2[1] = newlabel;
+	incollabel2[2] = "NEW";
+::incolx2 = New Column ("X2", Numeric, Continuous);
+	incolx2[1] = xnew;
+::incoln2 = New Column ("Sample Size 2", Numeric, Continuous);
+	incoln2[1] = nnew;
+::incolalp = New Column ("Alpha", Numeric, Continuous);
+	incolalp[1]=alpha;
+
+::hydef = New Column ("hypdef", character, hide);
+hydef << formula(If( :Hypothesis Type == "",  :Hypothesis Type[Row()] = "SEB")); 
+hydef << eval formula;
+
+::hyunit = New Column ("unitdef", character, hide);
+hyunit << formula(If( :Unit == "",  :Unit[Row()] = "%")); 
+hyunit << eval formula;
+
+::hytype = New Column ("typdef", character, hide);
+hytype << formula(If( :Input Type == "",  :Input Type[Row()] = "# Defective Units")); 
+hytype << eval formula;
+
+::hyalp = New Column ("alpdef", numeric, hide);
+hyalp << formula(If(Is Missing( :Alpha),  :Alpha[Row()] = 0.05)); 
+hyalp << eval formula;
+
+::hylb1 = New Column ("lb1def", character, hide);
+hylb1 << formula(If( :Sample Label 1 == "",  :Sample Label 1[Row()] = "POR")); 
+hylb1 << eval formula;
+
+::hylb2 = New Column ("lb2def", character, hide);
+hylb2 << formula(If( :Sample Label 2 == "",  :Sample Label 2[Row()] = "NEW")); 
+hylb2 << eval formula;
+
+dt << move window (0, 0);
+dt << size window (3000, 200);
+
+dt<<add multiple columns("Variable Label (optional)",1,before first, Character);
+	::incolname = column (1);
+	if (label == "< optional >", incolname[1] = "", incolname[1] = label);
+
+
+/***** Set-up prompt window *****/
+::Promptwin = NewWindow("2-Proportion Analysis Input Prompt",
+	BorderBox(Left(3),Top(4),
+	VListBox(
+		PanelBox("", TextBox("Script has paused. Before continuing:", <<SetFontStyle("Bold") ),
+				TextBox(""),
+				TextBox( "	1)  Enter the all information into the input table.", <<SetFontStyle("Bold") ),
+				TextBox(""),
+				TextBox( "	2)  Do not rename or delete the columns.", <<SetFontStyle("Bold") ),
+				TextBox(""),
+				TextBox( "	3)  Make sure your reference table is the active table by clicking on it.", <<SetFontStyle("Bold") ),
+				TextBox(""),
+				TextBox( "When finished, click OK to resume the script", <<SetFontStyle("Bold") ),
+				TextBox("")
+		), //End PanelBox
+		PanelBox("Action",
+			LineupBox(NCol(2),
+				ButtonBox("OK", Start_Proc),
+				ButtonBox("Cancel", Promptwin<<CloseWindow)
+			) //End LineUpBox
+		) //End PanelBox
+	) //End HListBox
+	) //End BorderBox
+); //End NewWindow
+
+); /* END Batch_Input */
+
+
+/***** START ANALYSIS *****/
+::Start_Proc = Expr(
+
+/***** Check for error *****/
+::goflag=0;
+if (NRow(dt)==0, Dialog(Title("Error"),"","There must be at least 1 variable", "",Button("OK"),""); goflag=1);
+
+if (NCol(dt)<11 
+	| char(Column name(1)) != "Variable Label (optional)" 
+	| char(Column name(2)) != "Hypothesis Type" 
+	| char(Column name(3)) != "Unit" 
+	| char(Column name(5)) != "Sample Label 1" 
+	| char(Column name(6)) != "X1" 
+	| char(Column name(4)) != "Input Type" 
+	| char(Column name(7)) != "Sample Size 1" 
+	| char(Column name(8)) != "Sample Label 2" 
+	| char(Column name(9)) != "X2" 
+	| char(Column name(10)) != "Sample Size 2" 
+	| char(Column name(11)) != "Alpha", 
+		Dialog(Title("Error"),"","Please do not modify any columns", "","Please rerun the script", " ", Button("OK"),""); goflag=1; Promptwin<<CloseWindow);
+
+rnum = NRow(dt);
+
+/* Start loop for checking entries */
+::chkloop=1;
+::errmsg="";
+
+while (goflag==0 & chkloop <= rnum,
+
+/* check input type */
+if (column(4)[chkloop] !="# Defective Units" & column(4)[chkloop] !="# Good Units",
+	errmsg = "Input Type should be Good or Defective Units";
+	goflag=1);
+
+/* check unit type */
+if (column(3)[chkloop] !="%" & column(3)[chkloop] !="DPM",
+	errmsg = "Unit must be % or DPM";
+	goflag=1);
+
+/* check hypothesis type */
+if (column(2)[chkloop] !="SB" & column(2)[chkloop] !="SEB" & column(2)[chkloop] !="SE" ,
+	errmsg = "Hypothesis type should be SEB, SB or SE";
+	goflag=1);
+
+/* Check for alpha */	
+if(Column (11)[chkloop] > .4 | Column name(11)[chkloop] <= 0, 
+	errmsg = "Alpha must be between 0 and .4";
+	goflag=1,
+  Is Missing(Column (11)[chkloop]),
+	errmsg = "Please Enter a Value For Alpha, Between 0 and .4";
+	goflag=1
+);
+
+if (goflag==0,
+/* Check for sample size */	
+::n = Column (7)[chkloop];
+::ntemp=floor(n);
+if(ntemp==0 & n==0, ::nmod=0,
+   ntemp==0 & n>0, ::nmod=1,
+   ntemp>=1, ::nmod=modulo(n,ntemp)
+);
+if(Column (7)[chkloop] <= 1,
+	errmsg = "Sample Size must be a positive integer > 1";
+	goflag=1,
+  Is Missing(Column (7)[chkloop]),
+	errmsg = "Please Enter a positive integer for Sample Size";
+	goflag=1,
+  nmod > 0,
+	errmsg = "Sample Size must be an integer";
+	goflag=1
+);
+::n = Column (10)[chkloop];
+::ntemp=floor(n);
+if(ntemp==0 & n==0, ::nmod=0,
+   ntemp==0 & n>0, ::nmod=1,
+   ntemp>=1, ::nmod=modulo(n,ntemp)
+);
+if(Column (10)[chkloop] <= 1,
+	errmsg = "Sample Size must be a positive integer > 1";
+	goflag=1,
+  Is Missing(Column (10)[chkloop]),
+	errmsg = "Please Enter a positive integer for Sample Size";
+	goflag=1,
+  nmod > 0,
+	errmsg = "Sample Size must be an integer";
+	goflag=1
+);
+); /*End IF */
+
+
+if (goflag == 0,
+
+/* Check for x */
+::x = Column (6)[chkloop];
+::xtemp=floor(x);
+if(xtemp==0 & x==0, ::xmod=0,
+   xtemp==0 & x>0, ::xmod=1,
+   xtemp>=1, ::xmod=modulo(x,xtemp)
+);
+if(column(6)[chkloop] > column(7)[chkloop] | column(6)[chkloop] < 0,
+	errmsg = "X must be between 0 and Sample Size";
+	goflag=1,
+  Is Missing(column(6)[chkloop]),
+	errmsg = "Please enter a value for X";
+	goflag=1,
+  xmod > 0, 
+	errmsg = "X must be an integer";
+	goflag=1
+);
+::x = Column (9)[chkloop];
+::xtemp=floor(x);
+if(xtemp==0 & x==0, ::xmod=0,
+   xtemp==0 & x>0, ::xmod=1,
+   xtemp>=1, ::xmod=modulo(x,xtemp)
+);
+if(column(9)[chkloop] > column(10)[chkloop] | column(9)[chkloop] < 0,
+	errmsg = "X must be between 0 and Sample Size";
+	goflag=1,
+  Is Missing(column(9)[chkloop]),
+	errmsg = "Please enter a value for X";
+	goflag=1,
+  xmod > 0, 
+	errmsg = "X must be an integer";
+	goflag=1
+);
+); /* End IF */
+
+
+chkloop++;
+); /* End While loop */
+
+
+if (errmsg!="",
+	Dialog(Title("Error"), errmsg, "", Button("OK"),"")
+);
+
+if (goflag==0, 
+	Promptwin<<CloseWindow;
+	Start_Analysis);
+); /* END Start_Proc */
+
+
+
+/***** MAIN ANALYSIS PROCEDURE *****/
+::Start_Analysis = Expr(
+
+/* Initialize summary list */
+::xporlist = {};
+::nporlist = {};
+::xnewlist = {};
+::nnewlist = {};
+::xpropporlist = {};
+::xpropnewlist = {};
+::pvallist = {};
+::alphalist = {};
+::decisionlist = {};
+::titlelist={};
+::datatypelist={};
+
+for (chkloop=1, chkloop <=NRow(dt), chkloop++,
+
+/* Get variables */
+::tphat=.;
+::pval=.;
+::pvalt=.;
+::tupper=.;
+::tlower=.;
+::upper=.;
+::lower=.;
+::tscale="";
+::decision1="";
+::d2="";
+::py="";
+::nullh="";
+::alth="";
+::problex=.;
+::probgex="";
+::minprob=.;
+::txtci="";
+
+::titlesuffix=column(1)[chkloop];
+if (titlesuffix =="", titlesuffix = "Variable "||char(chkloop));
+::alpha = column(11)[chkloop];
+::conf=100*(1-alpha);
+
+::xpor = column(6)[chkloop];
+::npor = column(7)[chkloop];
+::xnew = column(9)[chkloop];
+::nnew = column(10)[chkloop];
+::hyptype = column(2)[chkloop];
+::datatype = column(4)[chkloop];
+::scale = column(3)[chkloop];
+if(scale=="DPM", ::tscale=" DPM",
+   scale=="%", ::tscale=scale);
+if(datatype=="# Defective Units", ::py="p",
+   datatype=="# Good Units", ::py="y");
+if(hyptype=="SE",
+	::nulldesc="Statistically Equal (SE)"; 
+	::altdesc="Statistically Different (SD)";
+	::conftype="2-Sided");
+if(hyptype=="SEB",
+	::nulldesc="Statistically Equal or Better (SEB)"; 
+	::altdesc="Statistically Worse (SW)";
+	::conftype="1-Sided");
+if(hyptype=="SB",
+	::nulldesc="Statistically Equal or Worse (SEW)"; 
+	::altdesc="Statistically Better (SB)";
+	::conftype="1-Sided");
+::porlabel = column(5)[chkloop];
+ if( IsMissing(porlabel), ::titlesuffixpor="POR", 
+     ::titlesuffixpor=porlabel);
+::newlabel = column(8)[chkloop];
+ if( IsMissing(newlabel), ::titlesuffixnew="NEW", 
+     titlesuffixnew=newlabel);
+
+
+/*** BEGIN ANALYSIS ***/
+::tphatpor=xpor/npor;
+::tphatnew=xnew/nnew;
+::tphatdiff=tphatnew-tphatpor;
+::poolp=(xpor+xnew)/(npor+nnew);
+if(scale=="%", 
+	::phatpor=round(tphatpor*100,3);
+	::phatnew=round(tphatnew*100,3);
+	::phatdiff=round(tphatdiff*100,3),
+   scale=="DPM", 
+	::phatpor=round(tphatpor*1000000,0);
+	::phatnew=round(tphatnew*1000000,0);
+	::phatdiff=round(tphatdiff*1000000,0)
+);
+::df=npor+nnew-2;
+if(xpor==0 & xnew==0, 
+	::s="Undefined",
+   xpor==npor & xnew==nnew, 
+	::s="Undefined",
+   xpor==0 & xnew==nnew, 
+	::s=sqrt(poolp*(1-poolp)),
+   xpor==npor & xnew==0, 
+	::s=sqrt(poolp*(1-poolp)),
+	::s=sqrt((npor*tphatpor*(1-tphatpor)+nnew*tphatnew*(1-tphatnew))/df)
+);
+if(xpor==0 & xnew==0, 
+	::t="Undefined",
+   xpor==npor & xnew==nnew, 
+	::t="Undefined",
+	::t=(tphatnew-tphatpor)/(s*sqrt(1/npor+1/nnew)));
+
+
+/********* Begin One sided Case *******************/
+if(hyptype!="SE",
+
+	if(datatype=="# Defective Units",
+		if(xpor==npor, 
+			::tcipor=1, 
+		   xpor!=npor, 
+			::tcipor=((xpor+1)*FQuantile(1-alpha,2*(xpor+1),2*(npor-xpor)))/
+                            ((npor-xpor)+(xpor+1)*FQuantile(1-alpha,2*(xpor+1),2*(npor-xpor)))
+		);
+		if(xnew==nnew, 
+			::tcinew=1, 
+		   xnew!=nnew, 
+			::tcinew=((xnew+1)*FQuantile(1-alpha,2*(xnew+1),2*(nnew-xnew)))/
+                            ((nnew-xnew)+(xnew+1)*FQuantile(1-alpha,2*(xnew+1),2*(nnew-xnew)))
+		),
+	   datatype=="# Good Units",
+		if(xpor==0, 
+			::tcipor=0,
+		   xpor!=0, 
+			::tcipor=(xpor*FQuantile(alpha,2*xpor,2*(npor-xpor+1)))/
+                            ((npor-xpor+1)+xpor*FQuantile(alpha,2*xpor,2*(npor-xpor+1)))
+		);
+		if(xnew==0, 
+			::tcinew=0,
+		   xnew!=0, 
+			::tcinew=(xnew*FQuantile(alpha,2*xnew,2*(nnew-xnew+1)))/
+                            ((nnew-xnew+1)+xnew*FQuantile(alpha,2*xnew,2*(nnew-xnew+1)))
+		)
+	);
+	if(scale=="%", 
+		::cipor=round(tcipor*100,3); 
+		::cinew=round(tcinew*100,3),
+	   scale=="DPM", 
+		::cipor=round(tcipor*1000000,0); 
+		::cinew=round(tcinew*1000000,0)
+	);
+	if(xpor==0 & xnew==0, 
+		::tcidiffu="NA",
+	   xpor==npor & xnew==nnew, 
+		::tcidiffu="NA",
+		::tcidiffu=(tphatnew-tphatpor)+tQuantile(1-alpha,df)*s*sqrt(1/npor+1/nnew)
+	);
+	if(xpor==0 & xnew==0, 
+		::tcidiffl="NA",
+	   xpor==npor & xnew==nnew, 
+		::tcidiffl="NA",
+		::tcidiffl=(tphatnew-tphatpor)-tQuantile(1-alpha,df)*s*sqrt(1/npor+1/nnew)
+	);
+	if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), 
+		::tcidiffu=tcidiffu; 
+		::tcidiffl=tcidiffl,
+		if(tcidiffu < -1, 
+			::tcidiffu=-1,
+		   tcidiffu >  1, 
+			::tcidiffu=1
+		);
+		if(tcidiffl < -1, 
+			::tcidiffl=-1,
+		   tcidiffl >  1, 
+			::tcidiffl=1
+		)
+	);
+	if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), 
+		::cidiffu=tcidiffu; 
+		::cidiffl=tcidiffl,
+		if(scale=="%", 
+			::cidiffu=round(tcidiffu*100,3); 
+			::cidiffl=round(tcidiffl*100,3), 
+		   scale=="DPM", 
+			::cidiffu=round(tcidiffu*1000000,0); 
+			::cidiffl=round(tcidiffl*1000000,0)
+		)
+	);
+	if(datatype=="# Defective Units",
+		::txtci="1-Sided UCL"; 
+		::ciporl=.; 
+		::ciporu=cipor; 
+		::cinewl=.; 
+		::cinewu=cinew,
+	   datatype=="# Good Units",
+		::txtci="1-Sided LCL"; 
+		::ciporl=cipor; 
+		::ciporu=.; 
+		::cinewl=cinew; 
+		::cinewu=.
+	);
+	if(datatype=="# Defective Units",
+		::txtcid="1-Sided UCL Diff:",
+	   datatype=="# Good Units",
+		::txtcid="1-Sided LCL Diff:"
+	);
+
+	/*** Defect SB and Yield SEB ******/
+
+	if(datatype=="# Defective Units" & hyptype=="SB" | datatype=="# Good Units" & hyptype=="SEB",
+		if(xpor==0 & xnew==0, 
+			::pvalt=.5,
+		   xpor==npor & xnew==nnew, 
+			::pvalt=.5,
+			::pvalt=tDistribution(t,df)
+		);
+		::pval=round(pvalt,3);
+		if(pval < .001, 
+			::pvalf="< .001",
+		   pval >=.001, 
+			::pvalf=pval
+		);
+		if(datatype=="# Defective Units",
+			if(pval<=alpha,
+				::decision1 = py||titlesuffixnew||" is SB than "||py||titlesuffixpor; 
+				::decision2="Reject the Null Hypothesis",
+			   pval >alpha,
+				::decision1=py||titlesuffixnew||" is SEW than "||py||titlesuffixpor;
+				::decision2="Do Not Reject the Null Hypothesis"
+			),
+		   datatype=="# Good Units",
+			if(pval<=alpha,
+				::decision1=py||titlesuffixnew||" is SW than "||py||titlesuffixpor; 
+				::decision2="Reject the Null Hypothesis",
+			   pval >alpha,
+				::decision1=py||titlesuffixnew||" is SEB than "||py||titlesuffixpor; 
+				::decision2="Do Not Reject the Null Hypothesis"
+			)
+		);
+		::nullh=py||titlesuffixnew||" >= "||py||titlesuffixpor;
+		::alth=py||titlesuffixnew||" < "||py||titlesuffixpor;
+	); // End Defect SB and Yield SEB 
+
+
+	/**** Defect SEB and Yield SB ******/
+
+	if(datatype=="# Defective Units" & hyptype=="SEB" | datatype=="# Good Units" & hyptype=="SB",
+		if(xpor==0 & xnew==0, 
+			::pvalt=.5,
+		   xpor==npor & xnew==nnew, 
+			::pvalt=.5,
+			::pvalt=1-tDistribution(t,df)
+		);
+		::pval=round(pvalt,3);
+		if(pval < .001, 
+			::pvalf="< .001",
+		   pval >=.001, 
+			::pvalf=pval
+		);
+		if(datatype=="# Defective Units",
+			if(pval<=alpha,
+				::decision1=py||titlesuffixnew||" is SW than "||py||titlesuffixpor;  
+				::decision2="Reject the Null Hypothesis",
+			   pval >alpha,
+				::decision1=py||titlesuffixnew||" is SEB than "||py||titlesuffixpor;  
+				::decision2="Do Not Reject the Null Hypothesis"
+			),
+		   datatype=="# Good Units",
+			if(pval<=alpha,
+				::decision1=py||titlesuffixnew||" is SB than "||py||titlesuffixpor;  
+				::decision2="Reject the Null Hypothesis",
+		   	   pval >alpha,
+				::decision1=py||titlesuffixnew||" is SEW than "||py||titlesuffixpor;  
+				::decision2="Do Not Reject the Null Hypothesis"
+			)
+		);
+		::nullh=py||titlesuffixnew||" <= "||py||titlesuffixpor;
+		::alth=py||titlesuffixnew||" > "||py||titlesuffixpor;
+	); // End Defect SEB and Yield SB 
+); //End one sided case
+
+/****** Two Sided Case: Defect SE and Yield SE ********/
+
+if(hyptype=="SE",
+ 
+	if(xpor==0 & xnew==0, 
+		::pvalt=1,
+	   xpor==npor & xnew==nnew, 
+		::pvalt=1,
+		if(t<0, 
+			::pvalt=2*tDistribution(t,df),
+		   t>0, 
+			::pvalt=2*(1-tDistribution(t,df)),
+		   t==0, 
+			::pvalt=1
+		)
+	);
+	::pval=round(pvalt,3);
+	if(pval < .001, 
+		::pvalf="< .001",
+	   pval >=.001, 
+		::pvalf=pval
+	);
+	if(pval<=alpha,
+		::decision1=py||titlesuffixnew||" is SD to "||py||titlesuffixpor; 
+		::decision2="Reject the Null Hypothesis",
+	   pval >alpha,
+		::decision1=py||titlesuffixnew||" is SE to "||py||titlesuffixpor;  
+		::decision2="Do Not Reject the Null Hypothesis"
+	);
+	::nullh=py||titlesuffixnew||" = "||py||titlesuffixpor;
+	::alth=py||titlesuffixnew||" <> "||py||titlesuffixpor;
+	if(xpor==0, 
+		::tciporl=0,
+	   xpor!=0, 
+		::tciporl=(xpor*FQuantile(alpha/2,2*xpor,2*(npor-xpor+1)))/
+                       ((npor-xpor+1)+xpor*FQuantile(alpha/2,2*xpor,2*(npor-xpor+1)))
+	);
+	if(xpor==npor, 
+		::tciporu=1, 
+	   xpor!=npor, 
+		::tciporu=((xpor+1)*FQuantile(1-alpha/2,2*(xpor+1),2*(npor-xpor)))/
+                       ((npor-xpor)+(xpor+1)*FQuantile(1-alpha/2,2*(xpor+1),2*(npor-xpor)))
+	);
+	if(xnew==0, 
+		::tcinewl=0,
+	   xnew!=0, 
+		::tcinewl=(xnew*FQuantile(alpha/2,2*xnew,2*(nnew-xnew+1)))/
+                       ((nnew-xnew+1)+xnew*FQuantile(alpha/2,2*xnew,2*(nnew-xnew+1)))
+	);
+	if(xnew==nnew, 
+		::tcinewu=1, 
+	   xnew!=nnew, 
+		::tcinewu=((xnew+1)*FQuantile(1-alpha/2,2*(xnew+1),2*(nnew-xnew)))/
+                       ((nnew-xnew)+(xnew+1)*FQuantile(1-alpha/2,2*(xnew+1),2*(nnew-xnew)))
+	);
+	if(scale=="%", 
+		::ciporu=round(tciporu*100,3); 
+		::cinewu=round(tcinewu*100,3);
+		::ciporl=round(tciporl*100,3); 
+		::cinewl=round(tcinewl*100,3),
+	   scale=="DPM", 
+		::ciporu=round(tciporu*1000000,0); 
+		::cinewu=round(tcinewu*1000000,0);
+		::ciporl=round(tciporl*1000000,0); 
+		::cinewl=round(tcinewl*1000000,0)
+	);
+	::txtci="2-Sided CI";
+	if(xpor==0 & xnew==0, 
+		::tcidiffu="NA",
+	   xpor==npor & xnew==nnew, 
+		::tcidiffu="NA",
+		::tcidiffu=(tphatnew-tphatpor)+tQuantile(1-alpha/2,df)*s*sqrt(1/npor+1/nnew)
+	);
+	if(xpor==0 & xnew==0, 
+		::tcidiffl="NA",
+	   xpor==npor & xnew==nnew, 
+		::tcidiffl="NA",
+		::tcidiffl=(tphatnew-tphatpor)-tQuantile(1-alpha/2,df)*s*sqrt(1/npor+1/nnew)
+	);
+	if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), 
+		::tcidiffu=tcidiffu; 
+		::tcidiffl=tcidiffl,
+		if(tcidiffu < -1, 
+			::tcidiffu=-1,
+		   tcidiffu >  1, 
+			::tcidiffu=1
+		);
+		if(tcidiffl < -1, 
+			::tcidiffl=-1,
+		   tcidiffl >  1, 
+			::tcidiffl=1
+		)
+	);
+	if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), 
+		::cidiffu=tcidiffu; 
+		::cidiffl=tcidiffl,
+		if(scale=="%", 
+			::cidiffu=round(tcidiffu*100,3); 
+			::cidiffl=round(tcidiffl*100,3), 
+		   scale=="DPM", 
+			::cidiffu=round(tcidiffu*1000000,0); 
+			::cidiffl=round(tcidiffl*1000000,0)
+		)
+	);
+	::txtcid="2-Sided CI Diff:";
+); // End Defect SE and Yield SE 
+
+
+/* CREATE INDIVIDUAL OUTPUT WINDOW */
+
+::hyptab = Outlinebox("Hypotheses",
+	hlistbox(
+		vlistbox(
+			textbox("Null Hypothesis:"),
+			textbox("Alternative Hypothesis:")
+		),
+		textbox(""),textbox(""),textbox(""),
+		vlistbox(
+			textbox(nullh),
+			textbox(alth)
+		),
+		textbox(""),textbox(""),textbox(""),
+		vlistbox(
+			textbox(nulldesc),
+			textbox(altdesc)
+		)  
+	)
+);
+::protab = OutlineBox("Sample Proportions and Confidence Intervals",
+	TableBox(
+		StringColBox("Level",{titlesuffixpor,titlesuffixnew,titlesuffixnew||" - "||titlesuffixpor}),
+		NumberColBox(datatype,{xpor,xnew,.}),
+		NumberColBox("Sample Size",{npor,nnew,.}),
+		NumberColBox("Sample "||tscale,{phatpor,phatnew,phatdiff}),
+		NumberColBox(char(conf)||"% "||conftype||" LCL"||tscale,{ciporl,cinewl,cidiffl}),
+		NumberColBox(char(conf)||"% "||conftype||" UCL"||tscale,{ciporu,cinewu,cidiffu})
+	)
+);
+::restab = OutlineBox("Test Results",
+	TableBox(
+		StringColBox("P-Value",{char(pvalf)}),
+		NumberColBox("Alpha",{alpha}),
+		StringColBox("  ",{"  "}),
+		StringColBox("Decision",{decision2||": "||decision1})
+	)
+);
+if (chkloop == 1, 
+	::output = New Window("2-Proportion Analysis",
+		::tbx = Outline Box(titlesuffix, 
+			hyptab,
+			protab,
+			restab,
+			textbox(" ")
+		)
+	),
+	output << Append(
+		::tbx = Outline Box(titlesuffix, 
+			hyptab,
+			protab,
+			restab,
+			textbox(" ")
+		)
+	)
+);
+if (NRow(dt) >1, tbx << close);
+
+/* Update summary list */
+InsertInto (titlelist, titlesuffix);
+InsertInto (xporlist, xpor);
+InsertInto (nporlist, npor);
+InsertInto (xnewlist, xnew);
+InsertInto (nnewlist, nnew);
+InsertInto (alphalist, alpha);
+InsertInto (pvallist, char(pvalf));
+InsertInto (decisionlist, decision1);
+InsertInto (datatypelist, Word(1, datatype, "#"));
+InsertInto (xpropporlist, char(phatpor) || " " || tscale);
+InsertInto (xpropnewlist, char(phatnew) || " " || tscale);
+
+); /* END For */
+
+/* Summary Table */
+::sumbox=TableBox(
+	StringColBox("Variable",titlelist),
+	StringColBox("Data Type",datatypelist),
+	NumberColBox("X1", xporlist),
+	NumberColBox("Sample Size 1", nporlist),
+	StringColBox("Proportion 1", xpropporlist),
+	NumberColBox("X2", xnewlist),
+	NumberColBox("Sample Size 2", nnewlist),
+	StringColBox("Proportion 2", xpropnewlist),
+	NumberColBox("Alpha", alphalist),
+	StringColBox("P-Value", pvallist),
+	StringColBox("Decision", decisionlist)	
+);
+
+sumbox<<Table Style(Bordered);
+output << Append(Outline Box("Overall 2-Proportion Analysis Summary Table",sumbox, textbox(" ")));
+output << Append( FooterBox );
+
+
+); /* END Start_Analysis */
+
+
+
+
+/***** MAIN BODY *****/
+
+while(button==1,
+
+ If(datatype=="# Defective Units",::a1="# Defective Units";::b1="# Good Units",
+    datatype=="# Good Units",a1="# Good Units";b1="# Defective Units");
+ If(hyptype=="SB",::a2="SB";::b2="SEB";::c2="SE",
+    hyptype=="SEB",a2="SEB";b2="SB";c2="SE",
+    hyptype=="SE",a2="SE";b2="SB";c2="SEB");
+ If(scale=="%",::a3="%";::b3="DPM",scale=="DPM",a3="DPM";b3="%");
+
+ ::result=Dialog(title("2-Proportion Analysis"),
+  VList(
+   "Provide Values for X's and N's.",  
+   "Leave X for Sample 2 blank to search for the extreme value that allows for passing the test.", 
+   " ",
+   Lineup(4,
+    "Hypothesis Type",hyptype=combobox(a2,b2,c2)," "," ",
+    "Output Format",scale=combobox(a3,b3)," "," ",
+    " "," "," "," ",
+    " ","Sample 1","Sample 2"," ",
+    "Sample Label",porlabel=EditText(porlabel),newlabel=EditText(newlabel)," ",
+    " "," "," "," ",
+    "X", xpor=EditNumber(xpor),xnew=EditNumber(xnew),datatype=combobox(a1,b1), 
+    "N", npor=EditNumber(npor),nnew=EditNumber(nnew)," ", 
+    " "," "," "," ",
+    "Variable Label", label=EditText(label), " "," ",
+    " "," "," "," ",			 			
+    "Alpha", alpha=EditNumber(alpha)," "," "), 
+    " ",
+   " ",
+   ::batch= CheckBox("Input more than 1 variable",0),
+   HList(Button("OK"), Button("Cancel"))
+  )
+ );
+
+::button = result["Button"];
+::alpha=result["Alpha"];
+::conf=100*(1-alpha);
+::xpor=result["xpor"];
+::xnew=result["xnew"];
+::npor=result["npor"];
+::nnew=result["nnew"];
+if(xpor==0, ::xpormod=0,
+   xpor!=0, ::xpormod=modulo(xpor,floor(xpor)));
+if(xnew==0, ::xnewmod=0,
+   xnew!=0, ::xnewmod=modulo(xnew,floor(xnew)));
+::npormod=modulo(npor,floor(npor));
+::nnewmod=modulo(nnew,floor(nnew));
+::label=result["label"];
+ if( label=="< optional >", ::titlesuffix="", 
+     IsMissing(label),      ::titlesuffix="",
+     label!="< optional >", ::titlesuffix="for "||label);
+::porlabel=result["porlabel"];
+ if( porlabel=="POR", ::titlesuffixpor="POR", 
+     IsMissing(porlabel), ::titlesuffixpor="POR", 
+     porlabel!="POR", ::titlesuffixpor=porlabel);
+::newlabel=result["newlabel"];
+ if( newlabel=="NEW", ::titlesuffixnew="NEW", 
+     IsMissing(newlabel), ::titlesuffixnew="NEW", 
+     newlabel!="NEW", ::titlesuffixnew=newlabel);
+::hyptype=result["hyptype"];
+ if(hyptype==1,hyptype=a2,
+    hyptype==2,hyptype=b2,
+    hyptype==3,hyptype=c2);
+::datatype=result["datatype"];
+ if(datatype==1,datatype=a1,
+    datatype==2,datatype=b1);
+::scale=result["scale"];
+ if(scale==1,scale=a3,
+    scale==2,scale=b3);
+if(scale=="DPM", ::tscale=" DPM",
+   scale=="%", ::tscale=scale);
+if(datatype=="# Defective Units", ::py="p of ",
+   datatype=="# Good Units", ::py="y of ");
+
+::batch = result["batch"];
+if (batch==1, button=0);
+
+::nulldesc = "";
+::altdesc = "";
+::conftype = "";
+
+if(hyptype=="SE",nulldesc="Statistically Equal (SE)"; altdesc="Statistically Different (SD)";conftype="2-Sided");
+if(hyptype=="SEB",nulldesc="Statistically Equal or Better (SEB)"; altdesc="Statistically Worse (SW)";conftype="1-Sided");
+if(hyptype=="SB",nulldesc="Statistically Equal or Worse (SEW)"; altdesc="Statistically Better (SB)";conftype="1-Sided");
+
+
+/****************************************************************************/
+/************************** Error Checking **********************************/
+/****************************************************************************/
+
+if(button==1,
+  if(alpha > .4 | alpha <= 0, Dialog(Title("Error"),"","Alpha must be between 0 and .4",
+   "",Button("OK"),"");alphatest="out",Is Missing(alpha),Dialog(Title("Error"),
+   "","Please Enter a Value For Alpha, Between 0 and .4","",Button("OK"),"");
+   alphatest="missing",alphatest="OK");
+  if(npor < 2, Dialog(Title("Error"), "", "POR Sample Size must be a positive integer > 1", 
+   "", Button("OK"), "");nportest="out",Is Missing(npor), Dialog(Title("Error"), "", 
+   "Please Enter a positive integer for POR Sample Size", "", Button("OK"), ""); nportest="missing",
+   npormod > 0, Dialog(Title("Error"), "", "POR Sample Size must be an integer", "", Button("OK"), "");
+   nportest="nonint",nportest="OK");
+  if(nnew < 2, Dialog(Title("Error"), "", "NEW Sample Size must be a positive integer > 1", 
+   "", Button("OK"), "");nnewtest="out",Is Missing(nnew), Dialog(Title("Error"), "", 
+   "Please Enter a positive integer for NEW Sample Size", "", Button("OK"), ""); nnewtest="missing",
+   nnewmod > 0, Dialog(Title("Error"), "", "NEW Sample Size must be an integer", "", Button("OK"), "");
+   nnewtest="nonint",nnewtest="OK");
+  if(xpor > npor | xpor < 0, Dialog(Title("Error"),"","POR X must be between 0 and POR Sample Size",
+   "",Button("OK"),"");xportest="out",Is Missing(xpor), Dialog(Title("Error"), "", 
+   "Please Enter a positive integer for Sample 1   X", "", Button("OK"), "");xportest="missing",
+   xpormod > 0, Dialog(Title("Error"), "", "POR X must be an integer", "", Button("OK"), "");
+   xportest="nonint",xportest="OK");
+  if(xnew > nnew | xnew < 0, Dialog(Title("Error"),"","NEW X must be between 0 and NEW Sample Size",
+   "",Button("OK"),"");xnewtest="out",Is Missing(xnew),xnewtest="missing",
+   xnewmod > 0, Dialog(Title("Error"), "", "NEW X must be an integer", "", Button("OK"), "");
+   xnewtest="nonint",xnewtest="OK");
+);
+
+/****************************************************************************/
+/************************** Begin Analysis **********************************/
+/****************************************************************************/
+
+if(button==1 & alphatest=="OK" & nportest=="OK" & nnewtest=="OK" & xportest=="OK" & xnewtest=="OK",
+
+ ::tphatpor=xpor/npor;
+ ::tphatnew=xnew/nnew;
+ ::tphatdiff=tphatnew-tphatpor;
+ ::poolp=(xpor+xnew)/(npor+nnew);
+ ::phatpor=.;
+ ::phatnew=.;
+ ::phatdiff=.;
+ if(scale=="%", phatpor=round(tphatpor*100,3);phatnew=round(tphatnew*100,3);phatdiff=round(tphatdiff*100,3),
+    scale=="DPM", phatpor=round(tphatpor*1000000,0);phatnew=round(tphatnew*1000000,0);phatdiff=round(tphatdiff*1000000,0));
+ ::df=npor+nnew-2;
+ ::s=.;
+ if(xpor==0 & xnew==0, s="Undefined",
+    xpor==npor & xnew==nnew, s="Undefined",
+    xpor==0 & xnew==nnew, s=sqrt(poolp*(1-poolp)),
+    xpor==npor & xnew==0, s=sqrt(poolp*(1-poolp)),
+    s=sqrt((npor*tphatpor*(1-tphatpor)+nnew*tphatnew*(1-tphatnew))/df));
+ t=.;
+ if(xpor==0 & xnew==0, t="Undefined",
+    xpor==npor & xnew==nnew, t="Undefined",
+    t=(tphatnew-tphatpor)/(s*sqrt(1/npor+1/nnew)));
+
+ ::tcipor=.;
+ ::tcinew=.;
+ ::cipor=.;
+ ::cinew=.;
+ ::ciporu=.;
+ ::cinewu=.;
+ ::ciporl=.;
+ ::cinewl=.;
+ ::tcidiffu=.;
+ ::tcidiffl=.;
+ ::cidiffu=.;
+ ::cidiffl=.;
+ ::txtcid="";
+ ::pvalt=.;
+ ::pval=.;
+ ::decision1="";
+ ::decision2="";
+ ::nullh = "";
+ ::alth="";
+ ::tciporl=.;
+ ::tciporu=.;
+ ::tcinewl=.;
+ ::tcinewu=.;
+
+ /********* Begin One sided Case *******************/
+
+ if(hyptype!="SE",
+
+  if(datatype=="# Defective Units",
+     if(xpor==npor, tcipor=1, 
+        xpor!=npor, tcipor=((xpor+1)*FQuantile(1-alpha,2*(xpor+1),2*(npor-xpor)))/
+                           ((npor-xpor)+(xpor+1)*FQuantile(1-alpha,2*(xpor+1),2*(npor-xpor))));
+     if(xnew==nnew, tcinew=1, 
+        xnew!=nnew, tcinew=((xnew+1)*FQuantile(1-alpha,2*(xnew+1),2*(nnew-xnew)))/
+                           ((nnew-xnew)+(xnew+1)*FQuantile(1-alpha,2*(xnew+1),2*(nnew-xnew)))),
+    datatype=="# Good Units",
+     if(xpor==0, tcipor=0,
+        xpor!=0, tcipor=(xpor*FQuantile(alpha,2*xpor,2*(npor-xpor+1)))/
+                        ((npor-xpor+1)+xpor*FQuantile(alpha,2*xpor,2*(npor-xpor+1))));
+     if(xnew==0, tcinew=0,
+        xnew!=0, tcinew=(xnew*FQuantile(alpha,2*xnew,2*(nnew-xnew+1)))/
+                        ((nnew-xnew+1)+xnew*FQuantile(alpha,2*xnew,2*(nnew-xnew+1)))));
+  if(scale=="%", cipor=round(tcipor*100,3); cinew=round(tcinew*100,3),
+    scale=="DPM", cipor=round(tcipor*1000000,0); cinew=round(tcinew*1000000,0));
+
+  if(xpor==0 & xnew==0, tcidiffu="NA",
+    xpor==npor & xnew==nnew, tcidiffu="NA",
+    tcidiffu=(tphatnew-tphatpor)+tQuantile(1-alpha,df)*s*sqrt(1/npor+1/nnew));
+  if(xpor==0 & xnew==0, tcidiffl="NA",
+    xpor==npor & xnew==nnew, tcidiffl="NA",
+    tcidiffl=(tphatnew-tphatpor)-tQuantile(1-alpha,df)*s*sqrt(1/npor+1/nnew));
+  if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), tcidiffu=tcidiffu; tcidiffl=tcidiffl,
+   if(tcidiffu < -1, tcidiffu=-1,
+     tcidiffu >  1, tcidiffu=1);
+   if(tcidiffl < -1, tcidiffl=-1,
+     tcidiffl >  1, tcidiffl=1));
+  if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), cidiffu=tcidiffu; cidiffl=tcidiffl,
+   if(scale=="%", cidiffu=round(tcidiffu*100,3); cidiffl=round(tcidiffl*100,3), 
+     scale=="DPM", cidiffu=round(tcidiffu*1000000,0); cidiffl=round(tcidiffl*1000000,0)));
+
+  if(datatype=="# Defective Units",txtci="1-Sided UCL"; ciporl=.; ciporu=cipor; cinewl=.; cinewu=cinew,
+    datatype=="# Good Units",txtci="1-Sided LCL"; ciporl=cipor; ciporu=.; cinewl=cinew; cinewu=.);
+  if(datatype=="# Defective Units",txtcid="1-Sided UCL Diff:",
+    datatype=="# Good Units",txtcid="1-Sided LCL Diff:");
+
+ /*** Defect SB and Yield SEB ******/
+
+ if(datatype=="# Defective Units" & hyptype=="SB" | datatype=="# Good Units" & hyptype=="SEB",
+  if(xpor==0 & xnew==0, pvalt=.5,
+    xpor==npor & xnew==nnew, pvalt=.5,
+    pvalt=tDistribution(t,df));
+  pval=round(pvalt,3);
+  if(pval < .001, pvalf="< .001",
+    pval >=.001, pvalf=pval);
+  if(datatype=="# Defective Units",
+     if(pval<=alpha,decision1=py||titlesuffixnew||" is SB than "||py||titlesuffixpor; 
+                    decision2="Reject the Null Hypothesis",
+        pval >alpha,decision1=py||titlesuffixnew||" is SEW than "||py||titlesuffixpor;
+                    decision2="Do Not Reject the Null Hypothesis"),
+    datatype=="# Good Units",
+     if(pval<=alpha,decision1=py||titlesuffixnew||" is SW than "||py||titlesuffixpor; 
+                    decision2="Reject the Null Hypothesis",
+        pval >alpha,decision1=py||titlesuffixnew||" is SEB than "||py||titlesuffixpor; 
+                    decision2="Do Not Reject the Null Hypothesis"));
+ nullh=py||titlesuffixnew||" >= "||py||titlesuffixpor;
+ alth=py||titlesuffixnew||" < "||py||titlesuffixpor;
+ ); // End Defect SB and Yield SEB 
+
+
+ /**** Defect SEB and Yield SB ******/
+
+ if(datatype=="# Defective Units" & hyptype=="SEB" | datatype=="# Good Units" & hyptype=="SB",
+   if(xpor==0 & xnew==0, pvalt=.5,
+     xpor==npor & xnew==nnew, pvalt=.5,
+     pvalt=1-tDistribution(t,df));
+   pval=round(pvalt,3);
+   if(pval < .001, pvalf="< .001",
+     pval >=.001, pvalf=pval);
+   if(datatype=="# Defective Units",
+     if(pval<=alpha,decision1=py||titlesuffixnew||" is SW than "||py||titlesuffixpor;  
+                    decision2="Reject the Null Hypothesis",
+        pval >alpha,decision1=py||titlesuffixnew||" is SEB than "||py||titlesuffixpor;  
+                    decision2="Do Not Reject the Null Hypothesis"),
+    datatype=="# Good Units",
+     if(pval<=alpha,decision1=py||titlesuffixnew||" is SB than "||py||titlesuffixpor;  
+                    decision2="Reject the Null Hypothesis",
+        pval >alpha,decision1=py||titlesuffixnew||" is SEW than "||py||titlesuffixpor;  
+                    decision2="Do Not Reject the Null Hypothesis"));
+ nullh=py||titlesuffixnew||" <= "||py||titlesuffixpor;
+ alth=py||titlesuffixnew||" > "||py||titlesuffixpor;
+ ); // End Defect SEB and Yield SB 
+
+); //End one sided case
+
+/****** Two Sided Case: Defect SE and Yield SE ********/
+
+if(hyptype=="SE",
+ 
+ if(xpor==0 & xnew==0, pvalt=1,
+    xpor==npor & xnew==nnew, pvalt=1,
+    if(t<0, pvalt=2*tDistribution(t,df),
+       t>0, pvalt=2*(1-tDistribution(t,df)),
+       t==0, pvalt=1));
+ pval=round(pvalt,3);
+ if(pval < .001, pvalf="< .001",
+    pval >=.001, pvalf=pval);
+ if(pval<=alpha,decision1=py||titlesuffixnew||" is SD to "||py||titlesuffixpor; 
+                decision2="Reject the Null Hypothesis",
+    pval >alpha,decision1=py||titlesuffixnew||" is SE to "||py||titlesuffixpor;  
+                decision2="Do Not Reject the Null Hypothesis");
+ nullh=py||titlesuffixnew||" = "||py||titlesuffixpor;
+ alth=py||titlesuffixnew||" <> "||py||titlesuffixpor;
+ if(xpor==0, tciporl=0,
+    xpor!=0, tciporl=(xpor*FQuantile(alpha/2,2*xpor,2*(npor-xpor+1)))/
+                     ((npor-xpor+1)+xpor*FQuantile(alpha/2,2*xpor,2*(npor-xpor+1))));
+ if(xpor==npor, tciporu=1, 
+    xpor!=npor, tciporu=((xpor+1)*FQuantile(1-alpha/2,2*(xpor+1),2*(npor-xpor)))/
+                        ((npor-xpor)+(xpor+1)*FQuantile(1-alpha/2,2*(xpor+1),2*(npor-xpor))));
+ if(xnew==0, tcinewl=0,
+    xnew!=0, tcinewl=(xnew*FQuantile(alpha/2,2*xnew,2*(nnew-xnew+1)))/
+                     ((nnew-xnew+1)+xnew*FQuantile(alpha/2,2*xnew,2*(nnew-xnew+1))));
+ if(xnew==nnew, tcinewu=1, 
+    xnew!=nnew, tcinewu=((xnew+1)*FQuantile(1-alpha/2,2*(xnew+1),2*(nnew-xnew)))/
+                        ((nnew-xnew)+(xnew+1)*FQuantile(1-alpha/2,2*(xnew+1),2*(nnew-xnew))));
+ if(scale=="%", ciporu=round(tciporu*100,3); cinewu=round(tcinewu*100,3);
+                ciporl=round(tciporl*100,3); cinewl=round(tcinewl*100,3),
+    scale=="DPM", ciporu=round(tciporu*1000000,0); cinewu=round(tcinewu*1000000,0);
+                  ciporl=round(tciporl*1000000,0); cinewl=round(tcinewl*1000000,0));
+ txtci="2-Sided CI";
+ if(xpor==0 & xnew==0, tcidiffu="NA",
+    xpor==npor & xnew==nnew, tcidiffu="NA",
+    tcidiffu=(tphatnew-tphatpor)+tQuantile(1-alpha/2,df)*s*sqrt(1/npor+1/nnew));
+ if(xpor==0 & xnew==0, tcidiffl="NA",
+    xpor==npor & xnew==nnew, tcidiffl="NA",
+    tcidiffl=(tphatnew-tphatpor)-tQuantile(1-alpha/2,df)*s*sqrt(1/npor+1/nnew));
+ if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), tcidiffu=tcidiffu; tcidiffl=tcidiffl,
+  if(tcidiffu < -1, tcidiffu=-1,
+     tcidiffu >  1, tcidiffu=1);
+  if(tcidiffl < -1, tcidiffl=-1,
+     tcidiffl >  1, tcidiffl=1));
+ if((xpor==0 & xnew==0) | (xpor==npor & xnew==nnew), cidiffu=tcidiffu; cidiffl=tcidiffl,
+  if(scale=="%", cidiffu=round(tcidiffu*100,3); cidiffl=round(tcidiffl*100,3), 
+     scale=="DPM", cidiffu=round(tcidiffu*1000000,0); cidiffl=round(tcidiffl*1000000,0)));
+ txtcid="2-Sided CI Diff:";
+); // End Defect SE and Yield SE 
+
+
+/****************************************************************************/
+/******************** Create Output Window **********************************/
+/****************************************************************************/
+
+::Output=new window("2-Proportion Analysis "||titlesuffix,
+ OutlineBox("Hypotheses "||titlesuffix,
+  hlistbox(
+   vlistbox(textbox("Null Hypothesis:"),
+            textbox("Alternative Hypothesis:")),
+   textbox(""),textbox(""),textbox(""),
+   vlistbox(textbox(nullh),
+            textbox(alth)),
+   textbox(""),textbox(""),textbox(""),
+   vlistbox(textbox(nulldesc),
+            textbox(altdesc))  
+  )
+ ), 
+ OutlineBox("Sample Proportions and Confidence Intervals "||titlesuffix,
+	TableBox(
+		StringColBox("Level",{titlesuffixpor,titlesuffixnew,titlesuffixnew||" - "||titlesuffixpor}),
+		NumberColBox(datatype,{xpor,xnew,.}),
+		NumberColBox("Sample Size",{npor,nnew,.}),
+		NumberColBox("Sample "||tscale,{phatpor,phatnew,phatdiff}),
+		NumberColBox(char(conf)||"% "||conftype||" LCL"||tscale,{ciporl,cinewl,cidiffl}),
+		NumberColBox(char(conf)||"% "||conftype||" UCL"||tscale,{ciporu,cinewu,cidiffu})
+	)
+ ),
+ OutlineBox("Test Results "||titlesuffix,
+	TableBox(
+		StringColBox("P-Value",{char(pvalf)}),
+		NumberColBox("Alpha",{alpha}),
+		StringColBox("  ",{"  "}),
+		StringColBox("Decision",{decision2||": "||decision1})
+	)
+ ), footerbox
+);  //End New Window
+
+/************** End Output **************************/
+
+wait(.02);
+output<<size window(550,300);
+); //End analysis
+
+/******************* End Analysis *********************/
+/******************************************************/
+/******************* Begin Searches *******************/
+
+/* Search for Critical X for Defect SB and Yield SEB */
+
+if(button==1 & alphatest=="OK" & nportest=="OK" & nnewtest=="OK" & xportest=="OK" & xnewtest=="missing",
+if(datatype=="# Defective Units" & hyptype=="SB" | datatype=="# Good Units" & hyptype=="SEB",
+
+::phatpor=xpor/npor;
+if(scale=="%", phatport=round(phatpor*100, 2),
+   scale=="DPM", phatport=round(phatpor*1000000,2));
+if(hyptype=="SB" & xpor==0, 
+    text="Impossible to show "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale||".",
+   hyptype=="SEB" & xpor==0,
+    text="Any value of X-NEW will result in a decision of "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale,
+
+if(hyptype=="SB", ls="largest",
+   hyptype=="SEB", ls="smallest");
+
+if(xpor==npor, xloop=nnew-1,
+   xloop=ceiling((xpor/npor)*nnew));
+
+phatloop=xloop/nnew;
+df=npor+nnew-2;
+s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df);
+t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+xpval=tDistribution(t,df);
+if(xpval > alpha, flag=0,
+   xpval <=alpha, flag=1);
+
+if(flag==1, 
+ iflag=0;
+ while(iflag==0 & xloop < nnew,  
+   phatloop=xloop/nnew;
+   poolploop=(xpor+xloop)/(npor+nnew);
+   if(xpor==npor & xloop==0, s=sqrt(poolploop*(1-poolploop)),
+      s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df));
+   t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+   xpval=tDistribution(t,df);
+   if(xpval > alpha & xloop < nnew, iflag=1,
+      xpval > alpha & xloop==nnew, iflag=1,
+      xpval <=alpha & xloop < nnew, iflag=0,
+      xpval <=alpha & xloop==nnew, iflag=1);
+   xloop=xloop+1;
+   if(iflag==1 | xloop==nnew, flag=0);
+ );
+if(xloop==nnew, xloop=xloop-1);
+);
+
+::i=1;
+while(flag==0,  
+  if(i==1, xloop=xloop, 
+     i>1,  xloop=xloop-1);
+  phatloop=xloop/nnew;
+  poolploop=(xpor+xloop)/(npor+nnew);
+  if(xpor==npor & xloop==0, s=sqrt(poolploop*(1-poolploop)),
+     s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df));
+  t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+  xpval=tDistribution(t,df);
+  if(xpval > alpha & xloop > 0, flag=0,
+     xpval > alpha & xloop==0, flag=1; 
+       text="Impossible to show "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale||".  Increase the Sample Size.",
+     xpval <=alpha, flag=1; if(hyptype=="SEB", xloop=xloop+1);
+       text="The "||ls||" value of X-NEW that results in a decision of "||hyptype||" is X-NEW = "||char(xloop)||".");
+  i=i+1;
+); 
+
+);
+);
+);
+
+/* Search for Critical X for Defect SEB and Yield SB */ 
+
+if(button==1 & alphatest=="OK" & nportest=="OK" & nnewtest=="OK" & xportest=="OK" & xnewtest=="missing",
+if(datatype=="# Defective Units" & hyptype=="SEB" | datatype=="# Good Units" & hyptype=="SB",
+
+phatpor=xpor/npor;
+if(scale=="%", phatport=round(phatpor*100, 2),
+   scale=="DPM", phatport=round(phatpor*1000000,2));
+if(hyptype=="SB" & xpor==npor, 
+    text="Impossible to show "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale||".",
+   hyptype=="SEB" & xpor==npor,
+    text="Any value of X-NEW will result in a decision of "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale,
+
+if(hyptype=="SB", ls="smallest",
+   hyptype=="SEB", ls="largest");
+
+if(xpor==0, xloop=1,
+   xpor!=0, xloop=floor((xpor/npor)*nnew));
+
+phatloop=xloop/nnew;
+df=npor+nnew-2;
+s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df);
+t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+xpval=1-tDistribution(t,df);
+if(xpval > alpha, flag=0,
+   xpval <=alpha, flag=1);
+
+if(flag==1, 
+ iflag=0;
+ while(iflag==0 & xloop > 0,  
+   phatloop=xloop/nnew;
+   poolploop=(xpor+xloop)/(npor+nnew);
+   if(xpor==0 & xloop==nnew, s=sqrt(poolploop*(1-poolploop)),
+      s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df));
+   t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+   xpval=1-tDistribution(t,df);
+   if(xpval > alpha & xloop > 0, iflag=1,
+      xpval > alpha & xloop==0, iflag=1,
+      xpval <=alpha & xloop > 0, iflag=0,
+      xpval <=alpha & xloop==0, iflag=1);
+   xloop=xloop-1;
+   if(iflag==1 | xloop==0, flag=0);
+ );
+if(xloop==0, xloop=xloop+1);
+);
+
+i=1;
+while(flag==0,  
+  if(i==1, xloop=xloop, 
+     i>1,  xloop=xloop+1);
+  phatloop=xloop/nnew;
+  poolploop=(xpor+xloop)/(npor+nnew);
+  if(xpor==0 & xloop==nnew, s=sqrt(poolploop*(1-poolploop)),
+     s=sqrt((npor*phatpor*(1-phatpor)+nnew*phatloop*(1-phatloop))/df));
+  t=(phatloop-phatpor)/(s*sqrt(1/npor+1/nnew));
+  xpval=1-tDistribution(t,df);
+  if(xpval > alpha & xloop < nnew, flag=0,
+     xpval > alpha & xloop==nnew, flag=1; 
+       text="Impossible to show "||hyptype||" to "||char(xpor)||"/"||char(npor)||" = "||char(phatport)||tscale||".  Increase the Sample Size.",
+     xpval <=alpha, flag=1; if(hyptype=="SEB", xloop=xloop-1);
+       text="The "||ls||" value of X-NEW that results in a decision of "||hyptype||" is X-NEW = "||char(xloop)||".");
+  i=i+1;
+);
+
+);
+);
+);
+
+/* Search for Critical X for SE Tests */ 
+
+if(button==1 & alphatest=="OK" & nportest=="OK" & nnewtest=="OK" & xportest=="OK" & xnewtest=="missing",
+if(hyptype=="SE",
+
+/* Search Lower Tail */
+
+if(xpor==0, resultl="inotpossible",
+
+phatport=xpor/npor;
+if(scale=="%", phatpor=round(phatport*100,2),
+   scale=="DPM", phatpor=round(phatport*1000000,2));
+
+if(xpor==npor, xloopl=nnew-1,
+   xloopl=ceiling((xpor/npor)*nnew));
+
+phatloopl=xloopl/nnew;
+dfl=npor+nnew-2;
+sl=sqrt((npor*phatport*(1-phatport)+nnew*phatloopl*(1-phatloopl))/dfl);
+tl=(phatloopl-phatport)/(sl*sqrt(1/npor+1/nnew));
+xpvall=tDistribution(tl,dfl);
+if(xpvall > alpha/2, flagl=0,
+   xpvall <=alpha/2, flagl=1);
+
+if(flagl==1, 
+ iflagl=0;
+ while(iflagl==0 & xloopl < nnew,  
+   phatloopl=xloopl/nnew;
+   poolploopl=(xpor+xloopl)/(npor+nnew);
+   if(xpor==npor & xloopl==0, sl=sqrt(poolploopl*(1-poolploopl)),
+      sl=sqrt((npor*phatport*(1-phatport)+nnew*phatloopl*(1-phatloopl))/dfl));
+   tl=(phatloopl-phatport)/(sl*sqrt(1/npor+1/nnew));
+   xpvall=tDistribution(tl,dfl);
+   if(xpvall > alpha/2 & xloopl < nnew, iflagl=1,
+      xpvall > alpha/2 & xloopl==nnew, iflagl=1,
+      xpvall <=alpha/2 & xloopl < nnew, iflagl=0,
+      xpvall <=alpha/2 & xloopl==nnew, iflagl=1);
+   xloopl=xloopl+1;
+   if(iflagl==1 | xloopl==nnew, flagl=0);
+ );
+if(xloopl==nnew, xloopl=xloopl-1);
+);
+
+il=1;
+while(flagl==0,  
+  if(il==1, xloopl=xloopl, 
+     il>1,  xloopl=xloopl-1);
+  phatloopl=xloopl/nnew;
+  poolploopl=(xpor+xloopl)/(npor+nnew);
+  if(xpor==npor & xloopl==0, sl=sqrt(poolploopl*(1-poolploopl)),
+     sl=sqrt((npor*phatport*(1-phatport)+nnew*phatloopl*(1-phatloopl))/dfl));
+  tl=(phatloopl-phatport)/(sl*sqrt(1/npor+1/nnew));
+  xpvall=tDistribution(tl,dfl);
+  if(xpvall > alpha/2 & xloopl > 0, flagl=0,
+     xpvall > alpha/2 & xloopl==0, flagl=1; resultl="notpossible",
+     xpvall <=alpha/2, flagl=1; resultl="possible");
+  il=il+1;
+); 
+
+);
+
+/* Search Upper Tail */
+
+if(xpor==npor, resultu="inotpossible",
+
+phatport=xpor/npor;
+if(scale=="%", phatpor=round(phatport*100,2),
+   scale=="DPM", phatpor=round(phatport*1000000,2));
+
+if(xpor==0, xloopu=1,
+   xpor!=0, xloopu=floor((xpor/npor)*nnew));
+
+phatloopu=xloopu/nnew;
+dfu=npor+nnew-2;
+su=sqrt((npor*phatport*(1-phatport)+nnew*phatloopu*(1-phatloopu))/dfu);
+tu=(phatloopu-phatport)/(su*sqrt(1/npor+1/nnew));
+xpvalu=1-tDistribution(tu,dfu);
+if(xpvalu > alpha/2, flagu=0,
+   xpvalu <=alpha/2, flagu=1);
+
+if(flagu==1, 
+ iflagu=0;
+ while(iflagu==0 & xloopu > 0,  
+   phatloopu=xloopu/nnew;
+   poolploopu=(xpor+xloopu)/(npor+nnew);
+   if(xpor==0 & xloopu==nnew, su=sqrt(poolploopu*(1-poolploopu)),
+      su=sqrt((npor*phatport*(1-phatport)+nnew*phatloopu*(1-phatloopu))/dfu));
+   tu=(phatloopu-phatport)/(su*sqrt(1/npor+1/nnew));
+   xpvalu=1-tDistribution(tu,dfu);
+   if(xpvalu > alpha/2 & xloopu > 0, iflagu=1,
+      xpvalu > alpha/2 & xloopu==0, iflagu=1,
+      xpvalu <=alpha/2 & xloopu > 0, iflagu=0,
+      xpvalu <=alpha/2 & xloopu==0, iflagu=1);
+   xloopu=xloopu-1;
+   if(iflagu==1 | xloopu==0, flagu=0);
+ );
+if(xloopu==0, xloopu=xloopu+1);
+);
+
+iu=1;
+while(flagu==0,  
+  if(iu==1, xloopu=xloopu, 
+     iu>1,  xloopu=xloopu+1);
+  phatloopu=xloopu/nnew;
+  poolploopu=(xpor+xloopu)/(npor+nnew);
+  if(xpor==0 & xloopu==nnew, su=sqrt(poolploopu*(1-poolploopu)),
+     su=sqrt((npor*phatport*(1-phatport)+nnew*phatloopu*(1-phatloopu))/dfu));
+  tu=(phatloopu-phatport)/(su*sqrt(1/npor+1/nnew));
+  xpvalu=1-tDistribution(tu,dfu);
+  if(xpvalu > alpha/2 & xloopu < nnew, flagu=0,
+     xpvalu > alpha/2 & xloopu==nnew, flagu=1; resultu="notpossible",
+     xpvalu <=alpha/2, flagu=1; resultu="possible"); 
+  iu=iu+1;
+);
+
+);
+
+if((resultu=="inotpossible" & resultl=="notpossible") |
+   (resultu=="notpossible" & resultl=="inotpossible") |
+   (resultu=="notpossible" & resultl=="notpossible"),
+    text="Not possible to show SD.  Increase the sample size.",
+   
+   (resultu=="inotpossible" & resultl=="possible") |
+   (resultu=="notpossible" & resultl=="possible"),
+    text="Only an X <= "||char(xloopl)||" will result in a decision of SD.",
+
+   (resultu=="possible" & resultl=="inotpossible") |
+   (resultu=="possible" & resultl=="notpossible"),
+    text="Only an X >= "||char(xloopu)||" will result in a decision of SD.",
+
+   (resultu=="possible" & resultl=="possible"), 
+    text="Any X <= "||char(xloopl)||" or X >= "||char(xloopu)||" will result in a decision of SD.");
+
+);
+);
+
+/* Present Results of Search */
+
+if(button==1 & alphatest=="OK" & nportest=="OK" & nnewtest=="OK" & xportest=="OK" & xnewtest=="missing",
+
+::output=new window("Value of Critical X "||titlesuffix,
+ outlinebox("Value of Critical X "||titlesuffix,
+  vlistbox(
+   ::tb1=textbox(text)
+  )
+ ) 
+);
+tb1<<setfontsize(10);
+
+);
+output<<size window(500,400);
+); 
+
+
+if (batch==1, Batch_Input);

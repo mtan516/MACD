@@ -1,0 +1,22 @@
+/*******************************************************************************************
+	
+	About SOS
+	Author: Paul Wenz and Derek Blythe
+	
+********************************************************************************************/
+
+result = Dialog(
+	title("About SOS"),
+	vlist(
+		" ",
+		"Stats One Stop (SOS)",
+		"Version 7.4 for JMP 12 and JMP 14, February 24, 2022",
+		" ",
+		update = Check Box("Check Web for Updates"),
+		" ",
+		HList(Button("OK"))
+	)
+);
+
+update=result["update"];
+if (update == 1, web("http://jmpsos.ch.intel.com/about.html"));

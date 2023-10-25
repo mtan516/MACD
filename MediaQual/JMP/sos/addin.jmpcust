@@ -1,0 +1,415 @@
+﻿<jm:menu_and_toolbar_customizations xmlns:jm="http://www.jmp.com/ns/menu" version="3">
+  <jm:insert_in_main_menu>
+    <jm:insert_after>
+      <jm:name>HELP</jm:name>
+      <jm:menu>
+        <jm:name>SOS</jm:name>
+        <jm:caption>SOS</jm:caption>
+        <jm:menu>
+          <jm:name>BINOMIAL METHODS</jm:name>
+          <jm:caption>Binomial Methods</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>ZERO DEFECTS SAMPLING (ZDS)</jm:name>
+            <jm:caption>Zero Defects Sampling (ZDS)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\Zero Defects Sampling.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>X DEFECTS SAMPLING</jm:name>
+            <jm:caption>X Defects Sampling</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\x defect sample size.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>1 PROPORTION SAMPLE SIZE</jm:name>
+            <jm:caption>1 Proportion Sample Size</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\1-Proportion SS.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>2 PROPORTION SAMPLE SIZE</jm:name>
+            <jm:caption>2 Proportion Sample Size</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\2-Proportion SS.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>1 PROPORTION ANALYSIS</jm:name>
+            <jm:caption>1 Proportion Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\1-Proportion Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>2 PROPORTION ANALYSIS</jm:name>
+            <jm:caption>2 Proportion Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\2-Proportion Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>K PROPORTION ANALYSIS SHORTCUT</jm:name>
+            <jm:caption>K Proportion Analysis Shortcut</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\K sample analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>BINOMIAL DISTRIBUTION CALCULATOR</jm:name>
+            <jm:caption>Binomial Distribution Calculator</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\Binomial Distribution Calculator.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>BINOMIAL CONFIDENCE INTERVALS</jm:name>
+            <jm:caption>Binomial Confidence Intervals</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\Binomial Confidence Intervals.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>P CHART - EXACT LIMITS</jm:name>
+            <jm:caption>P Chart - Exact Limits</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\Pchart.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>LOGISTIC REGRESSION</jm:name>
+            <jm:caption>Logistic Regression</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Binomial\Logistic Regression.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>CONTINUOUS METHODS</jm:name>
+          <jm:caption>Continuous Methods</jm:caption>
+          <jm:command>
+            <jm:name>SAMPLE SIZE CALCULATOR</jm:name>
+            <jm:caption>Sample Size Calculator</jm:caption>
+            <jm:action type="builtin">DOE:SAMPLE SIZE AND POWER</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>1 SAMPLE COMPARISON</jm:name>
+            <jm:caption>1 Sample Comparison</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\1 Sample Comparison.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>2 SAMPLE COMPARISON</jm:name>
+            <jm:caption>2 Sample Comparison</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\2 Sample Comparison.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>PAIRED COMPARISON</jm:name>
+            <jm:caption>Paired Comparison</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\Paired Comparison.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>K SAMPLE COMPARISON</jm:name>
+            <jm:caption>K Sample Comparison</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\K Sample Comparison.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>K SAMPLE COMPARISON WITH TARGET</jm:name>
+            <jm:caption>K Sample Comparison with Target</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\K Sample Comparison with Target.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CENTRAL LIMIT THEOREM DEMO</jm:name>
+            <jm:caption>Central Limit Theorem Demo</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\Central Limit Theorem Demo.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>VARIANCE F-TEST (WITHOUT RAW DATA)</jm:name>
+            <jm:caption>Variance F-Test (without raw data)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\variance test.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>2 SAMPLE VARIANCE SAMPLE SIZE</jm:name>
+            <jm:caption>2 Sample Variance Sample Size</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\2 Sample Variance SS.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>T DISTRIBUTION DEMO</jm:name>
+            <jm:caption>T Distribution Demo</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\t dist demo.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>T DISTRIBUTION CALCULATOR</jm:name>
+            <jm:caption>T Distribution Calculator</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\t calculator.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>Z DISTRIBUTION CALCULATOR</jm:name>
+            <jm:caption>Z Distribution Calculator</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Continuous\z calculator.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>MCA</jm:name>
+          <jm:caption>MCA</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>ACCURACY ANALYSIS</jm:name>
+            <jm:caption>Accuracy Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Accuracy Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>REPEATABILITY ANALYSIS</jm:name>
+            <jm:caption>Repeatability Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Repeatability Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>REPRODUCIBILITY ANALYSIS</jm:name>
+            <jm:caption>Reproducibility Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Reproducibility Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>REPRODUCIBILITY ANALYSIS MANY FACTOR LEVELS</jm:name>
+            <jm:caption>Reproducibility Analysis Many Factor Levels</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Reproducibility Many Factor Levels.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CORRELATION AND MATCHING ANALYSIS</jm:name>
+            <jm:caption>Correlation and Matching Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Metrology Correlation Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>SIGMA MATCHING</jm:name>
+            <jm:caption>Sigma Matching</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mca\Sigma Matching.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>PCS</jm:name>
+          <jm:caption>PCS</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CALCULATE CE CONTROL LIMITS</jm:name>
+            <jm:caption>Calculate CE Control Limits</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Calculate CE Control Limits.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CALCULATE CE CONTROL LIMITS (P CHART)</jm:name>
+            <jm:caption>Calculate CE Control Limits (p chart)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Calculate CE Control Limits (p chart).jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>PCS HEALTH REVIEW (P CHARTS)</jm:name>
+            <jm:caption>PCS Health Review (p charts)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\PCS Health Review (p charts).jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>STABILITY ANALYSIS</jm:name>
+            <jm:caption>Stability Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Stability Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>TOOL MATCHING ANALYSIS</jm:name>
+            <jm:caption>Tool Matching Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Tool Matching Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>TOOL MATCHING ANALYSIS (BINOMIAL)</jm:name>
+            <jm:caption>Tool Matching Analysis (Binomial)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Tool Matching Analysis Binomial.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CAPABILITY ANALYSIS</jm:name>
+            <jm:caption>Capability Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Capability Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CAPABILITY ANALYSIS (ON SUMMARY  STATS)</jm:name>
+            <jm:caption>Capability Analysis (on Summary  Stats)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Overall_Cpk_SummaryStats.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>PSEUDO CPK ANALYSIS</jm:name>
+            <jm:caption>Pseudo Cpk Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Pseudo Cpk Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CPK / DPM CONVERSION CALCULATOR</jm:name>
+            <jm:caption>Cpk / DPM Conversion Calculator</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Cpk DPM Conversion Calculator.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command>
+            <jm:name>CPK CHECK</jm:name>
+            <jm:caption>Cpk Check</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\cpk check.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>AUTOMOTIVE CAPABILITY ANALYSIS (ON SUMMARY STATS)</jm:name>
+            <jm:caption>Automotive Capability Analysis (on Summary Stats)</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Overall_AutoCpk_SummaryStats.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>DISPO LIMIT IMPACT ANALYSIS</jm:name>
+            <jm:caption>Dispo Limit Impact Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Disposition Limit Impact Analysis.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command>
+            <jm:name>BINOMIAL EWMA LOOKUP TABLE</jm:name>
+            <jm:caption>Binomial EWMA Lookup Table</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Open_Binomial_EWMA_Lookup_Table.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>EWMA PARAMETER OPTIMIZER</jm:name>
+            <jm:caption>EWMA Parameter Optimizer</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\EWMA Parameter Optimizer.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:separator/>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CONTROL CHART SIMULATOR</jm:name>
+            <jm:caption>Control Chart Simulator</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Control Chart Simulator.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>REMOVE IMPUTED VALUES</jm:name>
+            <jm:caption>Remove Imputed Values</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Pcs\Remove Imputed Values.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>PCS UTILITIES</jm:name>
+          <jm:caption>PCS Utilities</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CHART REPORT VIEWER</jm:name>
+            <jm:caption>Chart Report Viewer</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\PCS Utilities\Chart Report Viewer.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CATALYST PARAMETER RANKING</jm:name>
+            <jm:caption>Catalyst Parameter Ranking</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\PCS Utilities\Catalyst Parameter Ranking.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command>
+            <jm:name>SAM SPC SETUP</jm:name>
+            <jm:caption>SAM SPC Setup</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\PCS Utilities\SAM Review.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:separator/>
+        <jm:menu>
+          <jm:name>MODULE</jm:name>
+          <jm:caption>Module Specific</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>TCB - 3D XRAY - SCALE AND OFFSET METRICS</jm:name>
+            <jm:caption>TCB - 3D Xray - Scale and Offset Metrics</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Module\TCB_Scale and Offset Metrics for 3D Xray.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>TCB - 3D XRAY - SPC METRICS</jm:name>
+            <jm:caption>TCB - 3D Xray - SPC Metrics</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Module\TCB_SPC Metrics for 3D Xray.jsl</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>TIME BETWEEN FAILURES (MTBX)</jm:name>
+          <jm:caption>Time Between Failures (MTBX)</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>1 SAMPLE MTBX ANALYSIS</jm:name>
+            <jm:caption>1 Sample MTBX Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mtbx\mtbf 1 sample.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>2 SAMPLE MTBX ANALYSIS</jm:name>
+            <jm:caption>2 Sample MTBX Analysis</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mtbx\mtbf 2 sample.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>MTBX SAMPLE SIZE</jm:name>
+            <jm:caption>MTBX Sample Size</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Mtbx\MTBx Sample Size.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:menu>
+          <jm:name>ACCEPTANCE SAMPLING</jm:name>
+          <jm:caption>Acceptance Sampling</jm:caption>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CREATE AQL/LPTD SAMPLING PLAN</jm:name>
+            <jm:caption>Create AQL/LPTD Sampling Plan</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Acceptance Sampling\Create AQL LTPD sampling plan.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>CREATE AOQL SAMPLING PLAN</jm:name>
+            <jm:caption>Create AOQL Sampling Plan</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Acceptance Sampling\Create AOQL sampling plan.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command namesDefaultToHere="0">
+            <jm:name>EVALUATE SAMPLING PLAN</jm:name>
+            <jm:caption>Evaluate Sampling Plan</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Acceptance Sampling\Acceptance sampling evaluation.JSL</jm:action>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+        <jm:separator/>
+        <jm:command namesDefaultToHere="0">
+          <jm:name>ABOUT</jm:name>
+          <jm:caption>About</jm:caption>
+          <jm:action type="path">$ADDIN_HOME(com.intel.sos)\about SOS2.JSL</jm:action>
+          <jm:icon type="none"></jm:icon>
+        </jm:command>
+        <jm:command namesDefaultToHere="0">
+          <jm:name>SAMPLE DATA SET INDEX</jm:name>
+          <jm:caption>Sample Data Set Index</jm:caption>
+          <jm:action type="path">$ADDIN_HOME(com.intel.sos)\Sample Data Sets\data set index.JSL</jm:action>
+          <jm:icon type="none"></jm:icon>
+        </jm:command>
+        <jm:command namesDefaultToHere="0">
+          <jm:name>HELP</jm:name>
+          <jm:caption>Help</jm:caption>
+          <jm:action type="text">web("http://jmpsos.ch.intel.com/index.html");</jm:action>
+          <jm:icon type="builtin">WEB("http://jmpsos.ch.intel.com/index.html");</jm:icon>
+        </jm:command>
+      </jm:menu>
+    </jm:insert_after>
+  </jm:insert_in_main_menu>
+</jm:menu_and_toolbar_customizations>

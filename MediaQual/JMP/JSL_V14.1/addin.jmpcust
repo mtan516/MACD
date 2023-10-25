@@ -1,0 +1,56 @@
+<!-- JMP Add-In Builder created --><jm:menu_and_toolbar_customizations xmlns:jm="http://www.jmp.com/ns/menu" version="3">
+  <jm:insert_in_main_menu>
+    <jm:insert_in_menu>
+      <jm:name>ADD-INS</jm:name>
+      <jm:insert_after>
+        <jm:name></jm:name>
+        <jm:menu>
+          <jm:name>FINISH MCA</jm:name>
+          <jm:caption>Finish MCA</jm:caption>
+          <jm:command>
+            <jm:name>NTOOL MATCHING</jm:name>
+            <jm:caption>NTool Matching</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\NToolMCARev4.jsl</jm:action>
+            <jm:tip>Matching for T53S vs T130. Step1: Select Output Folder. Step2: Select T53S Data folder (Bump.txt files in 1 folder). Step3: Select T130 tabulated reports (all .csv in 1 folder). Will generate ball level and unit level matching jmp files.</jm:tip>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command>
+            <jm:name>N+1 TOOL MATCHING</jm:name>
+            <jm:caption>N+1 Tool Matching</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\N1ToolMCARev3.jsl</jm:action>
+            <jm:tip>Similar to N tool Matching, this script is for matching our reference N T130 tool to other T130 Tools.</jm:tip>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command>
+            <jm:name>REPEATABILITY</jm:name>
+            <jm:caption>Repeatability</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\Repeat.jsl</jm:action>
+            <jm:tip>Crunch tabulated report file into a single unit level jmp file.</jm:tip>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+          <jm:command>
+            <jm:name>REPRODUCIBILITY</jm:name>
+            <jm:caption>Reproducibility</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\Repro.jsl</jm:action>
+            <jm:tip>Crunch folder of tabulated reports from reproducibility. Note: NAMING CONVENTION REQUIRES A " _D1_CA" formatting where D1 = Day 1 and CA = Configuration A.</jm:tip>
+            <jm:icon type="none"></jm:icon>
+          </jm:command>
+		  <jm:command>
+            <jm:name>T53S Parser</jm:name>
+            <jm:caption>T53S</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\T53Sparse.jsl</jm:action>
+            <jm:tip>Parses T53S Data.</jm:tip>
+          <jm:icon type="none"></jm:icon>
+          </jm:command>
+		  <jm:command>
+            <jm:name>T790 Matching</jm:name>
+            <jm:caption>T790 Matching</jm:caption>
+            <jm:action type="path">$ADDIN_HOME(ATTD.FINISH)\T790Matching.jsl</jm:action>
+            <jm:tip>Takes tabulated reports and T53S bump files and combines. Can do 180 flip.</jm:tip>
+          <jm:icon type="none"></jm:icon>
+          </jm:command>
+        </jm:menu>
+      </jm:insert_after>
+    </jm:insert_in_menu>
+  </jm:insert_in_main_menu>
+</jm:menu_and_toolbar_customizations>

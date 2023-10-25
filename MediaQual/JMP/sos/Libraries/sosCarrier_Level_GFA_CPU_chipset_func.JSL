@@ -1,0 +1,1085 @@
+ /**********************************************************
+ * DPCS CA Analysis
+ * This file contains functions and expressions
+ * for DPCS Commonality Analysis scripts
+ * JMP Version: 6.0.3 - 8.0
+ * 
+ * $Author: Wang Fang & Siew Cheng$
+ * $Revision: 12 $
+ * $Version:$
+ * $Date: 11/11/07 
+ * $Modtime: 8/15/11
+ * $Archive: 
+   * *****************  Version 12  ***************** 
+ * User: Siew Cheng      Date: 8/15/2011  
+ * Add in for 1216 Deflux plus
+  * *****************  Version 11  ***************** 
+ * User: Siew Cheng      Date: 8/11/2010  
+ * Add in Color Theme( "JMP Default" ) to countour plot
+   * *****************  Version 10 *****************
+ * Revise according to column name changes in CATTS v3.5.
+ * * User: Siew Cheng			    Date:10/5/09
+  * *****************  Version 9 *****************
+ * Add in capability for Carrier Level GFA for epoxy and IHS.
+ * * User: Siew Cheng/Wang Fang     Date:10/7/08
+ * *****************  Version 8 *****************
+ * Carrier level GFA function and expressions
+ * which will be called from Carrier_Level_GFA...
+ * * User: Wang Fang     Date:8/4/08
+ * *****************  Version 7 *****************
+ * Integrate Chipset columns into this script
+ *  * User: Siew Cheng      Date: 7/17/08
+ * *****************  Version 6 *****************
+ * Bug fix
+ * Fix all rows for analysis is excluded issue
+ * User: Wang Fang      Date: 2/4/08
+ * *****************  Version 5 *****************
+ * Bug fix
+ * Add No GFA Analysis Flag Report
+ * User: Wang Fang      Date: 12/3/07 
+ * *****************  Version 4  *****************
+ * remove the DPCS_X and DPCS_Y columns creation as
+ * those columns already enabled in the CATTS report
+ * Force DPCS_X and DPCS_Y to be continuous
+ * User: Wang Fang      Date: 11/28/07 
+ * *****************  Version 3  *****************
+ * Add the error checking for contour plot
+ * User: Wang Fang      Date: 11/21/07 
+ * *****************  Version 2  *****************
+ * Enable the multiple output. 
+ * Improve the GFA output 
+ * User: Wang Fang      Date: 11/16/07 
+ * *****************  Version 1  *****************
+ * User: Wang Fang      Date: 11/11/07  
+ **********************************************************/
+ :: pocket_legend = Function( {platform},
+	Current Data Table( dt1 );
+	pocket_grp = XGFA;
+	Insert Into(
+		pocket_grp,
+		If(
+			platform == "cpuapl" | platform == "cpuscam" | platform == "cpudeflux"| platform == "cpudefluxplus"|
+			platform == "cpuepoxy" | platform == "cpuepoxycure" | platform == "cpuihs"|
+			platform == "cpuihscure" | platform == "cpuctl", "1210UNIT_LOCATION",
+			platform == "chipapl" | platform == "chipscam" | platform == "chipdeflux"|
+			platform == "chipepoxy" | platform == "chipepoxycure" | platform == "chipihs"|
+			platform == "chipihscure" | platform == "chipctl","2210UNIT_LOCATION",
+			Empty()
+		),
+		1
+	);
+	For( i = 1, i <= N Items( pocket_grp ), i++,
+		Column( pocket_grp[i] ) << data type( numeric );
+		Column( pocket_grp[i] ) << set modelling type( numeric );
+	);
+	pocket_dt = dt1 << Summary( Group( Eval( pocket_grp ) ) );
+	Current Data Table( pocket_dt );
+	For Each Row(
+		If( !Is Missing( Column( 1 )[] ),
+			Insert Into( PocketLoc, Column( 1 )[Row()] );
+			Insert Into( DPCSX, Column( 2 )[Row()] );
+			Insert Into( DPCSY, Column( 3 )[Row()] );
+		)
+	);
+	Close( pocket_dt, no save );
+	graph_legend = Outline Box( "DPCS X & Y locations to actual pocket locations",
+		<<Close( !Eval( IS_CATTS ) ),
+		Table Box(
+			Number Col Box( "DPCS X", DPCSX ),
+			Number Col Box( "DPCS Y", DPCSY ),
+			Number Col Box( "Actual Pocket Locations", PocketLoc )
+		)
+	);
+);// Pocket_Legend Report
+				          
+ 
+				          
+ :: Add_Map_Label = Function( {rowlist, graphbox, xcol, ycol, valcol},
+	For( k = 1, k <= N Row( rowlist ), k++,
+		x = xcol[rowlist[k]];
+		y = ycol[rowlist[k]];
+		val = Round( valcol[rowlist[k]], 2 );
+		Eval(
+			Substitute(
+					Expr(
+						graphbox[framebox( 1 )] << Add graphics script(
+							Text Size( 12 );
+							Text Color( "Black" );
+							Text( {_xx, _yy}, _zz );
+						)
+					),
+				Expr( _xx ), x,
+				Expr( _yy ), y,
+				Expr( _zz ), val
+			)
+		);
+		Eval(
+			Substitute(
+					Expr(
+						graphbox[framebox( 1 )] << Add graphics script(
+							Pixel Origin( _xx, _yy );
+							Pixel Move To( -5, -5 );
+							Pixel Line To( -5, 5 );
+							Pixel Line To( 5, -5 );
+							Pixel Line To( -5, -5 );
+							Pixel Line To( 5, 5 );
+							Pixel Line To( -5, 5 );
+							Pixel Move To( 5, 5 );
+							Pixel Line To( 5, -5 );
+						)
+					),
+				Expr( _xx ), x,
+				Expr( _yy ), y
+			)
+		);
+	)
+);
+				          
+ :: make_sum_tb = Expr(
+	addcolbox = Function( {col_ID, col_name, tbbox},
+		vals = Eval( col_ID ) << get Values;
+		If( Eval( col_ID ) << get data type == "Character",
+			element = String Col Box( col_name, vals ),
+			element = Number Col Box( col_name, vals )
+		);
+		tbbox << append( element );
+	);    
+//dt1<<Sort(by(eval(resp[h])),Order( Descending ),Replace Table);
+	dt1 << clear column selection;
+	dt1 << clear row selection;
+	dt1 << Select excluded;
+	dt1 << Invert Row Selection;
+	subdt = dt1 << subset( Invisible );
+	subdt << Sort( by( Eval( resp[h] ) ), Order( Descending ), Replace Table );
+	Current Data Table( subdt );
+	Sum_tb = Outline Box( Char( "Summary of " || resp_list[h] || " by " || location[i] ),
+		<<Close( !Eval( IS_CATTS ) ),
+		tbbox = Table Box()
+	);
+	Eval( Parse( "addcolbox(column(" || "\!"" || location[i] || "\!"" || "),location[i],tbbox)" ) );
+	Eval(
+		Parse( "addcolbox(column(" || "\!"Sum(" || resp_list[h] || ")\!"" || "),\!"# of Bad\!",tbbox)" )
+	);
+	Eval(
+		Parse(
+			"addcolbox(column(" || "\!"N(" || resp_list[h] || ")\!"" || "),\!"# of Tested\!",tbbox)"
+		)
+	);
+	addcolbox( Column( resp[h] ), resp_list[h] || " %", tbbox );
+	Close( subdt, no save );
+);//end make_sum_tb				          
+		          
+//Key variables: dt,resp_list,Grp_list; Key Output: sum_dt and pct_colname
+create_grp_dt = Expr(
+	yopt = "";
+	_Grp_list = xxx;
+	For( h = 1, h <= N Items( resp_list ), h++,
+		col_elem = resp_list[h];
+		yopt ||= Char( "Sum(:Name(\!"" || col_elem || "\!"))," ) || Char(
+			"N(:Name(\!"" || col_elem || "\!"))"
+		);
+		If( h != N Items( resp_list ),
+			yopt ||= ","
+		);
+	);
+	temp = Char( "dt2=dt1<<Summary(Group(Eval(_Grp_list))," || yopt || ")" );
+	Eval( Parse( temp ) );
+	dt2 << MinimizeWindow;
+	dt2 << ClearSelect;
+	dt2 << ClearColumnSelection;
+	sum_dt = dt2 << Subset( All Rows, All Columns, SuppressFormulaEvaluation( 0 ) );
+	Wait( 0 );
+	Close( dt2, no save );
+	For( h = 1, h <= N Items( resp_list ), h++,
+		resp[h] = resp_list[h] || " %";
+		sum_dt << New Column( resp[h], Numeric );
+		ytemp_expr = Expr(
+			Char(
+				"(:Name( \!"Sum(" || Eval(
+					resp_list[h] || ")\!") / :Name( \!"N(" || Eval( resp_list[h] || ")\!")*100)" )
+				)
+			)
+		);
+		Eval(
+			Eval Expr( Column( sum_dt, resp[h] ) << SetFormula( Expr( Parse( Eval( ytemp_expr ) ) ) ) )
+		);
+		Column( sum_dt, resp[h] ) << Format( "Fixed Dec", 10, 2 );
+		sum_dt << Run Formulas;
+	);
+);
+
+ :: DPCSOneway = Function( {_x, _y, Boxswitch, Quntiswitch, Sumswitch},
+	OneWay_Chart_Box = H List Box(
+		oneway_cht = Oneway(
+			Y( Eval( _y ) ),
+			x( Eval( _x ) ),
+			Means( 0 ),
+			Box Plots( Eval( Boxswitch ) ),
+			Means and Std Dev( Eval( Sumswitch ) ),
+			UnEqual Variances( 0 ),
+			Plot Actual by Quantile( Eval( Quntiswitch ) ),
+			Mean Lines( 0 ),
+			Mean Diamonds( 0 ),
+			Mean Error Bars( 0 ),
+			Std Dev Lines( 0 ),
+			X Axis proportional( 0 ),
+			Points Jittered( 1 ),
+			Grand Mean( 1 ), 
+	                                         //where(Selected()),
+			SendToReport(
+				Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+				Dispatch( {}, "", AxisBox, ShowMajorGrid ),
+				Dispatch( {}, "", NomAxisBox, RotatedTickLabels )
+			)
+		)
+	);
+	OneWay_Chart_Box[Outline Box( "Means and Std Dev?" )][Table Box( 1 )][Number Col Box( 1 )] <<
+	SetHeading( "Lots" );          
+                   	
+);
+                   
+ :: DPCSTrendChart = Function( {_xdate, _y, _x},
+	Trend_Chart_Box = H List Box(
+		trend_cht = Bivariate(
+			Y( Eval( _y ) ),
+			x( Eval( _xdate ) ),
+			SendToReport(
+				Dispatch( {}, "1", ScaleBox, {Rotated Labels( 1 )} ),
+				Dispatch( {}, "Bivar Plot", FrameBox, Marker Size( 2 ) ),
+				Dispatch( {}, "", AxisBox, ShowMajorGrid )
+			)
+		)
+	);
+	Trend_Chart_Box[FrameBox( 1 )] << RowLegend( Eval( _x ), color( 1 ), Marker( 1 ) );
+);
+
+ :: DPCSmapChart = Function( {_x, _y, xmax, xmin, ymax, ymin, contours_max, contours_min, Ncontours},
+	Map_Chart_Box = H List Box(
+		map_cht = Contour Plot(
+			X( Eval( _x ) ),
+			Y( Eval( _y ) ),
+			show Data Points( 1 ),
+			Fill Areas( 1 ),
+			Label Contours( 0 ),
+			Reverse Colors( 1 ),
+			Color Theme( "JMP Default" ),
+			where( Selected() )
+		)
+	);
+	Map_Chart_Box[Text Box( 1 )] << delete;
+	Map_Chart_Box[AxisBox( 1 )] << Max( ymax );
+	Map_Chart_Box[AxisBox( 1 )] << Min( ymin );
+	Map_Chart_Box[AxisBox( 1 )] << Inc( 1 );
+	Map_Chart_Box[AxisBox( 1 )] << Show Major Grid( 1 );
+	Map_Chart_Box[AxisBox( 1 )] << Format( "Fixed Dec", 0 );
+	Map_Chart_Box[AxisBox( 2 )] << Max( xmax );
+	Map_Chart_Box[AxisBox( 2 )] << Min( xmin );
+	Map_Chart_Box[AxisBox( 2 )] << Inc( 1 );
+	Map_Chart_Box[AxisBox( 2 )] << Show Major Grid( 1 );
+	Map_Chart_Box[AxisBox( 2 )] << Format( "Fixed Dec", 0 );
+	Map_Chart_Box[Outline Box( 1 )] << append( graph_legend );
+);
+      
+          
+
+
+ :: DPCS_Main_Expr = Function( {platform},
+	For( i = 1, i <= N Items( byentity ), i++,
+		If(
+			platform == "cpuapl", Grp_list = {"ASSM_LOT", "1208OUTDATE"},
+			platform == "cpuscam", Grp_list = {"ASSM_LOT", "1210OUTDATE"},
+			platform == "cpudeflux", Grp_list = {"ASSM_LOT", "1215OUTDATE"},
+			platform == "cpudefluxplus", Grp_list = {"ASSM_LOT", "1216OUTDATE"},
+			platform == "cpuepoxy", Grp_list = {"ASSM_LOT", "1225OUTDATE"},
+			platform == "cpuepoxycure", Grp_list = {"ASSM_LOT", "1235OUTDATE"},
+			platform == "cpuihs", Grp_list = {"ASSM_LOT", "1252/1262OUTDATE"},
+			platform == "cpuihscure", Grp_list = {"ASSM_LOT", "1265OUTDATE"},
+			platform == "cpuctl", Grp_list = {"ASSM_LOT", "1238OUTDATE"},
+			platform == "chipapl", Grp_list = {"ASSM_LOT", "2208OUTDATE"},
+			platform == "chipscam", Grp_list = {"ASSM_LOT", "2210OUTDATE"},
+			platform == "chipdeflux", Grp_list = {"ASSM_LOT", "2215OUTDATE"},
+			platform == "chipepoxy", Grp_list = {"ASSM_LOT", "2225OUTDATE"},
+			platform == "chipepoxycure", Grp_list = {"ASSM_LOT", "2235OUTDATE"},
+			platform == "chipihs", Grp_list = {"ASSM_LOT", "2262OUTDATE"},
+			platform == "chipihscure", Grp_list = {"ASSM_LOT", "2265OUTDATE"},
+			platform == "chipctl", Grp_list = {"ASSM_LOT", "2238OUTDATE"},
+			Empty()
+		);
+		Insert Into( Grp_list, byentity[i] );
+		Trend_Chart = {};
+		live_Trend_Chart = {};
+		Oneway_Chart = {};
+		live_Oneway_Chart = {};
+		dt1 << clear row states;
+    //create_grp_dt;
+		Eval( Substitute( Name Expr( create_grp_dt ), Expr( xxx ), Eval( Grp_list ) ) );
+		sum_dt << set name( "Summary Table" || " by " || byentity[i] );
+		Current Data Table( sum_dt );
+		ToExclude = Char( ":Name(\!"N(" || Eval( resp_list[1] ) || ")\!")" );
+		sum_dt << select where( Parse( ToExclude )[] < ex_limit[i] ) << exclude( 1 ) << hide( 1 );
+		For( h = 1, h <= N_Outputs, h++,
+			DPCSTrendChart( Column( Xdate[1] ), Resp[h], Column( byentity[i] ) );
+			Trend_Chart_Box[Outline Box( 1 )] << Frame Size( 480, 240 );
+			Trend_Chart[h] = Trend_Chart_Box[Outline Box( 1 )];
+			live_Trend_Chart[h] = Trend_Chart_Box;
+			DPCSOneway( Column( byentity[i] ), Resp[h], 1, 1, 1 );
+			OneWay_Chart_Box[Frame Box( 1 )] << Frame Size( 300, 200 );
+			Oneway_Chart[h] = OneWay_Chart_Box[Outline Box( 1 )];
+			live_Oneway_Chart[h] = OneWay_Chart_Box;
+		);
+		Insert Into( all_Trend_Chart, Eval List( {Trend_Chart} ) );
+		Insert Into( all_live_Trend_Chart, Eval List( {live_Trend_Chart} ) );
+		Insert Into( all_Oneway_Chart, Eval List( {Oneway_Chart} ) );
+		Insert Into( all_live_Oneway_Chart, Eval List( {live_Oneway_Chart} ) );
+	);
+	Grp_list = {};
+	For( i = 1, i <= N Items( entity_by_pocket ), i++,
+		dt1 << clear row states;
+		Eval( Substitute( Name Expr( create_grp_dt ), Expr( xxx ), Eval( entity_by_pocket[i] ) ) );
+		Current Data Table( sum_dt );
+		addcolumn( Char( selectlist[q] ) );
+		sum_dt << set name( "Summary Table" || " by " || location[i] );
+		ToExclude = Char( ":Name(\!"N(" || Eval( resp_list[1] ) || ")\!")" );
+		sum_dt << select where( Parse( ToExclude )[] < ex_limit[1] ) << exclude( 1 ) << hide( 1 );
+    //create overlay plot for each response
+		GFA_Oneway_Chart = {};
+		live_GFA_Oneway_Chart = {};
+		For( h = 1, h <= N_Outputs, h++,
+			Eval( Substitute( Name Expr( make_sum_tb ), Expr( dt1 ), sum_dt ) );
+			Current Data Table( sum_dt );
+			Eval( Parse( "DPCSOneway(column(\!"" || location[i] || "\!"),Resp[h],0,0,0)" ) );
+			OneWay_Chart_Box[Outline Box( 1 )] << append( Sum_tb );
+			Eval(
+				Parse(
+					"OneWay_Chart_Box[FrameBox(1)]<<RowLegend(column(\!"" || GrpID[i] ||
+					"\!"),color(1),marker(1))"
+				)
+			);
+			OneWay_Chart_Box[Frame Box( 1 )] << Frame Size( 1000, 240 );
+			live_GFA_Oneway_Chart[h] = OneWay_Chart_Box;
+			GFA_Oneway_Chart[h] = OneWay_Chart_Box[Outline Box( 1 )];
+		);
+		Insert Into( all_live_GFA_Oneway_Chart, Eval List( {live_GFA_Oneway_Chart} ) );
+		Insert Into( live_GFA_Oneway_Chart, Eval List( {GFA_Oneway_Chart} ) );
+		Summarize( Grp_list[i] = By( Column( GrpID[i] ) ) );
+		temp_list = {};
+		For( k = 1, k <= N Items( Grp_list[i] ), k++,
+			If( Trim( Grp_list[i][k] ) != "" & Trim( Grp_list[i][k] ) != ".",
+				Insert Into( temp_list, Grp_list[i][k] )
+			)
+		);
+		Grp_list[i] = temp_list;
+		Grp_GFA_SubChart = {};
+		Grp_live_GFA_SubChart = {};
+		Grp_GFA_error_list = {};
+		For( j = 1, j <= N Items( Grp_list[i] ), j++,
+			sum_dt << ClearSelect;
+			sum_dt << select where(
+				Excluded( Row State( Row() ) ) == 0 & Column( sum_dt, GrpID[i] )[] == Grp_list[i][j] & !
+				Is Missing( Column( XGFA[1] )[] ) & !Is Missing( Column( XGFA[1] )[] ) & !
+				Is Missing( Column( XGFA[2] )[] ) & !Is Missing( Column( XGFA[2] )[] )
+			);
+			GFA_SubChart = {};
+			live_GFA_SubChart = {};
+			GFA_error_list = {};
+			rowlist = sum_dt << GetRowsWhere( Selected() );
+			If( N Row( rowlist ) == 0,
+				GFA_error = 1,
+				If( N Row( rowlist ) <= 2,
+					GFA_error = 2,
+					If(
+						(Min( Column( XGFA[1] )[rowlist] ) == Max( Column( XGFA[1] )[rowlist] )) |
+						Min( Column( XGFA[2] )[rowlist] ) == Max( Column( XGFA[2] )[rowlist] ),
+						GFA_error = 3,
+						GFA_error = 0
+					)
+				)
+			);
+			For( h = 1, h <= N_Outputs, h++,
+				If( GFA_error == 0,
+					yresp = Column( sum_dt, Resp[h] );
+					contour_min = Min( yresp[rowlist] );
+					contour_max = Max( yresp[rowlist] );
+					If( contour_min == contour_max,
+						GFA_error_list[h] = 4;
+						live_GFA_SubChart[h] = "";
+						GFA_SubChart[h] = "";
+					,
+						DPCSmapChart(
+							XGFA,
+							yresp,
+							Max( DPCSX ) + 0.5,
+							Min( DPCSX ) - 0.5,
+							Max( DPCSY ) + 0.5,
+							Min( DPCSY ) - 0.5,
+							contour_max,
+							contour_min,
+							5
+						);
+						Map_Chart_Box[FrameBox( 1 )] << Frame Size( 600, 200 );
+						Add_Map_Label(
+							rowlist,
+							Map_Chart_Box,
+							Column( sum_dt, XGFA[1] ),
+							Column( sum_dt, XGFA[2] ),
+							yresp
+						);
+						live_GFA_SubChart[h] = Map_Chart_Box;
+						GFA_SubChart[h] = Map_Chart_Box[1];
+						GFA_error_list[h] = 0;
+					);
+				,
+					GFA_error_list[h] = GFA_error;
+					GFA_SubChart[h] = "";
+					live_GFA_SubChart[h] = "";
+				)
+			);
+			Insert Into( Grp_live_GFA_SubChart, Eval List( {live_GFA_SubChart} ) );
+			Insert Into( Grp_GFA_SubChart, Eval List( {GFA_SubChart} ) );
+			Insert Into( Grp_GFA_error_list, Eval List( {GFA_error_list} ) );
+
+		);
+		Insert Into( all_live_GFA_SubChart, Eval List( {Grp_live_GFA_SubChart} ) );
+		Insert Into( all_GFA_SubChart, Eval List( {Grp_GFA_SubChart} ) );
+		Insert Into( all_GFA_error, Eval List( {Grp_GFA_error_list} ) );
+	);
+ //CA_Output = NewWindow("DPCS Commonality Analysis", AnalysisBox = VlistBox()  );
+	//Eval( Substitute( NameExpr( GenerateOutput), Expr(_AnalysisBox),AnalysisBox, Expr(_OneWay_Chart),all_OneWay_Chart, Expr( _Trend_Chart),all_Trend_Chart, Expr( _GFA_Oneway_Chart ),all_GFA_Oneway_Chart,Expr(_GFA_SubChart),all_GFA_SubChart));
+	// Display Live Analysis Results Window (dynamic)
+	CA_Output_Live = New Window( "DPCS Commonality Analysis (Live) for " || outname,
+		AnalysisBox_Live = V List Box()
+	);
+	eval(
+		Substitute( Name Expr( GenerateOutput ),
+			Expr( _AnalysisBox ), AnalysisBox_Live,
+			Expr( _OneWay_Chart ), all_live_OneWay_Chart,
+			Expr( _Trend_Chart ), all_live_Trend_Chart,
+			Expr( _GFA_Oneway_Chart ), all_live_GFA_Oneway_Chart,
+			Expr( _GFA_SubChart ), all_live_GFA_SubChart
+		)
+	);
+
+	CA_Output_Live<<journal window;
+	//window("Journal: ")<<set report title("DPCS Commonality Analysis (All)");
+	If( IS_CATTS == 1,
+		name = Char( DATA_TABLE_ID || "_Carrier_Level_GFA_Analysis" );
+		CA_Output_Live << SaveJournal( Eval( RESULTS_PATH ) || Eval( name ) || ".jrn" );
+		CA_Output_Live << Savehtml( Eval( RESULTS_PATH ) || Eval( name ) || ".htm" );
+		CA_Output_Live << CloseWindow;
+		While( N Table() > 0, Close( Data Table( 1 ), nosave ) );
+	);
+);//end DPCS_Main
+
+ :: GenerateOutput = Expr(
+	subAnalysisBox = {};
+	GFAAnalysisBox = {};
+	For( i = 1, i <= N_Outputs, i++,
+		_AnalysisBox << Append(
+			SubAnalysisBox[i] = Outline Box( Char( "Analysis of " || Resp_list[i]||" for " ||outname),
+				<<Close( !Eval( IS_CATTS ) )
+			)
+		);
+		For( h = 1, h <= N Items( byentity ), h++,
+			SubAnalysisBox[i] << Append(
+				Outline Box( Char( "Analysis of " || Resp_list[i] || " vs." || byentity[h] ),
+					<<Close( !Eval( IS_CATTS ) ),
+					H List Box( _Trend_Chart[h][i], _Oneway_Chart[h][i] )
+				)
+			)
+	
+		);
+		For( h = 1, h <= N Items( Location ), h++,
+			SubAnalysisBox[i] << Append(
+				GFAAnalysisBox[h] = Outline Box(
+					Char( "Analysis of " || Resp_list[i] || " vs." || Location[h] ),
+					<<Close( !Eval( IS_CATTS ) ),
+					_GFA_Oneway_Chart[h][i]
+				)
+			);
+			level = {};
+			ErrorMsg = {};
+			For( l = 1, l <= N Items( _GFA_SubChart[h] ), l++,
+				If( all_GFA_error[h][l][i] != 0,
+					Insert Into( level, Grp_list[h][l] );
+					Insert Into(
+						ErrorMsg,
+						Match( all_GFA_error[h][l][i],
+							1, "All locations excluded due to limited sample size",
+							2,
+								"Not enough data for JMP to plot contour plot due to only 1 or 2 locations of data available",
+							3,
+								"JMP not able to plot contour plot due to either X or Y locations contain single value",
+							4,
+								"JMP not able to plot contour plot due to responses from all X & Y locations are the same"
+						)
+					);
+				)
+			);
+			Exclude_legend = Outline Box( "No GFA Analysis Flag Report",
+				<<Close( !Eval( IS_CATTS ) ),
+				Table Box(
+					String Col Box( "Level", Level ),
+					String Col Box( "No Analysis Flag", ErrorMsg )
+				),
+				Text Box( "FYI Locations with < 100 units are excluded in the analysis" )
+
+			);
+
+			For( j = 1, j <= N Items( _GFA_SubChart[h] ), j++,
+				If( all_GFA_error[h][j][i] == 0,
+					GFAAnalysisBox[h] << Append(
+						Outline Box(
+							Char( "GFA Analysis of " || Resp_list[i] || " for " || Grp_list[h][j] ),
+							_GFA_SubChart[h][j][i]
+						)
+					)
+				)
+			);
+			GFAAnalysisBox[h] << Append( Exclude_legend );
+    
+			;
+		);
+	);
+);
+
+ :: DPCS_MainDiag_Expr = Expr(
+	::result = Column Dialog(
+		Title( "Assembly Carrier level GFA" ),
+		y = ColList( "Response Variable (Required)",
+			MinCol( 1 ),
+			DataType( Numeric ),
+			Columns( :RESPONSE_FLAG )
+		),
+		" ",
+		HList(
+			"Carrier Level GFA (Check All that Apply)",
+			"",
+			VList(
+				"For CPU",
+				cpuapl = Check Box( "1208 APL" ),	
+				cpuscam = Check Box( "1210 SCAM" ),
+				cpudeflux = Check Box( "1215 Deflux" ),
+				cpudefluxplus = Check Box( "1216 Deflux Plus" ),
+				cpuepoxy = Check Box( "1225 EPOXY" ),
+				cpuepoxycure = Check Box( "1235 Epoxy Cure" ),
+				cpuihs = Check Box( "1252/1262 IHS Attach" ),
+				cpuihscure = Check Box( "1265 IHS Cure" ),
+				cpuctl = Check Box( "1238 CTL" )
+			),
+			VList(
+				"For CHIPSET",
+				chipapl = Check Box( "2208 APL" ),	
+				chipscam = Check Box( "2210 SCAM" ),
+				chipdeflux = Check Box( "2215 Deflux" ),
+				chipepoxy = Check Box( "2225 EPOXY" ),
+				chipepoxycure = Check Box( "2235 Epoxy Cure" ),
+				chipihs = Check Box( "2262 IHS Attach" ),
+				chipihscure = Check Box( "2265 IHS Cure" ),
+				chipctl = Check Box( "2238 CTL" )
+			)
+		)
+
+	);
+	::N_Outputs = N Items( result["y"] );
+	For( i = 1, i <= N_Outputs, i++,
+		resp_list[i] = Char( result["y"][i] )
+	);
+    
+	 :: button = result["Button"];
+	::cpuapl = result["cpuapl"];
+	::cpuscam = result["cpuscam"];
+	::cpudeflux = result["cpudeflux"];
+	::cpudefluxplus = result["cpudefluxplus"];
+	::cpuepoxy = result["cpuepoxy"];
+	::cpuepoxycure = result["cpuepoxycure"];
+	::cpuihs = result["cpuihs"];
+	::cpuihscure = result["cpuihscure"];
+	::cpuctl = result["cpuctl"];
+	::chipapl = result["chipapl"];
+	::chipscam = result["chipscam"];
+	::chipdeflux = result["chipdeflux"];
+	::chipepoxy = result["chipepoxy"];
+	::chipepoxycure = result["chipepoxycure"];
+	::chipihs = result["chipihs"];
+	::chipihscure = result["chipihscure"];
+	::chipctl = result["chipctl"];
+	::selectlist = {cpuscam, cpuapl, cpudeflux, cpudefluxplus, cpuepoxy, cpuepoxycure, cpuihs, cpuihscure, cpuctl,
+	chipscam, chipapl, chipdeflux, chipepoxy, chipepoxycure, chipihs, chipihscure, chipctl};
+	::outputname = {"1210 SCAM", "1208 APL", "1215 Deflux","1216 Deflux Plus", "1225 EPOXY", "1235 Epoxy Cure", "1252/1262 IHS",  "1265 IHS Cure", "1238 CTL",
+	 "2210 SCAM", "2208 APL", "2215 Deflux", "2225 EPOXY", "2235 Epoxy Cure", "2262 IHS", "2265 IHS Cure", "2238 CTL"};
+
+	
+
+	
+);
+
+ :: Carrier_CA_Init = Function( {},
+	If( !IS_CATTS,
+		If( N Table() == 0,
+			Try(
+				Open();
+				DATA_TABLE_ID = Current Data Table() << GetName;,
+				ERR_MSG = "Unable to open data table: Exiting";
+				valid = 0;
+			)
+		, 
+
+			DATA_TABLE_ID = Current Data Table();
+			Data Table( DATA_TABLE_ID ) << MinimizeWindow;
+		)
+	, 
+
+		Try(
+			Current Data Table( Data Table( DATA_TABLE_ID ) ),
+			ERR_MSG = "Cannot find data table: Exiting";
+			valid = 0;
+		)
+	); //EndIf IS_CATTS
+
+	If( valid != 0,
+		If( !IS_CATTS,
+			dt1 = DATA_TABLE_ID,
+			dt1 = Data Table( DATA_TABLE_ID )
+		);
+		dt1 << ClearSelect;
+		dt1 << ClearColumnSelection;
+	)
+	
+		//dt << GetName;
+		//dt << MinimizeWindow;
+		//dt << ClearSelect;
+		//dt << ClearColumnSelection;
+		//dt << SuppressFormulaEvaluation( 0 );
+		//dt1 = dt << Subset( Rows( dt << GetRowsWhere( !Excluded() ) ), SuppressFormulaEvaluation( 0 ) );
+		//dt1 << RunFormulas;
+		//Wait( 0 );
+		//dt1 << SetName( Char( dt << GetName || "_" || "(Copy)" ) );
+		//Current Data Table( dt1 );
+		//dt1 << BringWindowToFront;
+); //EndFunction
+
+ :: Carrier_CA_Spvsr = Function( {instr_expr_},
+	Eval List( instr_expr_ );
+	Eval List( Carrier_CA_GLBLS );
+	Carrier_CA_Init();
+	Carrier_CA_Main();
+
+); //EndFunction
+
+ :: Carrier_CA_GLBLS = Expr(
+	{::PocketLoc = {} ; ::Resp_list = {"RESPONSE_FLAG"} ; ::Resp = {} ; ::all_Trend_Chart = {} ; ::
+	all_live_Trend_Chart = {} ; ::all_Oneway_Chart = {} ; ::all_live_Oneway_Chart = {} ; ::
+	all_GFA_Oneway_Chart = {} ; ::all_live_GFA_Oneway_Chart = {} ; ::all_GFA_SubChart = {} ; ::
+	all_live_GFA_SubChart = {} ; ::all_GFA_error = {} ; ::ex_limit = {100, 50, 25} ; ::Grp_list = {} ;
+	::button = 1 ; ::valid = 1 ; ::DPCSX = {} ; ::DPCSY = {} ; ::N_Outputs = 1 ; ::Platform = "" ; ::
+	byentity = {} ; ::entity_by_pocket = {} ; ::location = {} ; ::GrpID = {} ; ::XGFA = {} ; ::Xdata = {
+	} ; }
+);
+
+
+ :: Platform_check = Function( {platform},
+	If( valid != 0, 
+
+//::platform= if (cpuscam == 1 , "cpuscam", chipscam == 1 , "chipscam", cpuepoxy == 1 , "cpuepoxy", chipepoxy == 1 , "chipepoxy", cpuihs == 1 , "cpuihs", chipihs == 1 , "chipihs", empty() );
+		If( platform == "cpuapl",
+			::byentity = {"1208ENTITY"};
+			::entity_by_pocket = {{"1208ENTITY", "1208ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1208ENTITY-X-Y"};
+			::GrpID = {"1208ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1208OUTDATE"};
+		);
+		If( platform == "chipapl",
+			::byentity = {"2208ENTITY"};
+			::entity_by_pocket = {{"2208ENTITY", "2208ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2208ENTITY-X-Y"};
+			::GrpID = {"2208ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2208OUTDATE"};
+		);
+		If( platform == "cpuscam",
+			::byentity = {"1210ENTITY", "1210ENTITY-ENTITY_ID", "1210ENTITY-ENTITY_ID-PLACEMENT_HEAD"};
+			::entity_by_pocket = {{"1210ENTITY", "1210ENTITY-UNIT_LOCATION", "1210ENTITY-X-Y",
+			"1210CAM_X", "1210CAM_Y"}, {"1210ENTITY", "1210ENTITY-ENTITY_ID",
+			"1210ENTITY_ID-UNIT_LOCATION", "1210ENTITY-ENTITY_ID-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1210ENTITY-X-Y", "1210ENTITY-ENTITY_ID-X-Y"};
+			::GrpID = {"1210ENTITY", "1210ENTITY-ENTITY_ID"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1210OUTDATE"};
+		);
+		If( platform == "chipscam",
+			::byentity = {"2210ENTITY", "2210ENTITY-ENTITY_ID", "2210ENTITY-ENTITY_ID-PLACEMENT_HEAD"};
+			::entity_by_pocket = {{"2210ENTITY", "2210ENTITY-UNIT_LOCATION", "2210ENTITY-X-Y", "2210CAM_X",
+			"2210CAM_Y"}, {"2210ENTITY", "2210ENTITY-ENTITY_ID", "2210CAM_ENTITY_ID-POCKET_ID",
+			"2210ENTITY-ENTITY_ID-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2210ENTITY-X-Y", "2210ENTITY-ENTITY_ID-X-Y"};
+			::GrpID = {"2210ENTITY", "2210ENTITY-ENTITY_ID"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2210OUTDATE"};
+		);
+		If( platform == "cpudeflux",
+			::byentity = {"1215ENTITY"};
+			::entity_by_pocket = {{"1215ENTITY", "1215ENTITY-X-Y","1210CAM_X", "1210CAM_Y"}};
+			::location = {"1215ENTITY-X-Y"};
+			::GrpID = {"1215ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1215OUTDATE"};
+		);
+		If( platform == "cpudefluxplus",
+			::byentity = {"1216ENTITY"};
+			::entity_by_pocket = {{"1216ENTITY", "1216ENTITY-X-Y","1210CAM_X", "1210CAM_Y"}};
+			::location = {"1216ENTITY-X-Y"};
+			::GrpID = {"1216ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1216OUTDATE"};
+		);
+		If( platform == "chipdeflux",
+			::byentity = {"2215ENTITY"};
+			::entity_by_pocket = {{"2215ENTITY", "2215ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2215ENTITY-X-Y"};
+			::GrpID = {"2215ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2215OUTDATE"};
+		);
+		If( platform == "cpuepoxy",
+			::byentity = {"1225ENTITY"};
+			::entity_by_pocket = {{"1225ENTITY", "1225ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1225ENTITY-X-Y"};
+			::GrpID = {"1225ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1225OUTDATE"};
+		);
+		If( platform == "chipepoxy",
+			::byentity = {"2225ENTITY"};
+			::entity_by_pocket = {{"2225ENTITY", "2225ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2225ENTITY-X-Y"};
+			::GrpID = {"2225ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2225OUTDATE"};
+		);
+		If( platform == "cpuepoxycure",
+			::byentity = {"1235ENTITY"};
+			::entity_by_pocket = {{"1235ENTITY", "1235ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1235ENTITY-X-Y"};
+			::GrpID = {"1235ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1235OUTDATE"};
+		);
+		If( platform == "chipepoxycure",
+			::byentity = {"2235ENTITY"};
+			::entity_by_pocket = {{"2235ENTITY", "2235ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2235ENTITY-X-Y"};
+			::GrpID = {"2235ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2235OUTDATE"};
+		);
+		If( platform == "cpuihs",
+			::byentity = {"1252/1262ENTITY"};
+			::entity_by_pocket = {{"1252/1262ENTITY", "1252/1262ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1252/1262ENTITY-X-Y"};
+			::GrpID = {"1252/1262ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1252/1262OUTDATE"};
+		);
+
+		If( platform == "chipihs",
+			::byentity = {"2262ENTITY"};
+			::entity_by_pocket = {{"2262ENTITY", "2262ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2262ENTITY-X-Y"};
+			::GrpID = {"2262ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2262OUTDATE"};
+		);
+		If( platform == "cpuihscure",
+			::byentity = {"1265ENTITY"};
+			::entity_by_pocket = {{"1265ENTITY", "1265ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1265ENTITY-X-Y"};
+			::GrpID = {"1265ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1265OUTDATE"};
+		);
+		If( platform == "chipihscure",
+			::byentity = {"2265ENTITY"};
+			::entity_by_pocket = {{"2265ENTITY", "2265ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2265ENTITY-X-Y"};
+			::GrpID = {"2265ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2265OUTDATE"};
+		);
+		If( platform == "cpuctl",
+			::byentity = {"1238ENTITY"};
+			::entity_by_pocket = {{"1238ENTITY", "1238ENTITY-X-Y", "1210CAM_X", "1210CAM_Y"}};
+			::location = {"1238ENTITY-X-Y"};
+			::GrpID = {"1238ENTITY"};
+			::XGFA = {"1210CAM_X", "1210CAM_Y"};
+			::Xdate = {"1238OUTDATE"};
+		);
+		If( platform == "chipctl",
+			::byentity = {"2238ENTITY"};
+			::entity_by_pocket = {{"2238ENTITY", "2238ENTITY-X-Y", "2210CAM_X", "2210CAM_Y"}};
+			::location = {"2238ENTITY-X-Y"};
+			::GrpID = {"2238ENTITY"};
+			::XGFA = {"2210CAM_X", "2210CAM_Y"};
+			::Xdate = {"2238OUTDATE"};
+		);
+	)
+);
+
+ //:: copydt = Function( {platform},
+	//If( platform == "cpuapl"  | platform == "cpudeflux"| platform == "cpuepoxy" |
+	    //platform == "cpuepoxycure" | platform == "cpuihs"| platform == "cpuihscure" | 
+	    //platform == "cpuctl"| platform == "chipapl" |  platform == "chipdeflux"|
+		//platform == "chipepoxy" | platform == "chipepoxycure" | platform == "chipihs"|
+		//platform == "chipihscure" | platform == "chipctl" ,
+		//dt << GetName;
+		//dt << MinimizeWindow;
+		//dt << ClearSelect;
+		//dt << ClearColumnSelection;
+		//dt << SuppressFormulaEvaluation( 0 );
+		//dt1 = dt << Subset( Rows( dt << GetRowsWhere( !Excluded() ) ), SuppressFormulaEvaluation( 0 ) );
+		//dt1 << RunFormulas;
+		//Wait( 0 );
+		//dt1 << SetName( Char( dt << GetName || "_" || "(Added " || outname || "_ENTITY-X-Y)") );
+		//Current Data Table( dt1 );
+		//dt1 << BringWindowToFront;
+	//);
+	//if(platform=="cpuscam"|platform=="chipscam", dt1=current data table());
+//);
+
+
+ :: addcolumn = Function( {platform},
+ 	If( platform == "chipapl",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2208ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2208ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuapl",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1208ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1208ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+	 	If( platform == "chipdeflux",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2215ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2215ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpudeflux",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1215ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1215ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpudefluxplus",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1216ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1216ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "chipepoxy",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2225ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2225ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuepoxy",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1225ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1225ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+		If( platform == "chipepoxycure",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2235ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2235ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuepoxycure",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1235ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1235ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuihs",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1252/1262ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1252/1262ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" ||
+				Char( :"1210CAM_Y" )
+			)
+		);
+	);
+
+	If( platform == "chipihs",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2262ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2262ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "chipihscure",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2265ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2265ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuihscure",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1265ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1265ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+		If( platform == "chipctl",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "2238ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "2238ENTITY" ) || "-" || Char( :"2210CAM_X" ) || "-" || Char( :"2210CAM_Y" )
+			)
+		);
+	);
+	If( platform == "cpuctl",
+		//Current Data Table( dt1 );
+		sum_dt << New Column( "1238ENTITY-X-Y",
+			character,
+			nominal,
+			Formula(
+				:Name( "1238ENTITY" ) || "-" || Char( :"1210CAM_X" ) || "-" || Char( :"1210CAM_Y" )
+			)
+		);
+	);
+);
+
+
+::check_col=expr(
+	If( (cpuapl == 1 & Contains( dt1<<GetColumnNames(String), "1208ENTITY" )!=0)| cpuapl==0,err1=0,err1=1);
+	if((cpuscam == 1 & Contains( dt1<<GetColumnNames(String), "1210ENTITY" )!=0)| cpuscam==0,err2=0, err2=1);
+	if((cpudeflux == 1 & Contains( dt1<<GetColumnNames(String), "1215ENTITY" )!=0)| cpudeflux==0,err3=0, err3=1);
+	if((cpuepoxy == 1 & Contains( dt1<<GetColumnNames(String), "1225ENTITY" )!=0)| cpuepoxy==0, err4=0, err4=1);
+	if((cpuepoxycure == 1 & Contains( dt1<<GetColumnNames(String), "1235ENTITY" )!=0)| cpuepoxycure==0, err5=0, err5=1);
+	if((cpuihs == 1 & Contains( dt1<<GetColumnNames(String), "1252/1262ENTITY" )!=0) | cpuihs==0, err6=0, err6=1);
+	if((cpuihscure == 1 & Contains( dt1<<GetColumnNames(String), "1265ENTITY" )!=0)| cpuihscure==0, err7=0, err7=1);
+	if((cpuctl == 1 & Contains( dt1<<GetColumnNames(String), "1238ENTITY" )!=0) | cpuctl==0, err8=0, err8=1);
+	if((chipapl == 1 & Contains( dt1<<GetColumnNames(String), "2208ENTITY" )!=0) | chipapl==0, err9=0, err9=1);
+	if((chipscam == 1 & Contains( dt1<<GetColumnNames(String), "2210ENTITY" )!=0)| chipscam==0, err10=0, err10=1);
+	if((chipdeflux == 1 & Contains( dt1<<GetColumnNames(String), "2215ENTITY" )!=0) | chipdeflux==0, err11=0, err11=1);
+	if((chipepoxy == 1 & Contains( dt1<<GetColumnNames(String), "2225ENTITY" )!=0)| chipepoxy==0, err12=0, err12=1);
+	if((chipepoxycure == 1 & Contains( dt1<<GetColumnNames(String), "2235ENTITY" )!=0)| chipepoxycure==0 , err13=0, err13=1);
+	if((chipihs == 1 & Contains( dt1<<GetColumnNames(String), "2262ENTITY" ) !=0)| chipihs==0, err14=0, err14=1);
+	if((chipihscure == 1 & Contains( dt1<<GetColumnNames(String), "2265ENTITY" )!=0) | chipihscure==0, err15=0, err15=1);
+	if((chipctl ==1 & Contains( dt1<<GetColumnNames(String), "2238ENTITY" ) != 0)| chipctl==0, err16=0, err16=1);
+	if((cpudefluxplus == 1 & Contains( dt1<<GetColumnNames(String), "1216ENTITY" )!=0)| cpudefluxplus==0,err17=0, err17=1);
+	if(err1==0 & err2==0 & err3==0 & err4==0 & err5==0 & err6==0 & err7==0 & err8==0 & err9==0
+		& err10==0 & err11==0 & err12==0 & err13==0 & err14==0 & err15==0 & err16==0 & err17==0, 
+		err=0, err=1
+	);
+	if( err==1, 
+		Dialog(title ("Missing Column"),
+               TextBox("The operation code that you select is not in the data files. Please check again!" )
+               )
+       )
+      
+      	
+      );
+
+ 
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Main Routine>/////////////////////////////////////////////////////
+ :: Carrier_CA_Main = Function( {},
+	While( valid == 1 & button != -1,
+		If( IS_CATTS == 0,
+			Eval( DPCS_MainDiag_Expr );
+			Eval (check_col)
+
+		);
+        if( err==0,
+		For( q = 1, q <= N Items( selectlist ), q++,
+			::all_Trend_Chart = {};
+			::all_live_Trend_Chart = {};
+			::all_Oneway_Chart = {};
+			::all_live_Oneway_Chart = {};
+			::all_GFA_Oneway_Chart = {};
+			::all_live_GFA_Oneway_Chart = {};
+			::all_GFA_SubChart = {};
+			::all_live_GFA_SubChart = {};
+			::all_GFA_error = {};
+			If( Eval( selectlist[q] ) == 1,
+				::platform = Char( selectlist[q] );
+				::outname = outputname[q];
+				//copydt( Char( selectlist[q] ) );
+				//addcolumn( Char( selectlist[q] ) );
+				platform_check( Char( selectlist[q] ) );
+				pocket_legend( Char( selectlist[q] ) );
+				If( button == 1,
+					DPCS_Main_Expr( Char( selectlist[q] ) );
+					If( q == N Items( selectlist ),
+						valid = 0
+					);
+				);
+			
+			);
+			If( q == N Items( selectlist ),
+				valid = 0
+			);
+		);
+		window("Journal: ")<<set report title("Journal: DPCS Commonality Analysis (All)");
+		
+	)
+	)
+);
+    

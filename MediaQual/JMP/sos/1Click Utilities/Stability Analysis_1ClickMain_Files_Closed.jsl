@@ -1,0 +1,27 @@
+/********************************************************************
+ *PCS Stability Assessment: Two Level Sampling
+ *Orginator: John Xu
+ *JMP Version: 9.0.3
+ *Date: 03/06/2014
+********************************************************************/
+
+Clear Globals();
+//Global variable assignments
+
+//Interactive_mode=0: No user interactive inputs in Diag is required 
+:: Interactive_mode = 0;   
+//file_open = 0: open data files from specific locations; file_open=1: point to existing open tables
+file_open=0;  
+
+/************ Below are the only two lines needed to be edited ********/
+//read in variable assignments from the control file; if file_open=1, two file variables should point to two open tables
+::VariableAssgmtTblName = "$ADDIN_HOME(com.intel.sos)\1Click Utilities\VariableAssignmentTbl_Stability.jmp";
+::InputDataTableName = "$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserCutPlacementAllToolsXY.jmp";  
+/*********************** End editable portion *************************/
+
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sos stability functions.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\1Click_sosfunc.jsl" );
+
+Eval( Stability_DA_1Click );

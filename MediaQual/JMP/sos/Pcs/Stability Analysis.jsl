@@ -1,0 +1,59 @@
+/********************************************************************
+ *PCS Stability Assessment: Two Level Sampling
+ *Orginator: Paul Wenz and Philip Brown
+ *JMP Version: 5.1 - 8
+ *Date: 5/21/2010
+********************************************************************/
+
+ClearGlobals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sos stability functions.jsl");
+
+If(NTable() == 0, ::dt1 = Open(), dt1 = CurrentDataTable());
+//dt1 << MinimizeWindow;
+::dt1name = dt1 << GetName;
+dt1 << ClearSelect;
+dt1 << ClearColumnSelection;
+::dt = dt1 << Subset(Rows(dt1 << GetRowsWhere(!Excluded())), AllColumns);
+dt << SetName(Char(dt1name) || "_" || "(Copy)");
+CurrentDataTable(dt);
+dt << BringWindowToFront;
+//dt << MinimizeWindow;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+EvalList(ClearSTADiagVars);
+Initialize_stability_globals;
+
+// Main Routine
+::valid = 1;
+While(valid == 1 & button[1] != -1,
+	Eval(Stability_MainDiag_Expr);
+	Eval(Stability_PreProc_Expr);
+	If(button[1] == 1,
+		If(ref_select > 1 & (ref_select != 4),
+			If(NItems(Param) != 0,
+				Eval(Substitute(NameExpr(CLRefSrcExpr), Expr(_Main), Expr(SB_Main)));
+				OP_ID++;
+				valid = 0;
+			,  // Else
+				Eval(NotReqExpr);
+				If(tempbutton == -1, 
+				  //Then
+					Close(summ_param_tab, NoSave);
+					valid = 1;
+				,  //Else
+					ref_select = 1;
+					Eval(SB_Main);
+					valid = 0;
+				);
+			)  //end if (nitems)
+		,  // Else
+			Eval(SB_Main);
+			valid = 0;
+		)
+	);
+);
+Currentdatatable(dt1);
+If(Any(Matrix(button) == -1), Close(dt, NoSave));

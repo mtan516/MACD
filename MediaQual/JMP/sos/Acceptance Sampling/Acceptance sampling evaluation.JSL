@@ -1,0 +1,340 @@
+/*************************
+    Sampling Plan Evaluation
+    By: Crisel Ramos
+    Rev: 1.05
+    Date: 3/7/2006
+    JMP Version: 5.1.1
+    Description: Used to evaluate existing sampling plan of lot size N, sample size n, and acceptance level of c by 
+                 calculating AQL and RQL at specified alpha and beta. Show OC, ATI and AOQ curves.
+    Input: Lot size (N), sample size (n), acceptance reject (c)
+    Output: OC Curve, ATI Curve, AOQ Curve 
+
+     SOS Revision History
+	3/7.2006 v1.04: 1. Added footer boxFile sosglbls.jsl created to hold global variables that might apply to all scripts. Include added. 
+	changed title of hypergeometric sampling plan window
+  
+***************************/
+
+
+
+//Create Dialog Window Request: 
+//lot size, sample size, reject on, axis scaling, type A or B OC curve 
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+result=Dialog(Title("Sampling Plan Evaluation"),
+	VList("Enter sampling plan and corresponding acceptance probabilities.",
+            " ",
+            "Note: Lot size is required to draw curves (even if distribution is binomial).",
+		Lineup(2,
+			
+			"Lot Size (N)", lotsize=EditNumber(),
+                   " "," ",
+			"Sample Size (n)", sampsize=EditNumber(),
+			"Acceptance Number (c)", c= EditNumber(),
+			" ", " "),
+
+
+                     VList("Probability of Acceptance",
+                           "",
+                           HList( Hlist( "At AQL", alpha95=EditNumber(0.95)), 
+		               Hlist("At RQL", beta=EditNumber(0.1)))
+		      	),
+                   "Distribution", dist=radiobuttons("Binomial", "Hypergeometric"),
+                   ""," ",
+ 		       
+          		
+                       Vlist("Output Curves", " ", 
+                          HList(
+                               occheck = CheckBox("OC", 0),"                        ", 
+                               VList(text box("If rectified sampling is done: "),
+                                     aoqcheck = CheckBox("AOQ", 0),
+			                  aticheck = CheckBox("ATI", 0)
+                               )
+		              )
+                       ),
+		HList(Button("OK"), Button("Cancel"))
+	)
+);
+
+button=result["Button"];
+lotsize = result["lotsize"];
+sampsize = result["sampsize"];
+c = result["c"];
+dist=result["dist"];
+alpha95 = result["alpha95"];
+beta=result["beta"];
+occheck=result["occheck"];
+aoqcheck= result["aoqcheck"];	
+aticheck= result["aticheck"];
+alpha=1-alpha95;
+
+
+//Double Check Validity of input
+
+
+
+if(result["Button"]==1 & (sampsize > lotsize | sampsize<=0  |  lotsize<=0  |  alpha <=0|beta <=0 | c<0 | IsMissing(sampsize) |  IsMissing(c) ) ,
+	
+	while (result["Button"]==1 & (sampsize > lotsize | sampsize<=0  |  lotsize<=0  |  alpha <=0|beta <=0| c<0 | IsMissing(sampsize) | IsMissing(lotsize) | IsMissing(c)  ),  
+ 
+result=Dialog(Title("Sampling Plan Evaluation"),
+	VList("Enter sampling plan and corresponding acceptance probabilities.",
+            " ",
+            "Note: Lot size is required to draw curves (even if distribution is binomial).",
+		Lineup(2,
+			
+			"Lot Size (N)", lotsize=EditNumber(),
+                   " "," ",
+			"Sample Size (n)", sampsize=EditNumber(),
+			"Acceptance Number (c)", c= EditNumber(),
+			" ", " "),
+
+
+                     VList("Probability of Acceptance",
+                           "",
+                           HList( Hlist( "At AQL", alpha95=EditNumber(0.95)), 
+		               Hlist("At RQL", beta=EditNumber(0.1)))
+		      	),
+                   "Distribution", dist=radiobuttons("Binomial", "Hypergeometric"),
+                   ""," ",
+ 		       
+          		
+                       Vlist("Output Curves", " ", 
+                          HList(
+                               occheck = CheckBox("OC", 0),"                        ", 
+                               VList(text box("If rectified sampling is done: "),
+                                     aoqcheck = CheckBox("AOQ", 0),
+			                  aticheck = CheckBox("ATI", 0)
+                               )
+		              )
+                       ),
+		HList(Button("OK"), Button("Cancel"))
+	)
+);
+
+
+
+button=result["Button"];
+lotsize = result["lotsize"];
+sampsize = result["sampsize"];
+c = result["c"];
+dist=result["dist"];
+alpha95 = result["alpha95"];
+beta=result["beta"];
+occheck=result["occheck"];
+aoqcheck= result["aoqcheck"];	
+aticheck= result["aticheck"];
+alpha=1-alpha95;
+
+
+); //end while
+); //end if
+
+
+if(button==1,
+
+if(dist==1,
+        
+      
+      pinc=0.00001;
+      pmax=0;
+      while(pmax<1 & Binomial Distribution(pmax,sampsize,c)>0.01, pmax=pmax+pinc); 
+
+     
+
+
+      AOQL=0; 
+      for(p=0, p<=pmax, p=p+(0.00001), pa=Binomial Distribution(p,sampsize,c); AOQ=p*(lotsize-sampsize)*pa/lotsize;
+                     if(AOQL<AOQ, AOQL=AOQ); pl=p;
+      );
+      temp_p1=0; 
+                while(Binomial Distribution(temp_p1,sampsize,c)>(1-alpha),temp_p1=temp_p1+(0.00001));
+                AQL=temp_p1*100;
+                temp_p2=1; 
+                 while(Binomial Distribution(temp_p2,sampsize,c)< beta,temp_p2=temp_p2-(0.00001));
+                 RQL=temp_p2*100;
+     
+
+
+     output=New Window("Sampling Plan Evaluation",
+                   outlinebox("User Values",
+                              TableBox(
+					   StringColBox("Parameter",{"Lot size (N)","Sample size (n)","Acceptance Number (c)"}),
+                                  NumberColBox("Value",{lotsize,sampsize,c})
+                              )
+                   )
+      );
+
+
+   
+Eval(Substitute(Expr(
+      if(occheck==1,
+                    occurve=Outlinebox( "OC Curve",
+                            Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,101),
+                                  xName("Lot Quality in Percent"), YName("Probability of Acceptance(%)"),
+                                  Pen color(3),  Pen size(1), 
+                                  Y Function(100*Binomial Distribution(x/100,sampsize,c), x)                                                            )
+                    );
+                  
+
+
+      	                 occurve[framebox(1)]
+                               <<Add Graphics Script(text({eval(AQL),95},"AQL =   "||char(round(eval(AQL),5))))
+                               <<Add Graphics Script(text({eval(RQL),10},"RQL =   "||char(round(eval(RQL),5))));
+
+             
+                       axisy = occurve[axisbox(1)];
+		           axisy << Show Major Grid(1)
+                             <<Add Ref Line((1-alpha)*100,"Dashed","Blue")
+                             <<Add Ref Line((beta*100),"Dashed","Blue");                         
+                       axisx=occurve[axisbox(2)];
+                       axisx<<show Major Grid(1);
+                       axisx<< Show Minor Grid(1)
+                                      <<Add Ref Line(eval(AQL),"Dashed","Blue")
+                                     <<Add Ref Line(eval(RQL),"Dashed","Blue");   
+                       output<<append(occurve)                            
+                   )),Expr(pmax),pmax,Expr(AQL),AQL,Expr(RQL),RQL,Expr(sampsize),sampsize,Expr(lotsize),lotsize,Expr(c),c,Expr(alpha),alpha));  //if occheck==1
+
+Eval(Substitute(Expr(
+                   if(aticheck==1,
+                          aticurve=Outlinebox("ATI Curve",
+                                          Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,lotsize),
+                                                      xName("Lot Quality in Percent"),YName("ATI"),
+                                                      pen color(3), pen size(1),
+                                                     Y Function(sampsize*Binomial Distribution(x/100, sampsize,c)+lotsize*(1-Binomial Distribution(x/100,sampsize, c)), x)
+                                           )
+                            );         
+                                        
+                            axisy = aticurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=aticurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                            output<<append(aticurve)
+                   )),Expr(pmax),pmax,Expr(sampsize),sampsize,Expr(lotsize),lotsize,Expr(c),c));   //if aticheck==1
+
+Eval(Substitute(Expr(
+                   if(aoqcheck==1,
+                        aoqcurve=Outlinebox("AOQ Curve",
+                                 Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,(aoql*1.1)),
+                                 xName("Lot Quality in Percent"),YName("AOQ"),
+                                 pen color(3), pen size(1),                                                                     					  Y Function((x/100)*(lotsize-sampsize)*Binomial Distribution(x/100, sampsize,c)/lotsize, x)
+                                                       )
+                         );
+                                                       
+                          aoqcurve[framebox(1)]<<Add Graphics Script(
+                  						 text({pl,AOQL},"AOQL =   "||char(round(eval(AOQL),5))));          
+                          axisy = aoqcurve[axisbox(1)];
+		    axisy << Show Major Grid(1);
+                          axisx=aoqcurve[axisbox(2)];
+                          axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                           axisy<<add ref line(aoql,"Solid","Blue Cyan");
+                           output<<append(aoqcurve)
+           )),Expr(pmax),pmax,Expr(aoql),aoql,Expr(lotsize),lotsize,Expr(sampsize),sampsize,Expr(c),c));  //if aoqcheck==1
+      output<<append(FooterBox);
+); //if dist==1
+
+if(dist==2,
+        
+      pinc=0.00001;
+      if(c==0,pmax=pinc,pmax=c/lotsize);
+      while(pmax<1 & Hypergeometric Distribution(lotsize,lotsize*pmax,sampsize,c)>=0.01, pmax=pmax+pinc); 
+
+      AOQL=0; if(c==0,p=0,p=c/lotsize);
+         for(p, p<pmax,p=p+0.00001, pa=Hypergeometric Distribution(lotsize,lotsize*p,sampsize,c); 
+                                    AOQ=p*(lotsize-sampsize)*pa/lotsize;
+                                   if(AOQL<=AOQ, AOQL=AOQ);pl=p
+         );
+      if(c==0,temp_p1=0,temp_p1=c/lotsize); 
+                while(Hypergeometric Distribution(lotsize,lotsize*temp_p1,sampsize,c)>(1-alpha),temp_p1=temp_p1+0.00001);
+                AQL=temp_p1*100;
+          temp_p2=pmax; 
+                 while(Hypergeometric Distribution(lotsize,lotsize*temp_p2,sampsize,c)< beta,temp_p2=temp_p2-0.00001);
+                 RQL=temp_p2*100;
+  
+    output=New Window("Sampling Plan Evaluation",
+                   outlinebox("User Values",
+                              TableBox(
+					   StringColBox("Parameter",{"Lot size (N)","Sample size (n)","Acceptance Number (c)"}),
+                                  NumberColBox("Value",{lotsize,sampsize,c})
+                              )
+                   )
+      );
+
+Eval(Substitute(Expr(
+      if(occheck==1,
+                        occurve=Outlinebox( "OC Curve",
+                                                         Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,101),
+                                                                               xName("Lot Quality in Percent"), YName("Probability of Acceptance(%)"),
+                                                                                Pen color(3),  Pen size(1),
+                                                                                Y Function(100*Hypergeometric Distribution(lotsize,(lotsize*(x/100)), sampsize, c), x)
+                                                                )
+                           );
+                                                   
+                          occurve[framebox(1)]<<Add Graphics Script(
+                  						 text({eval(AQL),95},"AQL =   "||char(round(eval(AQL),5))))
+                                                    <<Add Graphics Script(text({eval(RQL),10},"RQL =   "||char(round(eval(RQL),5))));
+
+             
+                            axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1)
+                                     <<Add Ref Line((1-alpha)*100,"Dashed","Blue")
+                                    <<Add Ref Line((beta*100),"Dashed","Blue");                         
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                            axisx<< Show Minor Grid(1)
+                                      <<Add Ref Line(AQL,"Dashed","Blue")
+                                     <<Add Ref Line(RQL,"Dashed","Blue");  
+                            output<<append(occurve)        
+                        )),Expr(pmax),pmax,Expr(lotsize),lotsize,Expr(sampsize),sampsize,Expr(c),c,Expr(AQL),AQL,
+                           Expr(RQL),RQL,Expr(alpha),alpha,Expr(beta),beta));  //if occheck==1
+
+Eval(Substitute(Expr(
+                   if(aticheck==1,
+                          aticurve=Outlinebox("ATI Curve",
+                                          Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,lotsize),
+                                                      xName("Lot Quality in Percent"),YName("ATI"),
+                                                      pen color(3), pen size(1),
+                                                     Y Function(sampsize*Hypergeometric Distribution(lotsize,lotsize*(x/100), sampsize,c)+lotsize*(1-Hypergeometric Distribution(lotsize, lotsize*(x/100),sampsize, c)), x)
+                                           )
+                            );         
+                                        
+                            axisy = aticurve[axisbox(1)];
+                            axisy << Show Major Grid(1);
+                            axisx=aticurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                            axisx<< Show Minor Grid(1);
+                            output<<append(aticurve)
+                   )),Expr(pmax),pmax,Expr(lotsize),lotsize,Expr(sampsize),sampsize,Expr(c),c));   //if aticheck==1
+
+Eval(Substitute(Expr(
+                 if(aoqcheck==1,
+                        aoqcurve=Outlinebox("AOQ Curve",
+                                                     Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,(aoql*1.1)),
+                                                                      xName("Lot Quality in Percent"),YName("AOQ"),
+                                                                      pen color(3), pen size(1),
+                                                                     Y Function((x/100)*(lotsize-sampsize)*Hypergeometric Distribution(lotsize,lotsize*(x/100), sampsize,c)/lotsize, x)
+                                                       )
+                         );
+                                 aoqcurve[framebox(1)]<<Add Graphics Script(
+                  						 text({pl,AOQL},"AOQL =   "||char(round(eval(AOQL),5))));                                      
+                                       
+                          axisy = aoqcurve[axisbox(1)];
+		              axisy << Show Major Grid(1);
+                          axisx=aoqcurve[axisbox(2)];
+                          axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                           axisy<<add ref line(aoql,"Solid","Blue Cyan");
+                           output<<append(aoqcurve)          
+         )),Expr(pmax),pmax,Expr(AOQL),AOQL,Expr(lotsize),lotsize,Expr(c),c,Expr(sampsize),sampsize));  //if aoqcheck==1
+          output<<append(FooterBox);
+)); //if dist==2
+
+
+ 
+
+
+
+
+
+

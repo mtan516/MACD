@@ -1,0 +1,1262 @@
+ /**********************************************************
+ * SOS Commonality  CONTROL Function Library
+ * This file contains functions and expressions that handle control file operations
+ * called by SOS Commonality Analysis scripts
+ * JMP Version: 5.1.1 - 7.0
+ * 
+ * $Author: Pdbrown $
+ * $Revision: 21 $
+ * $Version:$
+ * $Date: 12/23/08 4:26p $
+ * $Modtime: 04/09/2014 4:26p $
+ * $Archive: /SOSdev/SOS2/LIBRARIES/sosCA_cntrlfunc.JSL $
+ *
+ * $History: sosCA_cntrlfunc.JSL $
+ * * 
+    * *****************  Version 21  *****************
+ * User: stan27      Date: 04/09/14   Time: 4:26p
+ * revise for JMP 11 - Row 840 that remove the Expr for yopdateop as yopdateop is just a variable
+    * *****************  Version 20  *****************
+ * User: stan27      Date: 07/21/11   Time: 4:26p
+ * revise for JMP 9 - revise match function using eval (substitude(expr(match)) function 
+ * Mark out line 505 - as there is no need a copy of control file to be saved in reference file folder.
+    * *****************  Version 19  *****************
+ * User: stan27      Date: 07/23/10   Time: 4:26p
+ * Add  _controlref_tab_temp_<<Clear Select to clear all the row selection in control file.
+   * *****************  Version 18  *****************
+ * User: stan27      Date: 06/21/10   Time: 4:26p
+ * Add column(rawdt_,col_elem)<< DataType(Numeric) to confirm the Output(Y)is numeric
+  * *****************  Version 17  *****************
+ * User: stan27      Date: 06/03/10   Time: 4:26p
+ * Add if(!is missing(col sum(column(rawdt_, col_elem))) to COLTYPE_LISTCHK_VALS[5] to check if Output(Y)is blank
+ * Add If(NItems(ycols)!=0 to  InsertInto( _control_array_) to check if Output(Y) list is empty.
+ *
+ * *****************  Version 16  *****************
+ * User: Pdbrown      Date: 12/23/08   Time: 4:26p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Modify CA_SelectCntrl to accomodate dytnamic DIAG_Cntrl dialog box.
+ *  
+ * *****************  Version 15  *****************
+ * User: Pdbrown      Date: 12/21/08   Time: 12:24a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Enable UL rollup for CATTS mode. (IS_UL &!IS_CATTS->IS_UL)
+ *
+ * *****************  Version 14  *****************
+ * User: Pdbrown      Date: 3/04/08    Time: 6:27a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix CreateRunTimeCntrl()
+ * Remove CA_Exit() from CA_GetCntrlSrc()
+ * 
+ * *****************  Version 13  *****************
+ * User: Pdbrown      Date: 3/03/08    Time: 2:46p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * clear all row/col selections when opening cntrl file
+ * 
+ * *****************  Version 12  *****************
+ * User: Pdbrown      Date: 2/25/08    Time: 3:52p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update
+ * 
+ * *****************  Version 11  *****************
+ * User: Pdbrown      Date: 2/01/08    Time: 4:21a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update ReadControlFile()
+ *  Setting of Modeling Type now done for all Column Types
+ * 
+ * *****************  Version 10  *****************
+ * User: Pdbrown      Date: 1/25/08    Time: 7:39a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * 1. Enable use of Master Control File Template.
+ * 2. Disable error check for Area Lot in UL mode.
+ * 3. Replace cntrl file colnames static references with glbl vars (def in
+ * sosglbs).
+ * 4. Auto assign "N Rows" as sample size col when IS_LLSOSFMT=1 &
+ * !IS_CATTS.
+ * 5. Begin work on idea of embedded control files/simplify input-date
+ * mapping.
+ * 6. Change method of table property assignment ("Set" vs "New").
+ * 
+ * *****************  Version 9  *****************
+ * User: Pdbrown      Date: 1/14/08    Time: 5:21p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Attempt to handle case where control file selected fro Opening is
+ * changed.
+ * 
+ * *****************  Version 8  *****************
+ * User: Pdbrown      Date: 12/17/07   Time: 11:29a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Updates to most of the control file functions
+ * 
+ * *****************  Version 7  *****************
+ * User: Pdbrown      Date: 12/07/07   Time: 12:46a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * y_sampsize = "NROWS" for CATTS
+ * 
+ * *****************  Version 6  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 4:01p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix IsEmpty() bug for JMP5 compatibility.
+ * Enable Error Dialog popup (SOS).
+ * Move CA_AnalysisSetup() from sosCA_func.
+ * CreateRunTimeCntrl()
+ *   Acknowledge "Order" column. Fix coltypelistchkvals search.
+ *   Include cntrl cols and coltypelistchkvals search results in ERR_MSG.
+ * SelectCntrlOp()
+ *   Invoke CreateRunTimeCntrl()  (stored cntrl file (SOS)).
+ *   CNTRL_FILE_ID = CNTRL_TEMPLATE_NAME (new cntrl file (SOS)).
+ *   Move CNTRL_TABLE_NAME/PATH to CA_GetCntrlSrc().
+ * ReadControlFile()
+ *   Disable "Max()" on datecols if !IS_UL | IS_CATTS.
+ *   Insert raw datecol names into CONTROL_ARRAY.
+ *   Allow y_actual to be 2D. Disable yopdateop when IS_UL & IS_CATTS.
+ * 
+ * *****************  Version 5  *****************
+ * User: Pdbrown      Date: 11/02/07   Time: 3:24a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix yop index in ReadControlFile()
+ * Include date cols in embedde cntrl file
+ * 
+ * *****************  Version 4  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 12:47p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Remove CAExit() call from ReadControlFile()
+ * 
+ * *****************  Version 3  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 5:10a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * replace [2] with cntrl_indx
+ * 
+ * *****************  Version 2  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 4:55a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Add control file validation
+ **********************************************************/
+
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+::AssociateDate_Diag_Expr = Expr( 
+  Assoc_Date = Dialog( 
+    Title( "Associate Dates With Inputs" ),
+    HList( "Select Date Column Associated with Input Column:", _Title ),  
+    Proc_Date = ListBox( X_Date_ID ),
+    HList( Button("OK"), Button("Cancel") );
+    );
+  EvalList( Assoc_Date );
+  button[3] = Assoc_Date["Button"];
+  
+); //EndExpr
+
+///////////////////////////////////////////////////////////////////////////
+::UpdateInVarDateTab = Function( {dt_, x_, date_}, {DefaultLocal},
+  CurrentDataTable(dt_);
+  _srch_ = SearchColumn( dt_, Column(inputvar_colname), x_ );
+  If( _srch_[1] == 1, Column(dates_colname)[_srch_[2]] = date_ );
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+//
+// CreateInputTable
+// Generates table of all input parameters for CA
+// Called from [Commonality_PreProc_Expr]
+// PB: 11/16/06
+////////////////////////////////////////////////////////////
+::CreateInputTable = Function({_dt}, {i,j,k,h,q,m},
+  If( RET == 1,
+    IncOP();
+    ::InputVar_X = {};
+    ::InputVar_Y = {};
+    ::InputVar_Z = {};
+    ::InputVar_Date = {};
+    For( i=1, i<=N_Grp_Cols, i++, InsertInto( InputVar_Z, {{}} ) );
+
+    If( !UL_OPflag,
+      Try(
+        invarz_sav = InputVar_Z;
+        InputVar_tab = NewTable("Input_Date_Mapping Table" );
+        InputVar_tab << NewColumn( outputvar_colname, Character );
+        InputVar_tab << NewColumn( inputvar_colname, Character );
+        InputVar_tab << NewColumn( dates_colname, Character );
+        InputVar_tab << NewColumn( "p Value for Mean", Numeric, Format("PValue",10) );
+        InputVar_tab << NewColumn( "Decision for Mean", Character(16) );
+        InputVar_tab << NewColumn( "p Value for Variance", Numeric, Format("PValue",10) ); 
+        InputVar_tab << NewColumn( "Decision for Variance", Character(16) );
+        InputVar_tab << NewColumn( "Order", Numeric );
+        For( i=N_Grp_Cols, i>=1, i--, InputVar_tab << AddMultipleColumns(Char(Grp_Cols[i]), 1, BeforeFirst, Character(16) ) );
+        
+        // Cycle through Group, Output and Input Vars and store
+        For( h=1, h<=N_Grps, h++,
+          For( j=1, j<=N_Outputs, j++,
+            For( i=1, i<=N_Inputs, i++,
+              InsertInto( InputVar_X, Char(x[i]) );
+              InsertInto( InputVar_Y, Char(Response[j]) );
+              For( m=1, m<=N_Grp_Cols, m++, InputVar_Z[m]=Insert(InputVar_Z[m], Eval(Grp_Names[m][h]) ) );
+            );
+          );
+        );
+        
+        // Populate Input Variable Table
+        For( m=1, m<=N_Grp_Cols, m++, Column( InputVar_tab, m ) << SetValues( InputVar_Z[m] ) );
+        Column( InputVar_tab, inputvar_colname ) << SetValues( InputVar_X );
+        Column( InputVar_tab, outputvar_colname ) << SetValues( InputVar_Y );
+        Column( InputVar_tab, "Order") << SetEachValue( Row() );
+
+        InputVar_X = {};
+        InputVar_Y = {};
+        InputVar_Z = invarz_sav;
+        InputVar_Date = {};
+        RET=1; ERR_MSG="",
+
+        RET=-1;
+        ERR_MSG="Problem Creating Input Variable-Date Mapping Table";
+      ) //EndTry
+    ) //EndIf UL_OPFlag
+  ); //EndIf RET
+  
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::CreateInputDateList = Expr( 
+  area_grp_tab = _data_tab<<Summary( Group( Eval(Grp_Cols) ), Min(:Order), Invisible); //Make invisible
+  Try(
+  area_grp_tab <<Sort( By(:Name("Min(Order)")), ReplaceTable );
+  N_Areas = NRow(area_grp_tab);
+  Input_and_Date_List_grp = {};
+  Input_and_Date_List = {};
+  Input_and_Date_List_elem = {};
+  Date_List = {};
+  For( h=1, h<=N_Areas, h++,
+    CurrentDataTable(area_grp_tab);
+    Selected(RowState(h))=1;
+    For( j=1, j<=N_Outputs, j++,
+    CurrentDataTable(_data_tab);
+    ForEachRow( If(Selected(), If( Column(_data_tab, "Output Variable")[] != Char(Response[j]), Selected(RowState())=0 )) );
+    area_grp_rows = _data_tab<<GetSelectedRows;
+    InputVars_Ref = Column( _data_tab, inputvar_colname)[area_grp_rows];
+    DateVars_Ref =  Column( _data_tab, dates_colname )[area_grp_rows];
+    For( i=1, i<=NItems( InputVars_Ref ), i++,
+        If( IsMissing( DateVars_Ref[i] ),
+      InsertInto( Input_and_Date_List_elem, EvalList( {EvalList( {InputVars_Ref[i]} )} ) ),
+
+      InsertInto( Input_and_Date_List_elem, EvalList( {EvalList( {InputVars_Ref[i], DateVars_Ref[i]} )} ) );
+      InsertInto( Date_List, DateVars_Ref[i] );
+      ); //EndIf
+    ); //EndFor i
+    InsertInto( Input_and_Date_List_grp, EvalList({Input_and_Date_List_elem}) );
+    Input_and_Date_List_elem = {};
+    CurrentDataTable(area_grp_tab);
+    area_grp_tab<<ClearSelect;
+    Selected(RowState(h))=1;
+      ); //EndFor j
+    InsertInto( Input_and_Date_List, EvalList({Input_and_Date_List_grp}) );
+    Input_and_Date_List_grp = {};
+    CurrentDataTable(area_grp_tab);
+    Selected(RowState(h))=0;
+  ); //EndFor h
+  area_grp_tab<<ClearSelect;
+  Close(area_grp_tab, NoSave);
+  Wait(0);
+  RET = 1; ERR_MSG="",
+  
+  RET=-1; ERR_MSG="Error creating Input-Date List.";
+  Try(Close(area_grp_tab, NoSave));
+  
+  ); //EndTry
+  
+); // EndFunction
+//////////////////////////////////////////////////////////////////////////////
+
+::RunTimeCntrlErrText = Function( {errvect_, elem_list_},
+Local({st="{",_last_elem_,outstr},
+_last_elem_ = Reverse(MatrixAsList(Loc(errvect_==0)))[1];
+outstr=EvalExpr(EvalList(Expr(Thread( Expr(Expr(Trim(st ||= _argv || If(_argv != elem_list_[_last_elem_], ", ", "}")))),
+ Eval(elem_list_[(Loc(errvect_==0))])))));
+Char( "'" || CNTRL_FILE_ID || "'" || " is NOT a valid " || If(IS_UL, "UNIT LEVEL ", "LOT LEVEL ") || "Control File :->" || Reverse(outstr)[1] )
+);
+);
+//////////////////////////////////////////////////////////////////////////////
+::ControlFile_CreateTable = Function( {cntrl_init_}, {_newcntrldt_, i, j},
+  _newcntrldt_ = NewTable();
+  For( i=1, i<=NItems( Eval(cntrl_init_[1]) ), i++, _newcntrldt_ << NewColumn( Eval(cntrl_init_[1])[i], Character ) );
+  For( j=1, j<=NItems(cntrl_init_[2]), j++,
+    Eval( EvalExpr( Column(_newcntrldt_, Expr(Eval(cntrl_init_[2][j][1][1]))) << Expr(Eval(cntrl_init_[2][j][2][1])) ) );
+  );
+  //_newcntrldt_ << NewColumn("Order",Numeric);
+  //ForEachRow( Column(_newcntrldt_, "Order" )[] = Row() );
+  
+  _newcntrldt_
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::CreateRunTimeCntrl = Function( {cntrldt_},
+  {_cntrldt_, _cntrlref_tab_new_, _cntrlref_tab_rt_="", _cntrlref_tab_rt_temp_="", _miss_order_rows_, _cntrl_match_, _cntrldt_colnames_, _cntrldt_colnames_sel_, _ctypelistchk_, _listchkvals_, _listchk_elems_,
+  _colchk_, _colchk_elems_, _collistchk_, _mstrchk_, _llrows_, _ofst_},
+
+  cntrldt_ << MinimizeWindow;
+  _cntrldt_colnames_ = cntrldt_ << GetColumnNames(String);
+  _mstrchk_ = If( NRow(Loc(_cntrldt_colnames_, CNTRLcolname_typesel)) != 0 & All( Matrix(Thread( EvalExpr(Expr(EvalExpr( NRow(Loc(Expr(_cntrldt_colnames_),_argv)) ))), Insert(CNTRL_FILE_COLNAMES, CNTRLcolname_order))) ), 1, 0 );
+  _ctypelistchk_ = Remove( COLTYPE_LISTCHK_VALS, MatrixAsList(Loc(COLTYPE_LISTCHK_VALS,"")) );
+    
+  If( _mstrchk_,
+		If( IS_CATTS,
+			CurrentDataTable(cntrldt_);
+			_llrows_ = Matrix(Thread( EvalExpr( MatrixAsList(Loc(Expr(Column(cntrldt_, CNTRLcolname_datacols)<<GetValues), _argv)) ), LL_SPECIFIC_COLS ));
+			Thread( Expr( RowState(_argv)=CombineStates(MarkerState(6),ColorState(20))), Eval(_llrows_) );    
+			Eval(EvalExpr(Column( cntrldt_, Expr(CNTRLcolname_typesel)) << Expr(CNTRLtypeselFMLA)));
+		);
+		cntrldt_ << RunFormulas;
+		Eval(EvalExpr( Column(cntrldt_ , Expr(CNTRLcolname_coltype) ) << ListCheck( Expr(_ctypelistchk_) ) ));
+		Column(cntrldt_ , Eval(CNTRLcolname_typesel)) << CopyToRowStates;
+		Thread( EvalExpr(Column(Expr(cntrldt_), _argv) << SetSelected(1)), Insert(CNTRL_FILE_COLNAMES, CNTRLcolname_order) );
+		Wait(0.001);
+		//Close(cntrldt_, NoSave),
+		
+  );
+  
+	_cntrldt_  = cntrldt_ << Subset( SuppressFormulaEvaluation(0) );
+  _cntrldt_ << MinimizeWindow;
+	_cntrldt_colnames_sel_ = _cntrldt_ << GetColumnNames(String);
+	_ofst_ = If( _cntrldt_colnames_sel_[NItems(_cntrldt_colnames_sel_)] == CNTRLcolname_order, 1, 0 );	
+	_colchk_elems_ = EvalExpr({Expr(CNTRL_FILE_COLNAMES), Expr(Reverse(Remove(Reverse(_cntrldt_colnames_sel_), _ofst_)))});
+	If( NItems(_cntrldt_colnames_sel_)-_ofst_ <= NItems(CNTRL_FILE_COLNAMES), ReverseInto(_colchk_elems_) );
+	_colchk_ = Matrix(Thread( EvalExpr(Expr(EvalExpr(If(NRow(Loc(Expr(_colchk_elems_[1]), _argv)) != 0, MatrixAsList(Loc(Expr(_colchk_elems_[1]), _argv)), {0})))), Eval(_colchk_elems_[2]) ));   
+
+	If( !Any(_colchk_ == 0),
+		_listchkvals_ = If( !IS_CATTS, Try( Parse( Munger(Char( Column(_cntrldt_, CNTRL_FILE_COLNAMES[CNTRL_INDX+1])<<GetListCheck() ), 1, "List Check","") ), {} ), {});
+		_listchk_elems_ = EvalList({_ctypelistchk_, _listchkvals_});
+		If( NItems(_listchkvals_) <= NItems(_ctypelistchk_), ReverseInto(_listchk_elems_) );	
+		_collistchk_ = If( NItems(_listchkvals_) != 0, Matrix(Thread( EvalExpr(Expr(EvalExpr(If(NRow(Loc(Expr(_listchk_elems_[1]), _argv)) != 0, MatrixAsList(Loc(Expr(_listchk_elems_[1]), _argv)), {0})))), Eval(_listchk_elems_[2]) )), [0] );		
+		If( !Any(_collistchk_ == 0) | IS_CATTS,  
+			_cntrlref_tab_new_ = ControlFile_CreateTable(CNTRL_INIT);
+			_cntrlref_tab_rt_temp_ =  _cntrldt_ << Join( With(Eval(_cntrlref_tab_new_)), MergeSameNameColumns,
+			ByMatchingColumns( :Column =  :Column ), DropMultiples(1, 1), Name("Include Non-Matches")(0, 1), CopyFormula(1), SuppressFormulaEvaluation(1), OutputTableName("Control File_" || Char(Eval(DATE_STAMP))) );  //option: don't suppress fmla if cntrl file template has ORDER col.
+			If( _ofst_ == 0, _cntrlref_tab_rt_temp_ << NewColumn("Order",Numeric,Formula(Row())) );
+			_cntrlref_tab_rt_temp_ << Sort( By(:Order), ReplaceTable);
+			_miss_order_rows_ = _cntrlref_tab_rt_temp_ << GetRowsWhere( IsMissing(Column(_cntrlref_tab_rt_temp_, "Order")[]) );
+			If( NRow(_miss_order_rows_) != 0,
+				_cntrlref_tab_rt_temp_ << SelectRows( _miss_order_rows_ );
+				_cntrlref_tab_rt_temp_ << MoveRows(AtEnd);
+				_cntrlref_tab_rt_temp_ << ClearSelect;
+			);
+			_cntrlref_tab_rt_ = _cntrlref_tab_rt_temp_ << Subset( Rows(), Columns(), CopyFormula(1), SuppressFormulaEvaluation(0), OutputTableName(_cntrlref_tab_rt_temp_<<GetName));   
+			Close(_cntrlref_tab_rt_temp_, NoSave);  
+			_cntrl_match_ = Column( _cntrlref_tab_rt_, "Match Flag") << GetValues;
+			_cntrlref_tab_rt_ << DeleteColumns( Column(_cntrlref_tab_rt_, "Match Flag") );
+			Eval(EvalExpr(Column( _cntrlref_tab_rt_, Expr(CNTRLcolname_datematch) ) << ListCheck( Expr(DATE_LISTCHK_VALS) )));
+			Eval(EvalExpr(Column( _cntrlref_tab_rt_, Expr(CNTRLcolname_modtype) ) << ListCheck( Expr(MODTYPE_LISTCHK_VALS) )));
+			Eval(EvalExpr( Column(_cntrlref_tab_rt_ , Expr(CNTRLcolname_coltype) ) << ListCheck( Expr(_ctypelistchk_) ) ));
+			If( IS_UL, Eval(EvalExpr(Column( _cntrlref_tab_rt_, CNTRLcolname_outyc) << ListCheck( Expr(OUTPUT_Y_LISTCHK_VALS) ))) );
+			Close(_cntrlref_tab_new_, NoSave),
+			
+			RET = -1;
+			ERR_MSG = RunTimeCntrlErrText(_collistchk_,_listchkvals_ ) || "<-: Invalid listcheck values found."
+		),
+		
+		//Close(_cntrldt_, NoSave);
+		RET = -1;
+		ERR_MSG = RunTimeCntrlErrText(_colchk_,_cntrldt_colnames_sel_ ) || "<-: Invalid columns found."
+		
+	);
+	Close(_cntrldt_, NoSave);
+	  
+  _cntrlref_tab_rt_
+
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////
+::SelectCntrlOp = Function( {cntrl_sel_, dt_}, {_controlref_tab_="", _controlref_tab_name_, _controlref_tab_temp_, _controlref_tab_new_, _samp_ex_, _lev_ex_, i, j, fnd=0},
+  
+  IncOP();  //101
+  Choose( cntrl_sel_,
+    //cntrl_decide=1
+     If( IS_CATTS,
+       For( i=1, i<=NTable(), i++,
+         If( DataTable(i) << GetName == CNTRL_FILE_ID,
+           _controlref_tab_temp_ = DataTable(CNTRL_FILE_ID);
+           _controlref_tab_temp_<<Clear Select;
+           fnd=1;
+           i=NTable(),
+              
+           fnd=0
+         )
+       );
+       If( fnd,
+				{_samp_ex_, _lev_ex_} = {MIN_LOT_SAMPLE_SIZE, MIN_LOTS_PER_LEVEL};
+         _controlref_tab_ = CreateRunTimeCntrl( _controlref_tab_temp_ );
+         _controlref_tab_ << SetTableVariable("Min Lot Sample Size", Char(_samp_ex_) );
+         _controlref_tab_ << SetTableVariable("Min Lots per X", Char(_lev_ex_) );
+         Close(_controlref_tab_temp_, NoSave),
+
+         ERR_MSG=Char("Control File: '" || CNTRL_FILE_ID || "' not found.");
+         RET = -1;
+       ),
+          
+       /*ELSE*/  
+       Try(
+         _controlref_tab_temp_ = Open();
+         If( Contains(Char(_controlref_tab_temp_),"Unknown"), _controlref_tab_temp_ = CurrentDataTable() );
+         _controlref_tab_temp_ << ClearSelect << ClearColumnSelection;
+         CNTRL_FILE_ID = _controlref_tab_temp_ << GetName;
+         CNTRL_TABLE_HLD = Char(EvalExpr(Expr(DataTable(CNTRL_FILE_ID) << GetScript)));
+         _controlref_tab_ = CreateRunTimeCntrl( _controlref_tab_temp_ );
+         Close(_controlref_tab_temp_, NoSave),
+            
+         ERR_MSG="Unable to open Control File";
+         RET = -1;
+       )
+     ), //EndIf IS_CATTS
+
+    //cntrl_decide=2
+     //Create new control file (SOS)    
+     Try(_controlref_tab_temp_ = Open( REF_PATH  || CNTRL_TEMPLATE_NAME ), ERR_MSG = "Control File Template not found."; RET = -1 );
+       If( RET == 1,
+        _controlref_tab_temp_ << MinimizeWindow;
+         CNTRL_FILE_ID = CNTRL_TEMPLATE_NAME;    
+        _controlref_tab_temp_ << SelectAllRows;
+        //Wait(0.005);
+        _controlref_tab_temp_ << ClearSelect << ClearColumnSelection;
+        Wait(0.001);
+        //Column(_controlref_tab_temp_ , "TypeSelect") << CopyToRowStates;    
+        //_controlref_subtab_temp_  = Eval(EvalExpr( _controlref_tab_temp_ << Subset( SuppressFormulaEvaluation(0), Columns( Expr( Insert(CNTRL_FILE_COLNAMES,"Order") ) )) ));
+        //_controlref_subtab_temp_ << MinimizeWindow;
+        //Wait(0.001);
+        //Eval(EvalExpr( Column(_controlref_subtab_temp_ , Expr(CNTRLcolname_coltype) ) << ListCheck( Expr(Remove( COLTYPE_LISTCHK_VALS, MatrixAsList(Loc(COLTYPE_LISTCHK_VALS,"")) )) ) ));
+        _controlref_tab_ = CreateRunTimeCntrl( _controlref_tab_temp_ );
+        _controlref_tab_ << BringWindowToFront;
+        Close(_controlref_tab_temp_, NoSave);
+        //Close(_controlref_subtab_temp_, NoSave);
+        {_samp_ex_, _lev_ex_} = GetExclusionLimits();
+        _controlref_tab_ << SetTableVariable("Min Lot Sample Size", Char(_samp_ex_) );
+        _controlref_tab_ << SetTableVariable("Min Lots per X", Char(_lev_ex_) );
+       ),
+    
+    //cntrl_decide=3
+     //LL Manual Entry (Dialog Box)
+     NULL,
+     
+    //cntrl_decide=4
+     //Embedded LL control file (SOS)
+      _controlref_tab_temp_ = Eval(dt_<<GetProperty("Cntrl_Table"));
+      IS_LLSOSFMT = 1;
+      CNTRL_FILE_ID = _controlref_tab_temp_ << GetName;
+      _controlref_tab_ = CreateRunTimeCntrl( _controlref_tab_temp_ );
+      Close(_controlref_tab_temp_, NoSave)
+         
+  ); //EndChoose
+
+  _controlref_tab_
+
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+::CA_SelectCntrl = Function( {dt_, diag_title_, diag_expr_, radbut_expr_}, {DefaultLocal},
+  _button_ = 0;
+  _err_msg_ = "";
+  _cntrlsel_ = 0;
+  
+  If( !IS_CATTS,
+    _title_ = Eval(diag_title_);
+    _radbutt_ = Eval(radbut_expr_);
+    If( !IS_UL & (IsEmpty(dt_ << GetProperty("Cntrl_Table")) | (Eval(Type(dt_ << GetProperty("Cntrl_Table"))) == "Scriptable")),
+      RemoveFrom( _radbutt_, MatrixAsList((4 :: N Items( _radbutt_ ))`) )
+    );
+    Eval(EvalDialog(diag_expr_)); //{_button_, _cntrlsel_}
+    If(_button_ == -1, _cntrlsel_=0; _err_msg_ = "Exiting"),
+    
+    _button_ = 1; _cntrlsel_ = 1;
+  );
+  EvalList({_button_, _cntrlsel_, _err_msg_})
+
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////
+::CA_GetCntrlSrc = Function( {},
+
+  If( RET == 1,
+    IncOP(1,4100);  //Set OP_INDX
+    CNTRL_FILE_COLNAMES = Eval(CNTRL_TEMPLATE_COLNAMES);
+    COLTYPE_LISTCHK_VALS = Eval(CNTRL_TEMPLATE_COLTYPE_LISTCHK_VALS);    
+    If( !IS_UL & CNTRL_MODE == 3,
+      LL_DT = RAW_DT;
+      DIAG_LLUserInput();  //101-02
+      Eval(CA_Main()),
+
+      CNTRL_TABLE = SelectCntrlOp(CNTRL_MODE, RAW_DT);  //101
+      If( RET == 1,
+        CNTRL_TABLE_NAME = CNTRL_TABLE<< GetName;
+        CNTRL_TABLE_PATH = REF_PATH || CNTRL_TABLE_NAME  || ".jmp";
+        IncOP();  //102
+        CurrentDataTable(CNTRL_TABLE);
+        If( IS_CATTS,
+          //If( IS_UL, IS_LLSOSFMT = 1);   //option: unified control file Eval(LL_GLBLS)
+          Eval(CA_Main()),
+
+          ContTabSrcDlg =
+          NewWindow("Modify/Create Control File",
+            BorderBox(Left(3),Top(4),
+              VListBox(
+                PanelBox("",
+                  TextBox( "Script has paused. Before continuing:", <<SetFontStyle("Bold") ),
+                  TextBox( "" ),
+                  TextBox( "    1)  Review the control file values and update them if necessary.", <<SetFontStyle("Bold") ),
+                  TextBox( "" ),
+                  TextBox( "    2)  Enter dates by right-clicking in the \!"Dates for Inputs\!" column and selecting a value from the drop-down list.", <<SetFontStyle("Bold") ),
+                  TextBox( "" ),
+                  TextBox( "   3)  Optionally save the control file using File -> Save As.", <<SetFontStyle("Bold") ),
+                  //TextBox( "    (Note that a copy of your control file will automatically be saved in C:\Program Files\SOS2\Reference Files\)", <<SetFontStyle("Italic") ),
+                  TextBox( "" ),
+                  TextBox( "  4)  Make sure your control file table is the active table by clicking on it.", <<SetFontStyle("Bold") ),
+                  TextBox( "" ),
+                  TextBox( "When finished, click OK to resume the script", <<SetFontStyle("Bold") ),
+                  TextBox( "" )
+                  
+                ), //End PanelBox
+                PanelBox("Action",
+                  LineupBox(NCol(2),
+                    ButtonBox("OK", ContTabSrcDlg<<CloseWindow; Eval(CA_Main()) ),
+                    ButtonBox("Cancel", ContTabSrcDlg<<CloseWindow; Try(Close(CNTRL_TABLE, NoSave)); RET=-1 )
+                  ) //End LineUpBox
+                ) //End PanelBox
+              ) //End VListBox
+            )  //End BorderBox
+          ); //End NewWindow
+          //ContTabSrcDlg << SizeWindow(395,355);
+          ContTabSrcDlg << MoveWindow(0,0);
+          ContTabSrcDlg << BringWindowToFront;
+        ),  //EndIf IS_CATTS
+        
+        Eval(DIAG_ERRAlert);
+      ) //EndIf RET
+    ) //EndIf CNTRL_MODE
+  ); //EndIf RET
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+::VerifyControlFile = Function( {op_arg_}, {DefaultLocal},
+
+///**************Private Funcs***********************//////////////////////
+_VerifyDateMatch_ = Function( {ctab_, row_vect_, col_type_}, {DefaultLocal},
+
+  _flg_ = 0; _msg_ = "";
+  _finalfnddate_indxs_ = [];
+  _ctype_expr_ = EvalExpr( Column(Expr(ctab_), "Column Type")[_argv] = Expr(col_type_) );
+  _fnddate_expr_ = EvalExpr(Expr(ctab_) << GetRowsWhere(Column(Expr(ctab_), "Column")[] == _argv));
+  _getindxcnt_expr_ = Expr( Matrix( Thread(Expr(NRow(_argv)), _fnddate_indxs_) ) );
+  _datematch_inputs_ = Column(ctab_, "Date Matching")[row_vect_];
+  
+  If( NItems(_datematch_inputs_) != 0,
+    _fnddate_indxs_ = Thread( NameExpr(_fnddate_expr_), _datematch_inputs_ );
+    
+    If( !Any( Eval(_getindxcnt_expr_) > 1 ),
+      Try(
+        _undef_datematch_indxs_ = MatrixAsList(Loc(_datematch_inputs_, ""));
+        RemoveFrom(_fnddate_indxs_, _undef_datematch_indxs_);
+        row_vect_[_undef_datematch_indxs_,0] = [];
+      );
+      Try(
+        _zerocnt_ = MatrixAsList( Loc( Eval(_getindxcnt_expr_) == 0 ) );
+        RemoveFrom(_fnddate_indxs_, _zerocnt_);
+        Column(ctab_, "Date Matching")[ row_vect_[_zerocnt_] ] = "";
+        row_vect_[_zerocnt_,0] = [];
+      );
+      
+      _area_inputs_ = Column(ctab_, "Area")[ row_vect_ ];
+      _findxs_list_ = Thread( Expr(MatrixAsList(_argv)), _fnddate_indxs_ );
+      Try( 
+        _undef_area_indxs_ = MatrixAsList(Loc(Thread( EvalExpr(Column(Expr(ctab_), "Area")[_argv]), _fnddate_indxs_ ), ""));
+        Thread( EvalExpr(Column(Expr(ctab_), "Area")[ Expr(_findxs_list_)[_argv] ] = Expr(_area_inputs_)[_argv]), _undef_area_indxs_ );
+      );
+      Try(
+        _undef_datetype_indxs_ = Try( MatrixAsList(Loc(Thread( EvalExpr(Column(Expr(ctab_), "Column Type")[_argv]), _fnddate_indxs_), "")), {} );
+        Thread( NameExpr(_ctype_expr_), _fnddate_indxs_[_undef_datetype_indxs_] );
+        Thread( EvalExpr(Column(Expr(ctab_), "Modeling Type")[_argv] = "Date"), _fnddate_indxs_[_undef_datetype_indxs_] );
+      );
+      Try(
+        Summarize( _date_match_ = By(Column(ctab_, "Date Matching")) );
+        RemoveFrom( _date_match_, MatrixAsList(Loc(_date_match_,"")) );
+        _finalfnddate_indxs_ = Thread( Expr(If( NRow(_argv) == 0, 0, MatrixAsList(_argv) )), Thread( NameExpr(_fnddate_expr_), _date_match_ ));
+      );
+      _flg_ = 1,
+      
+      _msg_ = "Duplicate Date Columns found in Control File";
+      _flg_ = -1;
+    ),
+    
+    _msg_ = "Date Matching Column has no values";
+    _flg_ = -1;
+  );
+
+  EvalList({_flg_, _finalfnddate_indxs_, _msg_})
+);
+///**************END Private Funcs********///////////////////
+  
+  IncOP();
+  _cntrl_tab_ = Eval(op_arg_);
+  _err_msg_ = ERR_MSG;
+  _ret_ = RET;
+  _err_msgs_ctype_ = {"No Input(X) defined. ", "No Output(Y) defined. ", "No Area Lot defined. "};
+  _input_rows_ = [];
+  _ouput_rows_ = [];
+  _lotid_rows_ = [];
+  _curr_cntrl_rows_ = [];
+  
+  If( RET == 1,
+    CurrentDataTable( _cntrl_tab_);
+    _srch_errcols_ = {
+      SearchForError_AC = SearchColumn( _cntrl_tab_, Column("Error Checking:  Area/Column Type"),"Error"),
+      SearchForError_CY  = SearchColumn( _cntrl_tab_, Column("Error Checking:  Computations"),"Error")
+    };
+    _srch_ctype_ = {
+      SearchForInputs = SearchColumn( _cntrl_tab_, Column("Column Type"),"Input (X)"),
+      SearchForOutputs = SearchColumn( _cntrl_tab_, Column("Column Type"),"Output (Y)"),
+      SearchForLotID = SearchColumn( _cntrl_tab_, Column("Column Type"),"Area Lot")
+    };
+    
+    RemoveFrom(_srch_errcols_, NItems(_srch_errcols_)); //option: don't check for "Computations" error, default to %(1)
+    _err_errcols_ = Matrix( Thread( Expr(_argv[1]), EvalList(_srch_errcols_)) );
+    _err_ctype_ = Matrix( Thread( Expr(_argv[1]), EvalList(_srch_ctype_)) );
+    //If( IS_UL, _err_ctype_[NRow(_err_ctype_),0] = [] );  //option: don't check for Area Lot#
+    _err_ctype_[NRow(_err_ctype_),0] = [];  //option: don't check for Area Lot#
+    
+  
+    If( All(_err_errcols_==0),
+      If( All(_err_ctype_!=0),
+        {_input_rows_, _output_rows_, _lotid_rows_} = Thread( Expr(_argv[2]), EvalList(_srch_ctype_));
+        _LocateUndefs_(_cntrl_tab_, _lotid_rows_, "Area", "ALL");
+        _LocateUndefs_(_cntrl_tab_, _input_rows_, "Modeling Type", "Nominal");
+        _LocateUndefs_(_cntrl_tab_, _input_rows_, "Area", "N/A");
+        _LocateUndefs_(_cntrl_tab_, _output_rows_, "Modeling Type", "Continuous");       
+        If( IS_UL, _LocateUndefs_(_cntrl_tab_, _output_rows_, "Output(Y) Computations", "%(1)") ); //add auto-select Mod Type for Output(Y)
+        _def_area_ = Try( Matrix(Thread(Expr(_argv != ""), Column(_cntrl_tab_, "Area")[_output_rows_])), [] );
+        Try( Column(_cntrl_tab_, "Area")[_output_rows_[ Loc(_def_area_ != 0) ]] = "" );
+        _vfyDate_ = EvalList( {_VerifyDateMatch_(_cntrl_tab_, _input_rows_, "X Date"), _VerifyDateMatch_(_cntrl_tab_, _output_rows_, "Y Date")} );
+        _err_date_ = Matrix( Thread( Expr(_argv[1]), EvalList(_vfyDate_)) );
+        _date_rows_ = Matrix(_vfyDate_[1][2]);
+        _err_msgs_date_ = Thread( Expr(_argv[3]), EvalList(_vfyDate_));
+        If( All(_err_date_ != 1),     
+          _ret_ = -1;
+          _err_msg_ = _err_msgs_date_[1] || ". " || _err_msgs_date_[2];
+        );
+        _curr_cntrl_rows_ = SortList( MatrixAsList(_input_rows_ |/ _date_rows_ |/_output_rows_ |/ _lotid_rows_) ),
+
+        /*ELSE*/  
+        _ret_ = -1;
+        Eval( EvalExpr( EvalList( Expr(Thread( Expr( Expr(_err_msg_ ||= _err_msgs_ctype_[_argv]) ), Loc(_err_ctype_ == 0) )) ) ) );
+      ),
+  
+      /*ELSE*/
+      _ret_ = -1;
+      _err_rows_ = Thread( Expr(MatrixAsList(_argv[2])), EvalList(_srch_errcols_) );
+      _err_msg_ = "Control File has errors in row(s): " || Char(_err_rows_);      
+    ); //EndIf
+   ); //EndIf  
+
+  EvalList({_ret_, _curr_cntrl_rows_ , _err_msg_})
+  
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////
+::_LocateUndefs_ = Function( {dt_, tabrows_, colname_, defname_}, {DefaultLocal},
+  _undefindxs_ = Loc( Eval(Column( dt_, colname_ )[tabrows_]), "" );
+  _undefrows_ = If( NRow(_undefindxs_) != 0, Matrix(Eval(tabrows_)[_undefindxs_]), [] );
+  If( Eval(defname_) != "" & NRow(_undefrows_) != 0, Eval(Column( dt_, colname_ ))[_undefrows_] = Eval(defname_) );
+
+
+); //EndIf
+
+///////////////////////////////////////////////////////////////////////////////
+::ReadControlFile = Function( {rawdt_, cntrldt_, cntrlcols_},
+
+
+/*************
+ * Local Vars
+*************/
+{
+		match1Eval,
+		match2Eval,
+		match3Eval,
+		match4Eval,
+		match5Eval,
+		match6Eval,
+		match7Eval,
+i,
+j,
+StoreDateCol,
+_control_array_init_,
+lotIDcols,
+area_cols,
+xdatecols,
+ydatecols,
+xdatematch,
+ydatematch,
+ycols,
+yop,
+y_actual,
+dopctQ,
+y_sampsize,
+yop_elem,
+col_type_elem,
+col_elem,
+modtype_elem,
+datematch_col_elem,
+yopdateop,
+yopdateop_end_expr,
+datematch_arg,
+date_arg,
+_by_var_indxs_ ,
+_grp_by_list_,
+_smplsz_indx_,
+_smplsz_col_,
+_cntrldt_cols_ ,
+cntrl_rows,
+_areadt_nullrows_,
+_area_coltype_rows_,
+_empty_coltype_rows_,
+_control_array_ = {},
+_control_elem_ = {},
+_final_coltype_rows_ = []
+},
+
+/*************
+ * Local Exprs
+*************/
+//RunID
+match1Eval = Expr(
+	InsertInto( lotIDcols, col_elem );
+	InsertInto( area_cols, col_elem ),
+);
+
+//Input(X)
+match2Eval = Expr(
+	If( Contains( UpperCase(col_elem),"OPERATOR" ), Column(rawdt_, col_elem) << ModelingType(Nominal) );
+	If( Trim(datematch_col_elem) != "",
+		InsertInto( xdatematch, EvalList({EvalList({col_elem, datematch_col_elem})}) ),
+		InsertInto( xdatematch, EvalList({EvalList({col_elem, ""})}) )
+	);
+	InsertInto( area_cols, col_elem )
+);
+
+//X Date
+match3Eval = Expr(
+	Eval(StoreDateCol);
+	InsertInto( xdatecols, col_elem )
+);
+
+//Output(Y)
+match4Eval = Expr(
+	column(rawdt_,col_elem)<< DataType(Numeric);
+	if(!is missing(col sum(column(rawdt_, col_elem))),
+		InsertInto( ycols, col_elem );
+		If( IS_UL,
+		// Calc %(1)
+			yop_elem  = Column(cntrldt_, cntrlcols_[CNTRL_INDX+4])[cntrl_rows[j]];  //option:  force yopelem to be %(1)
+			If( Eval(yop_elem) == OUTPUT_Y_LISTCHK_VALS[1],
+				InsertInto( dopctQ, 1 );
+				yopdateop ||= Char( "Sum(:Name(\!"" || col_elem || "\!")), N(:Name(\!"" || col_elem || "\!"))" );
+				InsertInto( yop, EvalList({Char("Sum(" || col_elem || ")"), Char("N(" || col_elem || ")")}) );
+				y_act_elem = EvalList({Char(col_elem || " %")}),
+
+			// Calc list: e.g. {Mean,Std}
+				If( IsList( Parse(Eval(yop_elem)) ),
+					InsertInto( dopctQ, 0 );
+					yopdateop ||= Char( yop_elem[1] || "(:Name(\!"" || col_elem || "\!")), " || yop_elem[2] || "(:Name( \!"" || col_elem || "\!" )), N( :Name( \!"" || col_elem || "\!" ))" );
+					InsertInto( yop, EvalList({ Char(yop_elem[1] || "(" || col_elem || ")"), Char(yop_elem[2] || "(" || col_elem || ")"), Char("N(" || col_elem || ")") }) );
+					y_act_elem = EvalList({ Char(yop_elem[1] || "(" || col_elem || ")"), Char(yop_elem[2] || "(" || col_elem || ")") }),
+
+					// Calc Single: e.g. {Mean}
+					y_arg1 = Parse(Eval(yop_elem)) || "(" || col_elem || ")";
+					yopdateop ||= Char( yop_elem || "(:Name(\!"" || col_elem || "\!")), N(:Name(\!"" || col_elem || "\!"))" );
+					InsertInto( yop, EvalList({ Char(yop_elem || "(" || col_elem || ")"), Char("N(" || col_elem || ")") }) );
+					y_act_elem = EvalList({Char(yop_elem[1] || "(" || col_elem || ")")});
+				)
+			);
+			Eval( yopdateop_end_expr );
+			If( _smplsz_col_ == "", InsertInto( y_sampsize, "N Rows" ) ),   //change: only if _smplsz_col_ == ""
+
+			InsertInto( dopctQ, 0 );
+			y_act_elem = EvalList({col_elem});
+			yop=y_act_elem;  //add: make yop = {col_elem}
+			InsertInto( area_cols, col_elem );
+			If( IS_LLSOSFMT &_smplsz_col_ == "",
+				If( IS_CATTS,
+					InsertInto( y_sampsize, "NROWS");InsertInto(area_cols,"NROWS"),  //add: force NROWS into y_sampsize and area_cols. 
+					InsertInto( y_sampsize, "N Rows");InsertInto(area_cols,"N Rows")
+				)
+			);   
+		); //EndIf IS_UL
+		InsertInto( y_actual, EvalList(y_act_elem));
+		If( Trim(datematch_col_elem) != "",
+			InsertInto( ydatematch, EvalList({EvalList({y_act_elem, datematch_col_elem})}) ),
+			InsertInto( ydatematch, EvalList({EvalList({y_act_elem, ""})}) )
+		)
+	)
+);
+
+//Y Date
+match5Eval = Expr(
+	Eval(StoreDateCol);     
+	InsertInto( ydatecols, Eval(date_arg) )
+);
+
+//X and Y Date
+match6Eval = Expr(
+	Eval(StoreDateCol);
+	InsertInto( xdatecols, date_arg );
+	InsertInto( ydatecols, date_arg )
+);
+
+//Sample Size
+match7Eval = Expr(
+	InsertInto( area_cols, col_elem );
+	InsertInto( y_sampsize, _smplsz_col_ );
+);
+
+
+  _control_array_init_ = Expr(
+    lotIDcols = {};
+    area_cols={};
+    xdatecols = {};
+    ydatecols = {};
+    xdatematch = {};
+    ydatematch = {};
+    ycols = {};
+    yop = {};
+    y_actual = {};
+    dopctQ ={};
+    y_sampsize = {};
+    yop_elem = .;
+    col_elem =.;
+    col_type_elem=.;
+    modtype_elem="";
+    datematch_col_elem=.;
+    yopdateop  = If( (IS_UL), "{", "" ) ;
+    //yopdateop  = Expr( If( (IS_UL), "{", "" ) );
+    yopdateop_end_expr = Expr( If( (IS_UL), If( yopdateop !="{", yopdateop ||= "," ) ) );
+    datematch_arg = Expr( If( (IS_UL), Char( "Max(:Name(\!"" || datematch_col_elem || "\!"))" ), datematch_col_elem) );
+    date_arg = Expr( EvalExpr(If( (IS_UL), Char( "Max(:Name(\!"" || Expr(col_elem) || "\!"))" ), col_elem) ) );
+  );
+
+  StoreDateCol = Expr(
+    Column(Eval(rawdt_), col_elem) << DataType(Numeric,Format("m/d/y h:m:s",23,"m/d/y h:m:s")) << ModelingType(Continuous);
+    If( IS_UL,  //add !IS_CATTS tprevent yopdateop assign for
+      yopdateop ||= Eval(date_arg); Eval(yopdateop_end_expr),
+
+      InsertInto( area_cols, col_elem )
+    );
+  );
+/*************************
+ * End Local Declarations
+**************************/
+
+  If( RET == 1,
+    IncOP();
+    CurrentDataTable(cntrldt_);
+    cntrldt_ << ClearSelect;
+    cntrldt_ << ClearColumnSelection;
+    _cntrldt_cols_ = cntrldt_ << GetColumnNames(String);
+
+    //Search for by-variables
+   // by_var_indxs_ = cntrldt_ << GetRowsWhere( Column(Eval(cntrlcols_[CNTRL_INDX+1]))[] == Eval(COLTYPE_LISTCHK_VALS[7]) );
+   // _grp_by_list_ = If( NRow(by_var_indxs_) != 0, Column(Eval(cntrlcols_[1]))[by_var_indxs], {} );
+
+    //Search for sample size cols
+    _smplsz_indx_ = cntrldt_ << GetRowsWhere( Column(Eval(cntrlcols_[CNTRL_INDX+1]))[] == Eval(COLTYPElistchk_smplsz) );
+    _smplsz_col_ = If( NRow(_smplsz_indx_) != 0, Column(Eval(cntrlcols_[1]))[_smplsz_indx_], "" );    //Change dflt val from {} -> ""
+
+    //Create Area Table
+    _Area_ColTypedt_ = cntrldt_ << Summary( Group( Column(cntrldt_, Eval(cntrlcols_[CNTRL_INDX])), Column(cntrldt_, Eval(cntrlcols_[CNTRL_INDX+1])) ), Min(:Order) ); //JMP7 No Invisible
+    _Area_ColTypedt_ << Sort( By(:Name("Min(Order)")), ReplaceTable);
+
+    _Areadt_ = _Area_ColTypedt_  << Summary( Group( Column(cntrldt_, Eval(cntrlcols_[CNTRL_INDX])) ), Min( Column(_Area_ColTypedt_, "Min(Order)") ) );  //JMP7 No Invisible
+    _Areadt_ << Sort( By( Column(_Areadt_, "Min(Min(Order))") ), ReplaceTable);
+
+    _areadt_nullrows_ = _Areadt_ << GetRowsWhere( IsMissing(Column(Eval(cntrlcols_[CNTRL_INDX]))[]) | Column(Eval(cntrlcols_[CNTRL_INDX]))[] == "ALL" );
+    _N_Grps_Areadt_ = NRow(_Areadt_);
+    _N_Area_ = _N_Grps_Areadt_ - NRow(_areadt_nullrows_);
+
+    For( i=1, i<=_N_Grps_Areadt_, i++,
+      Eval(_control_array_init_);
+      If( !Any( Loc(_areadt_nullrows_ == i) ),
+        _Area_ColTypedt_ << SelectWhere( Column(_Area_ColTypedt_, cntrlcols_[CNTRL_INDX+1])[] == COLTYPElistchk_outputy |  Column(_Area_ColTypedt_, cntrlcols_[CNTRL_INDX+1])[] == COLTYPElistchk_ydate | Column(_Area_ColTypedt_, cntrlcols_[CNTRL_INDX+1])[] == COLTYPElistchk_smplsz | Column(_Area_ColTypedt_, cntrlcols_[CNTRL_INDX])[] == "ALL");
+        CurrentDataTable(_Areadt_);
+        Selected( Rowstate(i) )=1;      
+        CurrentDataTable(_Area_ColTypedt_);
+        _area_coltype_rows_ = _Area_ColTypedt_ << GetSelectedRows;
+        _empty_coltype_rows_ = Loc( Column(_Area_ColTypedt_, Eval(cntrlcols_[CNTRL_INDX+1]))[_area_coltype_rows_], "" );
+        If( NRow(_empty_coltype_rows_) != 0, 
+          _Area_ColTypedt_ << ClearSelect;
+          _area_coltype_rows_[_empty_coltype_rows_,0]=[]; //Remove "empty" rows from area_coltype_rows    
+          _Area_ColTypedt_ << SelectRows(_area_coltype_rows_);
+        );
+        _final_coltype_rows_ = _Area_ColTypedt_<<GetSelectedRows;
+        If( NRow(_final_coltype_rows_) > 1,
+          CurrentDataTable(cntrldt_);
+          cntrl_rows = cntrldt_ << GetSelectedRows;
+          For( j=1, j<=NRow(cntrl_rows), j++,
+            // Detect Column Type
+            modtype_elem  = Column(cntrldt_, CNTRLcolname_modtype)[cntrl_rows[j]];
+            col_elem = Column(cntrldt_, cntrlcols_[1])[cntrl_rows[j]];
+            datematch_col_elem = Column(cntrldt_, CNTRLcolname_datematch)[cntrl_rows[j]];
+            col_type_elem = Loc( COLTYPE_LISTCHK_VALS, Column(cntrldt_, cntrlcols_[CNTRL_INDX+1])[cntrl_rows[j]] );
+
+            If( NRow(col_type_elem) !=0,
+              If( modtype_elem !="", Eval(EvalExpr(Column(rawdt_, col_elem)<<ModelingType(Expr(Parse(modtype_elem))))) );
+              /*
+              try(Match( COLTYPE_LISTCHK_VALS[col_type_elem[1]],
+                //RunID
+                COLTYPE_LISTCHK_VALS[1],
+                InsertInto( lotIDcols, col_elem );
+                InsertInto( area_cols, col_elem ),
+
+                //Input(X)
+                COLTYPE_LISTCHK_VALS[3],
+                If( Contains( UpperCase(col_elem),"OPERATOR" ), Column(rawdt_, col_elem) << ModelingType(Nominal) );
+                If( Trim(datematch_col_elem) != "",
+                  InsertInto( xdatematch, EvalList({EvalList({col_elem, datematch_col_elem})}) ),
+
+                  InsertInto( xdatematch, EvalList({EvalList({col_elem, ""})}) )
+                );
+                InsertInto( area_cols, col_elem ),
+
+                //X Date
+                COLTYPE_LISTCHK_VALS[4],
+                Eval(StoreDateCol);
+                InsertInto( xdatecols, col_elem ),
+
+                //Output(Y)
+                COLTYPE_LISTCHK_VALS[5],
+                column(rawdt_,col_elem)<< DataType(Numeric);
+                if(!is missing(col sum(column(rawdt_, col_elem))),
+                InsertInto( ycols, col_elem );
+                If( IS_UL,
+                  // Calc %(1)
+                  yop_elem  = Column(cntrldt_, cntrlcols_[CNTRL_INDX+4])[cntrl_rows[j]];  //option:  force yopelem to be %(1)
+                  If( Eval(yop_elem) == OUTPUT_Y_LISTCHK_VALS[1],
+                    InsertInto( dopctQ, 1 );
+                    yopdateop ||= Char( "Sum(:Name(\!"" || col_elem || "\!")), N(:Name(\!"" || col_elem || "\!"))" );
+                    InsertInto( yop, EvalList({Char("Sum(" || col_elem || ")"), Char("N(" || col_elem || ")")}) );
+                    y_act_elem = EvalList({Char(col_elem || " %")}),
+
+                    // Calc list: e.g. {Mean,Std}
+                    If( IsList( Parse(Eval(yop_elem)) ),
+                      InsertInto( dopctQ, 0 );
+                      yopdateop ||= Char( yop_elem[1] || "(:Name(\!"" || col_elem || "\!")), " || yop_elem[2] || "(:Name( \!"" || col_elem || "\!" )), N( :Name( \!"" || col_elem || "\!" ))" );
+                      InsertInto( yop, EvalList({ Char(yop_elem[1] || "(" || col_elem || ")"), Char(yop_elem[2] || "(" || col_elem || ")"), Char("N(" || col_elem || ")") }) );
+                      y_act_elem = EvalList({ Char(yop_elem[1] || "(" || col_elem || ")"), Char(yop_elem[2] || "(" || col_elem || ")") }),
+
+                      // Calc Single: e.g. {Mean}
+                      y_arg1 = Parse(Eval(yop_elem)) || "(" || col_elem || ")";
+                      yopdateop ||= Char( yop_elem || "(:Name(\!"" || col_elem || "\!")), N(:Name(\!"" || col_elem || "\!"))" );
+                      InsertInto( yop, EvalList({ Char(yop_elem || "(" || col_elem || ")"), Char("N(" || col_elem || ")") }) );
+                      y_act_elem = EvalList({Char(yop_elem[1] || "(" || col_elem || ")")});
+                    )
+                  );
+                  Eval( yopdateop_end_expr );
+                  If( _smplsz_col_ == "", InsertInto( y_sampsize, "N Rows" ) ),   //change: only if _smplsz_col_ == ""
+
+                  InsertInto( dopctQ, 0 );
+                  y_act_elem = EvalList({col_elem});
+                  yop=y_act_elem;  //add: make yop = {col_elem}
+                  InsertInto( area_cols, col_elem );
+                  If( IS_LLSOSFMT &_smplsz_col_ == "",
+                    If( IS_CATTS,
+                      InsertInto( y_sampsize, "NROWS");InsertInto(area_cols,"NROWS"),  //add: force NROWS into y_sampsize and area_cols.                      
+                
+                      InsertInto( y_sampsize, "N Rows");InsertInto(area_cols,"N Rows")
+                    )
+                   );   
+                ); //EndIf IS_UL
+                InsertInto( y_actual, EvalList(y_act_elem));
+                If( Trim(datematch_col_elem) != "",
+                  InsertInto( ydatematch, EvalList({EvalList({y_act_elem, datematch_col_elem})}) ),
+
+                  InsertInto( ydatematch, EvalList({EvalList({y_act_elem, ""})}) )
+                )),
+
+                //Y Date
+                COLTYPE_LISTCHK_VALS[6],
+                Eval(StoreDateCol);     
+                InsertInto( ydatecols, Eval(date_arg) ),
+
+                //X and Y Date
+                COLTYPE_LISTCHK_VALS[7],
+                Eval(StoreDateCol);
+                InsertInto( xdatecols, date_arg );
+                InsertInto( ydatecols, date_arg ),
+
+                //Sample Size
+                COLTYPE_LISTCHK_VALS[8],
+                InsertInto( area_cols, col_elem );
+                //InsertInto( yop, _smplsz_col_ );   //change: don't make yop = _smplsz_col_.
+                InsertInto( y_sampsize, _smplsz_col_ );
+              ) )//EndMatch
+              */
+              Eval(
+	Substitute(
+		Expr(
+			try(Match(
+				varToMatch,             //Variable to match
+				val1, Eval(match1Eval), //RunID
+				val2, Eval(match2Eval), //Input(X)
+				val3, Eval(match3Eval), //X Date
+				val4, Eval(match4Eval), //Output(Y)
+				val5, Eval(match5Eval), //Y Date
+				val6, Eval(match6Eval), //X and Y Date
+				val7, Eval(match7Eval), //Sample Size
+				,
+			//NO Match
+				Show("No Match")
+			))
+		),
+		Expr(varToMatch), COLTYPE_LISTCHK_VALS[col_type_elem[1]], //Variable to match
+		Expr(val1),       COLTYPE_LISTCHK_VALS[1], //RunID
+		Expr(val2),       COLTYPE_LISTCHK_VALS[3], //Input(X)
+		Expr(val3),       COLTYPE_LISTCHK_VALS[4], //X Date
+		Expr(val4),       COLTYPE_LISTCHK_VALS[5], //Output(Y)
+		Expr(val5),       COLTYPE_LISTCHK_VALS[6], //Y Date
+		Expr(val6),       COLTYPE_LISTCHK_VALS[7], //X and Y Date
+		Expr(val7),       COLTYPE_LISTCHK_VALS[8], //Sample Size
+	)
+)
+              
+            ); //EndIf NRow(col_type_elem)
+
+          ); //EndFor j
+
+          If( IS_UL, yopdateop = Substr( yopdateop,1,Length(yopdateop)-1 ) || "}" );
+          If( NItems(xdatematch) != 0,
+          _control_elem_ = EvalList({ EvalList({Column(_Areadt_,1)[i]}), EvalList({EvalList(area_cols), EvalList(lotIDcols), EvalList({ycols, yopdateop, dopctQ, y_actual, yop, y_sampsize}), EvalList(xdatematch), EvalList(xdatecols), EvalList(ydatematch), EvalList(ydatecols)}) });
+          If(NItems(ycols)!=0, InsertInto( _control_array_, EvalList({_control_elem_}) ));
+          );
+
+        ) //EndIf NRow(final_coltype_rows)
+      ); //EndIf !Any
+      CurrentDataTable(_Areadt_);
+      Selected(Rowstate(i))=0;
+
+    ); //EndFor i 
+    _Areadt_ << ClearSelect;
+    //Close(_Areadt_, NoSave); //JMP7
+    Close(_Area_ColTypedt_, NoSave);
+    
+  ); //EndIf RET
+  
+  EvalList(_control_array_)
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////"
+
+::CA_AnalysisSetup = Function( {cntrlarry__}, {DefaultLocal},
+  _err_msg_ = ERR_MSG;
+  _ret_ = RET;
+  LL_Area_Summary_Master = "";
+  
+  If( RET == 1,
+    IncOP();  //203    
+    LL_Area_Summary_Tables = {};
+    _ll_summtab_name_ = Char(DATA_TABLE_ID || "_LL_SOS_FMT");
+    _cntrl_subtab_name_ = Char(DATA_TABLE_ID || "_" || "CNTRL");
+    area_list = {};
+    inputs_list = {};
+    indates_list = {};
+    outdates_list = {};
+    outputs_list = {};
+    _inputs_ = {};
+    _xdateid_ = {};
+    
+    
+    cntrlarry_ = Eval(cntrlarry__);
+    N_Area = NItems(cntrlarry_);
+    Area_pntr = Expr(cntrlarry_[i][1][1]);
+    Area_Cols_pntr = Expr(cntrlarry_[i][2][1]);
+    RunID_pntr = Expr(cntrlarry_[i][2][2]);
+    YopDateop_pntr = Expr(cntrlarry_[i][2][3]);
+    InputX_Date_pntr = Expr(cntrlarry_[i][2][4]);
+    XDate_pntr = Expr(cntrlarry_[i][2][5]);
+    YDate_pntr = Expr(cntrlarry_[i][2][7]);
+    
+    Try(
+      CurrentDataTable(RAW_DT);
+      For( i=1, i<=N_Area, i++,
+        area_summ_expr="";
+        N_InputX_Date_pntr = NItems(Eval(InputX_Date_pntr));
+        If( IS_LLSOSFMT | !IS_UL,
+          If( IS_LLSOSFMT,
+            _area_rows_ = RAW_DT << GetRowsWhere( Column(RAW_DT, "AREA")[] == Eval(Area_pntr) );
+            If( !IS_CATTS, _ll_summtab_name_ = Char(DATA_TABLE_ID || "_" || DATE_STAMP) ),
+            
+            ss=Thread( EvalExpr( "Char(Column(RAW_DT,\!"" || Eval(_argv[1]) || "\!")[]) != " || If( Type(Column(RAW_DT, Eval(_argv[1]))[1]) == "String", "\!"\!"", "\!".\!"") ), Eval(InputX_Date_pntr) );
+            _area_rows_ = Matrix(Thread( Expr(MatrixAsList(RAW_DT << GetRowsWhere( Eval(Parse(_argv)) ))), ss ));
+          );
+          If( NRow(_area_rows_) != 0,
+            Thread( Expr( Column(RAW_DT, _argv) << SetSelected(1)), Eval(Area_Cols_pntr) );
+            RAW_DT << SelectRows(_area_rows_);
+            area_summ_expr = Char( EvalExpr(RAW_DT << Subset( Rows(), Columns(), OutputTableName(Expr(Char(Eval(RAW_DT<<GetName) || "_" || Area_pntr))), Invisible )) );            
+          ),
+
+          area_summ_expr = Char( EvalExpr(RAW_DT << Summary( Group(Eval(Area_Cols_pntr)), Expr(Parse(Eval(YopDateop_pntr)[2])), OutputTableName(Expr(Char(Eval(RAW_DT<<GetName) || "_" || Area_pntr))), Invisible )) );
+        );
+        If( area_summ_expr != "",
+          temp_summ_expr = Munger( area_summ_expr, 1,"{", "");
+          temp_summ_expr = Munger( temp_summ_expr, 1,"}", "");
+          InsertInto( LL_Area_Summary_Tables, Eval(Parse(temp_summ_expr)),1 );
+          RAW_DT << ClearSelect << ClearColumnSelection;
+          LL_Area_Summary_Tables[1] << NewColumn("AREA",Character);
+          CurrentDataTable(LL_Area_Summary_Tables[1]);
+          DetectDateFormat(LL_Area_Summary_Tables[1]);
+          ForEachRow( Column(LL_Area_Summary_Tables[1],"AREA")[] = Eval(Area_pntr) );       
+
+          For( j=1, j<=NItems( Eval(YopDateop_pntr)[1] ), j++,
+            For( k=1,k<=N_InputX_Date_pntr,k++,
+              InsertInto( area_list, Eval(Area_pntr) );
+              InsertInto( outputs_list, Eval(YopDateop_pntr)[4][j] );
+              InsertInto( inputs_list, Eval(InputX_Date_pntr)[k][1] );
+              If( NItems( Eval(XDate_pntr) ) != 0,
+                  InsertInto( indates_list, If( NRow(Matrix(Loc(Eval(XDate_pntr),Eval(InputX_Date_pntr)[k][2]))) != 0, Munger(Munger(Eval(InputX_Date_pntr)[k][2], 1, ":Name(\!"", ""), 1, "\!")",""), "" ) ),
+  
+                  InsertInto( indates_list, "" );
+              );
+              If( NItems( Eval(YDate_pntr) ) != 0, InsertInto( outdates_list, Eval(YDate_pntr)[1] ), InsertInto( outdates_list, "" ) );
+            ); //EndFor k
+            If( Eval(YopDateop_pntr)[3][j] & !IS_LLSOSFMT,
+                pct_colname = Char( Eval(YopDateop_pntr)[1][j] || "%" );
+                LL_Area_Summary_Tables[1] << NewColumn( pct_colname, Numeric );
+                ytemp_expr = Expr( Char( "(:Name( \!"Sum(" || Eval(YopDateop_pntr)[1][j] || ")\!") / :Name( \!"N(" || Eval(YopDateop_pntr)[1][j] || ")\!")*100)" ));
+                Eval(EvalExpr(Column(LL_Area_Summary_Tables[1], pct_colname )<<SetFormula( Expr(Parse(Eval(ytemp_expr))) )));
+            );
+          ); //EndFor j
+                            
+        InsertInto(_inputs_ ,Thread( Expr(_argv[1]), Eval(InputX_Date_pntr)));
+        InsertInto(_xdateid_ ,Thread( Expr(_argv[2]), Eval(InputX_Date_pntr)));
+        
+        ); //EndIf area_summ
+        
+
+          
+      ); //EndFor i
+      
+  
+      _response_act_ = Eval( Substitute(NameExpr(YopDateop_pntr), Expr(i),1) )[1];
+      _response_ = Eval( Substitute(NameExpr(YopDateop_pntr), Expr(i),1) )[4];
+      _ycalc_ = Eval( Substitute(NameExpr(YopDateop_pntr), Expr(i),1) )[5];
+      _y_dhold_ = Eval(Substitute(NameExpr(YDate_pntr), Expr(i),1));
+      _ydateid_ = {};
+      _ysamp_ = Eval( Substitute(NameExpr(YopDateop_pntr), Expr(i),1) )[6];
+      If( NItems(_y_dhold_) != 0,
+      _ydateid_ = If( NRow(Matrix(Loc(outdates_list,_y_dhold_[1]))) != 0, EvalList({Munger( Munger(_y_dhold_[1],1,":Name(\!"",""),1,"\!")","" )}), {} );
+      );
+      
+      ReverseInto(LL_Area_Summary_Tables);
+      LL_Area_summary_Master = ConcatDataTables(LL_Area_Summary_Tables);
+      LL_Area_summary_Master << SetName( Eval(_ll_summtab_name_) );
+      LL_Area_summary_Master << MoveSelectedColumns({"AREA"},ToFirst);
+      Eval(EvalExpr(LL_Area_summary_Master << MoveSelectedColumns(Expr(Evallist(_ysamp_)),ToLast)));
+      Eval(EvalExpr(LL_Area_summary_Master << MoveSelectedColumns(Expr(Evallist(_ycalc_)),ToLast)));
+      Eval(EvalExpr(LL_Area_summary_Master << MoveSelectedColumns(Expr(Evallist(_response_)),ToLast)));
+        
+      _ref_tab = NewTable("Input_Date_Mapping Table");
+      _ref_tab << NewColumn("Area",Character);
+      _ref_tab << NewColumn("Output Variable",Character);
+      _ref_tab << NewColumn("Input Variable",Character);
+      _ref_tab << NewColumn("Dates for Inputs",Character);
+  //  _ref_tab << NewColumn("Dates for Outputs",Character);
+      _ref_tab << AddRows( NItems(inputs_list) );
+      Column(_ref_tab,"Input Variable") << SetValues(inputs_list);
+      Column(_ref_tab,"Output Variable") << SetValues(outputs_list);
+      Column(_ref_tab,"Area")<< SetValues(area_list);
+      Column(_ref_tab,"Dates for Inputs") << SetValues(indates_list);
+  //  Column(_ref_tab,"Dates for Outputs") << SetValues(outdates_list);
+      _ref_tab << NewColumn( "p Value for Mean", Numeric, Format("PValue",10) );
+      _ref_tab << NewColumn( "Decision for Mean", Character(16) );
+      _ref_tab << NewColumn( "p Value for Variance", Numeric, Format("PValue",10) ); 
+      _ref_tab << NewColumn( "Decision for Variance", Character(16) );
+      _ref_tab << NewColumn( "Order", Numeric );
+      Column( _ref_tab, "Order" )<<SetEachValue( Row() );
+      
+      _reftabexpr_ = EvalExpr( Expr( Char(_ref_tab << GetScript) ) );
+      _cntrlsubtab_ = Eval(EvalExpr( CNTRL_TABLE << Subset( Rows(CNTRL_TABLE_ROWS), OutputTableName( Expr(_cntrl_subtab_name_) )) ));
+      //Wait(0.001);
+      If( !IS_CATTS & IS_UL,
+        Eval(EvalExpr(_cntrlsubtab_ << DeleteColumns(Expr(EvalList({CNTRLcolname_erryc, CNTRLcolname_outyc}))) ));
+        Eval(EvalExpr( Column(_cntrlsubtab_ , Expr(CNTRLcolname_coltype) ) << ListCheck( Expr(Insert(Remove( COLTYPE_LISTCHK_VALS, MatrixAsList(Loc(COLTYPE_LISTCHK_VALS,"")) ), COLTYPElistchk_smplsz)) )));
+        _cntrlsubtab_col1vals_ = Expr(Column(_cntrlsubtab_, "Column") << GetValues);
+        Thread( EvalExpr( Column(Expr(_cntrlsubtab_),"Column")[MatrixAsList(Loc(Expr(_cntrlsubtab_col1vals_), _argv))] = _argv || "%" ), _response_act_ );
+      );
+
+      _cntrltabexpr_ = EvalExpr( Expr( Char(_cntrlsubtab_ << GetScript) ));
+      Close(_cntrlsubtab_, NoSave);
+
+      _param_list_ =
+        {
+        EvalExpr(Response = Expr(_response_)),
+        EvalExpr(InputVar_Y = Expr(outputs_list)),     
+        EvalExpr(Y_Date_ID = Expr(_ydateid_)),
+        EvalExpr(x = Expr(_inputs_)),        
+        EvalExpr(InputVar_X = Expr(inputs_list)),
+        EvalExpr(X_Date_ID = Expr(_xdateid_)),
+        EvalExpr(InputVar_Date = Expr(indates_list)),
+
+        EvalExpr(areaid = Expr(area_list)),
+        
+        Expr(Grp_Cols_orig = {AREA}),
+        Expr(Run_ID = {}),
+        EvalExpr(Sample_Size = Expr(_ysamp_)),
+        Expr(date_methodQ = 4),
+        Expr(ref_select = 4),
+        Expr(exclQ = 1),
+        EvalExpr(N_Lot_Excl = Expr(Num( CNTRL_TABLE << GetTableVariable("Min Lot Sample Size") ))),
+        Expr(exclminxQ = 1),
+        EvalExpr(N_X_Excl = Expr(Num( CNTRL_TABLE << GetTableVariable("Min Lots per X") ))),
+        Expr(savrsQ = 0),
+        Expr(button[1]=1),
+        Expr(UL_OPflag = 1),
+        EvalExpr(CA_Control_Array = Expr(cntrlarry_)),
+        Expr(dt1=LL_DT),
+        EvalExpr(InputVar_tab = Expr(Parse(_reftabexpr_))),
+        EvalExpr(CNTRL_TABLE_NAME = Expr(CNTRL_TABLE_NAME))
+      };
+      Eval(EvalExpr( LL_Area_summary_Master << SetTableProperty("Pass-in",Expr(EvalList(_param_list_))) ));
+      Eval(EvalExpr( LL_Area_summary_Master << SetTableProperty("Cntrl_Table", Expr( EvalExpr(CNTRL_TABLE = Expr(Parse(_cntrltabexpr_))) ) )));
+        
+      //Eval(EvalExpr( LL_Area_summary_Master << SetTableProperty("Pass-in",Expr(EvalList(_param_list_))) ));
+      //Eval(EvalExpr( LL_Area_summary_Master << SetTableProperty("Cntrl_Table", CNTRL_TABLE = Expr(Parse(_cntrltabexpr_))) ));
+
+      //If( !IS_UL, 
+      //  _rawsubdt_ = Eval(EvalExpr(RAW_DT << Subset( Columns( Expr(Column(CNTRL_TABLE,1)[CNTRL_TABLE_ROWS])), Invisible )));
+      //  _rawsubdtexpr_ = EvalExpr( Expr(Char(_rawsubdt_ << GetScript)) );
+      //  Close( _rawsubdt_, NoSave);
+      //  Eval(EvalExpr( LL_Area_summary_Master << NewTableProperty("Raw_Table", RAW_DT = Expr(Parse(_rawsubdtexpr_))) ));
+      //);
+      IncOP();  //204
+      Close(_ref_tab, NoSave);
+      _ret_ = 1,
+      
+      If( NItems(LL_Area_Summary_Tables) == 12, 
+          For( k=1, k<=NItems(LL_Area_Summary_Tables), k++,
+            Try(Close( LL_Area_Summary_Tables[k], NoSave ));
+          );
+        );
+      _ret_ = -1;
+      _err_msg_ = "Analysis Setup Failed";
+    ); //EndTry
+    
+ 
+  ); //EndIf RET
+ 
+  EvalList({_ret_, LL_Area_summary_Master, _err_msg_})
+  
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+Print("SOS CA Control Functions Loaded.");
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////

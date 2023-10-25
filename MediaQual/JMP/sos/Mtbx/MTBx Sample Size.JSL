@@ -1,0 +1,163 @@
+/**************************************************************************************
+	
+MTBX Sample Size
+Author: Elaine B. Macospag
+Rev: 1.1.1
+Date: 9/8/2009
+JMP Version: 7.0
+Starting Condition: User inputs Target MTBx, Data Type, Alpha and Desired Confidence Level.  
+Output: The script will output the required test length and the number of allowable failures 
+	  to meet the target MTBx.
+Revision History: 22/02/2007 - Separate output into two outline boxes- one for user input and one 		     for the result. ; Added FooterBox. 
+	1.1.1 PW-round up to nearest whole number and reformat script for better readability
+	
+***************************************************************************************/
+Clear Globals();
+
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox = V List Box(Text Box(" ")));
+
+button = 1;
+conf = .95;
+label = "";
+MTBx = "MTBF";
+Target = .;
+scale = "Cycles";
+datatype = "# of Failures";
+MTBx = "";
+n = .;
+x = 0;
+
+/*******************************Input Dialog Box*******************************/
+
+While(button == 1,
+	datatype = "# of Failures";
+	If(datatype == "# of Failures",
+		a1 = "# of Failures";
+		b1 = "# of Assists";
+		datatype == "# of Assists";
+	,
+		a1 = "# of Assists";
+		b1 = "# of Failures";
+	);
+	If(
+		datatype == 1,
+			datatype = a1;
+			MTBx = "MTBF";,
+		datatype == 2,
+			datatype = b1;
+			MTBx = "MTBA";
+	);
+	
+	result = Dialog(
+		title("MTBx Sample Size"),
+		"Provide Values for Target MTBx and Confidence Level.",
+		"Click OK to calculate sample size.",
+		"   ",
+		"   ",
+		Vlist(
+			Hlist(
+				Lineup(3,
+					"Target MTBx", target = EditNumber(Target), scale = EditText(scale),
+					"Data Type", datatype = radiobuttons(a1, b1), " ",
+					" ", " ", " ",
+					"Confidence Level", conf = EditNumber(conf)
+				),
+				" "
+			)
+		),
+		Hlist(Button("OK"), Button("Cancel"))
+	);
+
+/*******************************Extract Results*******************************/
+
+	button = result["Button"];
+	conf = result["conf"];
+	scale = result["scale"];
+	pconf = conf * 100;
+	tconf = Char(pconf) || "%";
+	target = result["target"];
+	ctarget = Char(target) || " " || scale;
+	datatype = result["datatype"];
+	cycle = result["scale"];
+	If(
+		datatype == 1,
+			datatype = a1;
+			MTBx = "MTBF";,
+		datatype == 2,
+			datatype = b1;
+			MTBx = "MTBA";
+	);
+	space = "   ";
+
+/*******************************Check for Input Errors*******************************/
+	If(button == 1,
+		If(
+			target <= 0,
+				Dialog(Title("Error"), " ", "Target MTBx must be greater than 0.", " ", Button("OK"));
+				test1 = "error";,
+			Is Missing(target),
+				Dialog(Title("Error"), " ", "Please enter Target MTBx.", " ", Button("OK"));
+				test1 = "missing";,
+			test1 = "OK"
+		);
+		If(
+			conf < .6 | conf >= 1,
+				Dialog(
+					Title("Error"),
+					" ",
+					"Confidence Level must be between .6 to less than 1",
+					" ",
+					Button("OK")
+				);
+				test2 = "error";,
+			Is Missing(conf),
+				Dialog(
+					Title("Error"),
+					" ",
+					"Confidence Level must be between .6 to less than 1",
+					" ",
+					Button("OK")
+				);
+				test2 = "missing";,
+			test2 = "OK"
+		);
+	);
+
+/*******************************Sample Size Computation*******************************/
+	xlist = {};
+	lengthlist = {};
+	spacelist = {};
+	Insert Into(spacelist, space);	
+	If(test1 == "OK" & test2 == "OK",  
+		If(button == 1,
+			For(x = 0, x < 11, x++,
+				If(
+					x == 0, n = target * (-Log(1 - conf)),
+					x != 0, n = target * (ChiSquare Quantile(conf, 2 * x + 2) / 2)
+				);
+				//length = Round(n, 1);
+				length = Ceiling(n);
+				Insert Into(xlist, x);
+				Insert Into(lengthlist, length);
+			);
+			Output = New Window(MTBx || " Sample Size",
+				Outline Box("User Input",
+					H List Box(
+						String Col Box("Parameter", {"Target " || MTBx, "Confidence Level"}),
+						String Col Box("Value", {ctarget, tconf})
+					)
+				),  
+				Outline Box(Scale || " Needed to Meet " || MTBx || " Goal",
+					H List Box(
+						Table Box(
+							String Col Box("   ", spacelist),
+							Number Col Box(datatype, xlist),
+							Number Col Box("Test Length (in " || scale || " )", lengthlist)
+						)
+					)
+				)
+			);
+			Output << Append(FooterBox);
+		)
+	);
+);

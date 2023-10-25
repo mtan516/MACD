@@ -1,0 +1,411 @@
+/********************************************************************
+ *SOS Function & Expr Library
+ *This file contains functions and expressions that are called by SOS Analysis scripts
+ *JMP Version: 5.1 to 9
+ *Latest updated 6/12/2013 By John Xu (add TTD and 1Click enabled)
+  
+  GenerateControlChart
+  RefSrcExpr
+  CLRefSrcExpr
+  NotReqExpr
+  Generate_ParamID
+  PCS_vcht
+ * 
+********************************************************************/
+
+Eval List( PCS_GLBLS );
+
+////////////////////////////// GenerateControlChart ///////////////////////////////////////////////////
+ :: GenerateControlChart = Function( {col1, col2},
+	dt = Current Data Table();
+	cc_expr = Expr(
+		Control Chart(
+			Sample Label( x ),
+			KSigma( 3 ),
+			Chart Col(
+				y,
+				Individual Measurement(
+					Test 1( 1 ),
+					Test 2( 1 ),
+					Test 5( 1 ),
+					Test 6( 1 ),
+					Line Width( Thin ),
+					Name( "!Test 1" )(1),
+					Name( "!Test 2" )(1),
+					Name( "!Test 5" )(1),
+					Name( "!Test 6" )(1)
+				)
+			)
+		)
+	);
+	cc = Eval( Substitute( Name Expr( cc_expr ), Expr( x ), col1, Expr( y ), col2 ) );
+	// Extract limits
+	cc << Save Limits( in New Table );
+	dt2 = Current Data Table();
+	Off_Sigma = Column( dt2, 2 )[3];
+	Off_Mean = Column( dt2, 2 )[5];
+	Off_LCL = Column( dt2, 2 )[6];
+	Off_UCL = Column( dt2, 2 )[7];
+	Close( dt2, NoSave );
+	//Calculate new min and max for graph if necessary
+	Chart_Max = .;
+	Chart_Min = .;
+	If( ::On_UCL > Off_UCL,
+		Chart_Max = ::On_UCL + 0.05 * (::On_UCL - Min( Off_LCL, ::On_LCL )),
+		Chart_Max = .
+	);
+	If( ::On_LCL < Off_LCL,
+		Chart_Min = ::On_LCL - 0.05 * (Max( Off_UCL, ::On_UCL - ::On_LCL )),
+		Chart_Min = .
+	);
+	// Customize Control Chart
+	ccreport = cc << report;
+	pic = ccreport[Outline Box( 2 )];
+	pic[AxisBox( 2 )] << rotated labels( 1 );                   //axis box 2 is the x-axis
+	pic[AxisBox( 1 )] << add ref line( ::on_lcl, "Dotted", "blue" );   //axis box 1 is the y-axis
+	pic[AxisBox( 1 )] << add ref line( ::on_ucl, "Dotted", "blue" );
+	pic[AxisBox( 1 )] << add ref line( ::on_cl, "Dotted", "blue" );
+	pic[AxisBox( 1 )] << Min( Chart_Min );
+	pic[AxisBox( 1 )] << Max( Chart_Max );
+	ccreport[framebox( 1 )] << Frame size( 500, 200 );
+	Eval Expr(
+		{Expr( Off_mean ), Expr( Off_Sigma ), Expr( Off_LCL ), Expr( Off_UCL ), Expr( Chart_Min ), Expr( Chart_Max )}
+	);
+);
+ 
+////////////////////////////// RefSrcExpr ///////////////////////////////////////////////////
+ :: RefSrcExpr = Expr(
+	::RefSrcDlg = New Window( "Reference Value Source",
+		Border Box( Left( 3 ), Top( 4 ),
+			V List Box(
+				Panel Box( "",
+					Text Box( "Script has paused. Before continuing:", <<SetFontStyle( "Bold" ) ),
+					Text Box( "" ),
+					Text Box(
+						"	1)  Review the reference table values and update them if necessary.",
+						<<SetFontStyle( "Bold" )
+					),
+					Text Box( "" ),
+					Text Box( "	2)  Optionally save the reference table using File -> Save As.", <<SetFontStyle( "Bold" ) ), 
+					/*
+					TextBox(
+						"		(Note that a copy of your reference table will automatically be saved in C:\Program Files\SOS2\Reference Files\)",
+						<<SetFontStyle("Italic")
+					), */
+					Text Box( "" ),
+					Text Box(
+						"	3)  Make sure your reference table is the active table by clicking on it.",
+						<<SetFontStyle( "Bold" )
+					),
+					Text Box( "" ),
+					Text Box( "When finished, click OK to resume the script", <<SetFontStyle( "Bold" ) ),
+					Text Box( "" ),
+					Current Data Table( dt );
+					If( ref_select == 2,
+						If( JMPvernum >= 8,
+							ref_tab = dt << Summary( Group( Param_Grp_List[1 :: N Items( Param_Grp_List )] ),Link to original data table( 0 ) ), // JMP 8
+							ref_tab = dt << Summary( Group( Eval( Param_Grp_List ) ) ); // JMP 5-7
+						);
+						Current Data Table( ref_tab );
+						ref_tab << MoveWindow( 0, 300 );
+						ref_tab << Size Window( 1200, 250 );
+						Column( ref_tab, 1 ) << ScrollLock( 1 );
+						ref_tab << AddMultipleColumns( "Parameter Type", 1, AfterLast, Character( 8 ) );
+						Column( ref_tab, "Parameter Type" ) << ListCheck( {"Raw", "Mean", "Std","Range"} );
+						ref_tab << AddMultipleColumns( "Center Type", 1, AfterLast, Character( 8 ) );
+						Column( ref_tab, "Center Type" ) << ListCheck( {"Target", "Mean"} );
+						ref_tab << AddMultipleColumns( "Mean Parameter Center", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Mean Parameter Std Dev", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "StdDev Parameter Mean", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "StdDev Parameter Std Dev", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Ref Tool Name", 1, AfterLast, Character( 16 ) );
+						ref_tab << AddMultipleColumns( "Ref Data Source", 1, AfterLast, Character( 16 ) );
+						Column( ref_tab, "Ref Data Source" ) << ListCheck( {"Fixed Values", "Calculated"} );
+						ref_tab << AddMultipleColumns( "Parameter LSL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Parameter Target", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Parameter USL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Mean Parameter TTD", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "StdDev Parameter TTD", 1, AfterLast, Numeric );
+
+						ref_tab << AddMultipleColumns( "StdDev Parameter CL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "StdDev Parameter UCL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Mean Parameter LCL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Mean Parameter CL", 1, AfterLast, Numeric );
+						ref_tab << AddMultipleColumns( "Mean Parameter UCL", 1, AfterLast, Numeric );
+						ref_tab << SetName( "Reference Table" );
+						//ref_tab << ScrollWindow(1000, 0);
+						date_stamp = Today();
+						Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || "_" || Char( date_stamp ) || ".jmp";
+						//ref_tab << Save(Ref_Table_Name);
+						ref_tab = Current Data Table();
+					,
+						Try(
+							ref_tab = Open(),
+							CleanUP();
+							button[1] = -1;
+						);
+						ref_tab = Current Data Table();
+						ref_tab << ScrollWindow( {0, 0} );
+						Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || ".jmp";
+
+					); //EndIf ref_select
+				),  //End PanelBox
+				Panel Box( "Action",
+					Lineup Box( N Col( 2 ),
+						Button Box( "OK",
+							ref_tab = Current Data Table();
+							RefSrcDlg << CloseWindow;
+							//eval(_Main)							
+							Try(
+								Eval( _Main ),
+								Print( "ERROR" );
+								If( Type( ref_tab ) == "DataTable",
+									Insert Into( tab_create_list, ref_tab << GetName )
+								);
+								CleanUP();
+								button[1] = -1;
+							);							
+						),
+						Button Box( "Cancel",
+							RefSrcDlg << CloseWindow;
+							Try(
+								Close( ref_tab, NoSave );
+								Close( dt, NoSave );
+								button[1] = -1;
+							);
+						)
+					) //End LineUpBox
+				) //End PanelBox
+			) //End HListBox
+		) //End BorderBox
+	); //End NewWindow
+	RefSrcDlg << Size Window( 400, 250 );
+	RefSrcDlg << MoveWindow( 0, 0 );
+	//RefSrcDlg << ZoomWindow;
+	RefSrcDlg << BringWindowToFront;
+); //EndExpr
+
+/////////////////////////////////////////////  CLRefSrcExpr  ////////////////////////////////////////////////////////
+ :: CLRefSrcExpr = Expr(
+	If( ref_select != 4,
+		CLRefSrcDlg = New Window( "Reference Value Source",
+			Border Box( Left( 3 ), Top( 4 ),
+				V List Box(
+					Panel Box( "",
+						Text Box( "Script has paused. Before continuing:", <<SetFontStyle( "Bold" ) ),
+						Text Box( "" ),
+						Text Box(
+							"	1)  Review the reference table values and update them if necessary.",
+							<<SetFontStyle( "Bold" )
+						),
+						Text Box( "" ),
+						Text Box(
+							"	2)  Optionally save the reference table using File -> Save As.",
+							<<SetFontStyle( "Bold" )
+						), 
+						/*
+						TextBox(
+							"		(Note that a copy of your reference table will automatically be saved in C:\Program Files\SOS2\Reference Files\)",
+							<<SetFontStyle("Italic")
+						), */
+						Text Box( "" ),
+						Text Box(
+							"	3)  Make sure your reference table is the active table by clicking on it.",
+							<<SetFontStyle( "Bold" )
+						),
+						Text Box( "" ),
+						Text Box( "When finished, click OK to resume the script", <<SetFontStyle( "Bold" ) ),
+						Text Box( "" ),
+						Current Data Table( dt );
+						Choose( ref_select,
+							NULL,
+							If( JMPvernum >= 8,
+								ref_tab = dt << Summary( Group( Param_Grp_List[1 :: N Items( Param_Grp_List )] ),Link to original data table( 0 ) ), // JMP 8
+								ref_tab = dt << Summary( Group( Eval( Param_Grp_List ) ) ); // JMP 5-7
+							);
+							ref_tab << MoveWindow( 0, 300 );
+							ref_tab << Size Window( 1200, 250 );
+							ref_tab << AddMultipleColumns( "Parameter Type", 1, AfterLast, Character( 8 ) );
+							Column( ref_tab, 1 ) << ScrollLock( 1 );
+							Column( ref_tab, "Parameter Type" ) << ListCheck( {"Raw", "Mean", "Std", "Range"} );
+							ref_tab << AddMultipleColumns( "Mean Parameter LCL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Mean Parameter CL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Mean Parameter UCL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "StdDev Parameter CL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "StdDev Parameter UCL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Mean Parameter TTD", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "StdDev Parameter TTD", 1, AfterLast, Numeric );
+
+							ref_tab << AddMultipleColumns( "Center Type", 1, AfterLast, Character( 8 ) );
+							Column( ref_tab, "Center Type" ) << ListCheck( {"Target", "Mean"} );
+							ref_tab << AddMultipleColumns( "Mean Parameter Center", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Mean Parameter Std Dev", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "StdDev Parameter Mean", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "StdDev Parameter Std Dev", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Ref Tool Name", 1, AfterLast, Character( 16 ) );
+							ref_tab << AddMultipleColumns( "Ref Data Source", 1, AfterLast, Character( 16 ) );
+							Column( ref_tab, "Ref Data Source" ) << ListCheck( {"Fixed Values", "Calculated"} );
+							ref_tab << AddMultipleColumns( "Parameter LSL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Parameter Target", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "Parameter USL", 1, AfterLast, Numeric );
+							ref_tab << AddMultipleColumns( "N Rows", 1, AfterLast, Numeric );				
+
+							ref_tab << SetName( "CL Reference Table" );,
+							Try(
+								ref_tab = Open();
+								ref_tab = Current Data Table();
+								Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || ".jmp";
+								If( !Contains( ref_tab << GetColumnNames( String ), "Mean Parameter CL" ),
+									ref_tab << AddMultipleColumns(
+										"Mean Parameter CL",
+										1,
+										After( "Mean Parameter LCL" ),
+										Numeric
+									)
+								);
+								Column( ref_tab, "Parameter Type" ) << ListCheck( {"Raw", "Mean", "Std", "Range"} );
+							,
+								CleanUP();
+								button[1] = -1;
+							)
+						); //EndChoose ref_select
+					),  //End PanelBox
+					Panel Box( "Action",
+						Lineup Box( N Col( 2 ),
+							Button Box( "OK",
+								CLRefSrcDlg << CloseWindow;
+								If( button[1] == 1,
+									Current Data Table( ref_tab );
+									ref_tab << ScrollWindow( 0, 0 );
+									ref_tab << MoveWindow( 0, 300 );
+									Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || "_" || Char( DATE_STAMP ) ||
+									".jmp";
+									//ref_tab << Save(Ref_Table_Name);
+									Eval( _Main );
+									/*
+									Try(
+										Eval( _Main ),
+										Print( "ERROR" );
+										If( Type( ref_tab ) == "DataTable",
+											Insert Into( tab_create_list, ref_tab << GetName )
+										);
+										CleanUP();
+										button[1] = -1;
+									);
+									*/
+								);
+							),
+							Button Box( "Cancel",
+								CLRefSrcDlg << CloseWindow;
+								Try(
+									Close( ref_tab, NoSave );
+									Close( dt, NoSave );
+									button[1] = -1;
+								);
+							)
+						) //End LineUpBox
+					) //End PanelBox
+				) //End HListBox
+			) //End BorderBox
+		); //End NewWindow
+		CLRefSrcDlg << Size Window( 400, 250 );
+		CLRefSrcDlg << MoveWindow( 0, 0 );
+		//ClRefSrcDlg << ZoomWindow;
+		CLRefSrcDlg << BringWindowToFront;
+	,
+		ref_tab = Open( Ref_Path || Ref_Table_Name || ".jmp" );
+	); //EndIf
+); //EndExpr
+
+///////////////////////////////////////////  NotReqExpr  ////////////////////////////////////////////////////////
+ :: NotReqExpr = Expr(
+	temp_name = Param_List[1];
+	NotReqDiag = Dialog(
+		" ",
+		HList( "", "", "", "No PARAMETER NAME defined." ),
+		" ",
+		HList( "Press OK to continue with manual entry of reference values for ", temp_name ),
+		"Or press CANCEL to go back",
+		" ",
+		HList( Button( "OK" ), Button( "Cancel" ) )
+	);
+	tempbutton = NotReqDiag["Button"];
+); //EndExpr
+
+///////////////////////////////////////////// Generate_ParamID ///////////////////////////////////////////////////////////
+ :: Generate_ParamID = Expr(
+	Current Data Table( dt );
+	::parmid = .;
+	::N_Params = .;
+	::Param_Grp_List = {};
+	::col_offset = .;
+	::new_arg = "";
+	::base_arg = "";
+	If( !Contains( dt << GetColumnNames( String ), "PARAMETERID" ),
+		dt << AddMultipleColumns( "PARAMETERID", 1, AfterLast, Character( 128 ) )
+	);
+	If( N Items( p_arg ) != 0, 	//p_arg is Param
+		parmid = Column( "PARAMETERID" );
+		For( i = 1, i <= N Items( p_arg ), i++,
+			base_arg = "Char( Column(\!"" || Char( p_arg[i] ) || "\!")[] )";
+			new_arg ||= base_arg;
+			If( i != N Items( p_arg ),
+				new_arg ||= " || \!"_\!" || "
+			);
+		);
+		For Each Row( parmid[] = Eval( Parse( new_arg ) ) );
+		Param_Grp_List = Eval List( {Parse( parmid << GetName )} );
+		Wait( 0 );
+		Summarize( Param_List = By( parmid ) );
+		N_Params = N Items( Param_List );
+		col_offset = 1;
+	, 
+		/*ELSE*/
+		Param_Grp_List = {""};
+		parmid = Column( Response[1] );
+		Param_List[1] = Char( Response[1] );
+		N_Params = 1;
+		col_offset = 0;
+	); //EndIf NItems(Param)
+); //EndExpr
+
+///////////////////////////////////////////// PCS_vcht ///////////////////////////////////////////////////////////
+ :: PCS_vcht = Function( {dt_, xarg_, yarg_},
+	{DefaultLocal},
+	_xarg_rws_ = [];
+	_xarg_cpy_ = Eval( xarg_ );
+	Current Data Table( Eval( dt_ ) );
+	Wait( 0 );
+	_xarg_rws_ = Eval( dt_ ) << GetSelectedRows;
+	If( N Row( _xarg_rws_ ) != 0,
+		For( i = N Items( _xarg_cpy_ ), i >= 1, i--,
+			_xarg_vals_ = Column( Eval( dt_ ), _xarg_cpy_[i] )[_xarg_rws_];
+			If( N Row( Loc( _xarg_vals_, "" ) ) == N Items( _xarg_vals_ ),
+				Remove From( _xarg_cpy_, N Items( _xarg_cpy_ ) )
+			);
+		);
+		If( N Items( _xarg_cpy_ ) != 0,
+			_vcht_obj_ = Eval Expr(
+				V List Box(
+					Variability Chart(
+						Y( Expr( yarg_ ) ),
+						X( Expr( _xarg_cpy_ ) ),
+						Connect Cell Means( 1 ),
+						Show Group Means( 1 ),
+						Show Grand Mean( 0 ),
+						Std Dev Chart( 0 ),
+						Points Jittered( 1 ),
+						AIAG Labels( 0 ),
+						Where( Selected() & !Excluded() ),
+						SendToReport(
+							Dispatch( {}, "", NomAxisBox, Rotated Tick Labels( 1 ) ),
+							Dispatch( {}, "", AxisBox, ShowMajorGrid )
+						)
+					)
+				)
+			),
+			_vcht_obj_ = Expr( V List Box() )
+		);
+	);
+	_vcht_obj_;
+); //EndFunctions

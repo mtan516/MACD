@@ -1,0 +1,1180 @@
+/***********************************************************************************
+P-Bar Calculator script: multiple paramters
+
+Date: 2 August 2018
+Author: Sherstin Mortensen
+Rev: 1
+Rev: 1.1 Updated MRF Path to reflect changes in PCS Portal directory
+
+Inputs: Data table with monitor set, parameter, facility, entity, date, Lot X and Lot N columns
+		Script will prompt for file with Area and online limits.
+Output: Report window with overall flagging report summary, parameter level summaries and individual summary output including
+		graphs, %OOC online and offline, # of p-bar iterations and matching (BIC) status.
+		
+*************************************************************************************/
+Clear Globals();
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+//If( JMPVerNum == 1,
+//	JMPVerNum = 10
+//);
+If( N Table() == 0,
+	::dt = Open();
+	Current Data Table( dt );
+,
+	::dt = Current Data Table()
+);
+dt << Clear Select << Clear Column Selection;
+
+
+
+/***********************************	Functions	*********************************/
+/***	Chi^2 calculation
+		Inputs: row vector with defects or goods, row vector with total n
+		Outputs:  Chi^2 value, p, df
+***/
+chi2_fcn = Function( {def_mat, n_mat},
+	{default local},
+	ngood = n_mat - def_mat;
+	expb = n_mat * (Sum( def_mat ) / Sum( n_mat ));
+	expg = n_mat * (Sum( ngood ) / Sum( n_mat ));
+	obs_expbad = def_mat - expb;
+	obs_expgood = ngood - expg;
+	chisq_bad = (obs_expbad) ^ 2 :/ expb;
+	chisq_good = (obs_expgood) ^ 2 :/ expg;
+	chisq = Sum( chisq_bad ) + Sum( chisq_good );
+	df = N Rows( def_mat ) - 1;
+	chi_p = 1 - ChiSquare Distribution( chisq, df );
+	chi_res = (Matrix( {chisq, chi_p, df} ))`;
+);
+
+/***	BIC calculation
+		Note, could just iteratively call chi2_fcn
+		Inputs: row vector with defects or goods, row vector with total n
+		Output:  rows from matrix that are BIC
+***/
+bic_fcn = Function( {def_mat, n_mat},
+	{default local},
+	def_mat2 = def_mat[1];
+	n_mat2 = n_mat[1];
+	If( N Rows( def_mat ) > 1,
+		For( i = 2, i <= N Rows( def_mat ), i++,
+			def_mat2 = def_mat2 |/ def_mat[i];
+			n_mat2 = n_mat2 |/ n_mat[i];
+			chi_res = chi2_fcn( def_mat2, n_mat2 );
+			If( chi_res[1, 2] < 0.05,
+				bic_rows = (Index( 1, i - 1 ))`;
+				i = N Rows( def_mat );
+			);
+		);
+		bic_rows;
+	, //else
+		bic_rows = [1]
+	);
+);
+
+
+/***	Exact Binomial OOC calculation
+		Inputs: alpha, pbar, # units and # fails
+		Output:  1 or 0 depending on whether the lot would be OOC. 1=OOC and 0=not OOC.
+***/
+exact_bin_OOC = Function( {_alpha, _pbar, _n, _x},
+	{default local},
+	UCL = 0;
+	While( Binomial Distribution( _pbar / 100, _n, UCL ) < 1 - _alpha, UCL++ );
+	If( _x > UCL,
+		result = 1,
+		result = 0
+	);
+);
+
+/***********************************	End Functions  ***********************************/	
+
+
+
+/************************************	Expressions	   ***********************************/
+/***	CLCR_Expr
+		Uses the current data table and creates all the columns needed to compute CLCR and the p-bar/k/CLV status columns.
+***/
+CLCR_Expr = Expr(
+	/////Add UCL formulae
+	New Column( "UCLsuggested",
+		numeric,
+		formula(
+			:Name( "Suggested p-bar (%)" ) / 100 + (:Name( "Online k" ) - 1.5) / Ceiling( :Mean N ) + :Name( "Online k" ) *
+			Sqrt( :Name( "Suggested p-bar (%)" ) / 100 * (1 - :Name( "Suggested p-bar (%)" ) / 100) / Ceiling( :Mean N ) )
+		), EvalFormula
+	);
+	New Column( "UCLonline",
+		numeric,
+		formula(
+			:Name( "Online p-bar (%)" ) / 100 + (:Name( "Online k" ) - 1.5) / Ceiling( :Mean N ) + :Name( "Online k" ) *
+			Sqrt( :Name( "Online p-bar (%)" ) / 100 * (1 - :Name( "Online p-bar (%)" ) / 100) / Ceiling( :Mean N ) )
+		), EvalFormula
+	);
+	
+	/////Convert the UCLs to # of defects for the average lot size
+	New Column( "DEFsugg", numeric, continuous, formula( Ceiling( :UCLsuggested * Ceiling( :Mean N ) ) ), EvalFormula );
+	New Column( "DEFonline", numeric, continuous, formula( Ceiling( :UCLonline * Ceiling( :Mean N ) ) ), EvalFormula );
+	
+	/////CLCR formula
+	New Column( "CLCR",
+		numeric,
+		continuous,
+		formula(
+			(:DEFonline - :DEFsugg) / Sqrt( Ceiling( :Mean N ) * :Name( "Suggested p-bar (%)" ) / 100 * (1 - :Name( "Suggested p-bar (%)" ) / 100) )
+		), EvalFormula
+	);
+
+	///////p-bar and k status
+	New Column( "p-bar Status",
+		character,
+		formula( If( -1.5 <= :CLCR <= 1.5, "", :CLCR < -1.5, "Flag: p-bar too low", :CLCR > 1.5, "Flag: p-bar too high" ) ), EvalFormula
+	);
+	New Column( "k Status",
+		character,
+		formula( If( 1.5 <= :Online k <= 4.5, "", :Online k < 1.5, "Flag: k too low", :Online k > 4.5, "Flag: k too high" ) ), EvalFormula
+	);
+	
+	/////Control Limit Validity status - have to pass both p-bar status and k status to meet CLV
+	New Column( "Control Limit Validity",
+		numeric,
+		continuous,
+		formula(
+			If(
+				Is Missing( :Name( "Online k" ) ) | Is Missing( :Name( "Online p-bar (%)" ) ), .,
+				Is Missing( :Name( "p-bar Status" ) ) & Is Missing( :Name( "k Status" ) ), 1,
+				0
+			)
+		), EvalFormula
+	); 
+);
+
+
+
+/***	PNorm_Graph
+		Uses temp_dt and the lists of suggested p-bar, k, etc. to make the PNorm variability chart for the output window.
+***/
+PNorm_Graph = Expr(
+	PNorm_box = H List Box(
+		pnorm_var = temp_dt << Variability Chart(
+			Y( :Percent Norm Suggested ),
+			X( Eval( Facility_Col ), Eval( entity_Col ) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			Show Box Plots( 0 ),
+			Automatic Recalc( 1 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Percent Norm Suggested"},
+					"2",
+					ScaleBox,
+					{Add Ref Line( sugg_k_list[i], Dashed, {128, 128, 128}, "Suggested k" ), Add Ref Line(
+						online_k_list[i],
+						"Dashed",
+						"Red",
+						"Online k",
+						1
+					), Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Percent Norm Suggested"},
+					"Variability Chart",
+					FrameBox,
+					{Row Legend(
+						:Name( "OOC Legend Suggested" ),
+						Color( 1 ),
+						Color Theme( "Blue to Green to Red" ),
+						Marker( 1 ),
+						Marker Theme( "Standard" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				)
+			)
+		)
+	);
+	Report( pnorm_var )[Outline Box( 2 )] << Set Title( "Percent Norm vs Facility, Entity" );
+);
+
+
+/***	Percent_Graph
+		Uses temp_dt and the lists of suggested p-bar, k, etc. to make the Percent variability chart for the output window.
+***/
+Percent_Graph = Expr(
+	p_box = V List Box(
+		p_var = temp_dt << Variability Chart(
+			Y( :Name( "Lot p (%)" ) ),
+			X( Eval( Facility_Col ), Eval( entity_Col ) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			Show Box Plots( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Lot p (%)"},
+					"2",
+					ScaleBox,
+					{Add Ref Line( sugg_pbar_list[i], Dashed, {128, 128, 128}, "Suggested p-bar" ), Add Ref Line(
+						online_pbar_list[i],
+						"Dashed",
+						"Red",
+						"Online p-bar"
+					), Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Lot p (%)"},
+					"Variability Chart",
+					FrameBox,
+					{Row Legend(
+						:Name( "OOC Legend (Suggested)" ),
+						Color( 1 ),
+						Color Theme( "Blue to Green to Red" ),
+						Marker( 1 ),
+						Marker Theme( "Standard" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				)
+			)
+		)
+	);
+	Report( p_var )[Outline Box( 2 )] << Set Title( "Lot p (%) vs Facility, Entity" );
+);
+
+
+/***	Trend_Graph
+		Uses temp_dt creates a WW trend graph of Lot p(%).
+***/
+Trend_Graph = Expr(
+	If( /*if*/
+		trend_graph_ok == 1
+	, 
+		/*then*/
+		WW_box = V List Box(
+			ww_oneway = WW_dt << Oneway(
+				Y( :Name( "Lot p (%)" ) ),
+				X( :Name( "Year-Week" ) ),
+				Matching Column( :Name( "Facility-Entity" ) ),
+				Quantiles( 0 ),
+				Means( 0 ),
+				Means and Std Dev( 0 ),
+				Box Plots( 0 ),
+				Mean Lines( 0 ),
+				X Axis Proportional( 0 ),
+				Grand Mean( 1 ),
+				Points Jittered( 0 ),
+				Matching Lines( 1 ),
+				Matching Dotted Lines( 0 ),
+				Mean CI Lines( 0 ),
+				Mean Diamonds( 0 ),
+				Mean Error Bars( 0 ),
+				Std Dev Lines( 0 ),
+				Connect Means( 0 ),
+				Points Spread( 0 ),
+				Mean of Means( 0 ),
+				Histograms( 0 ),
+				SendToReport(
+					Dispatch( {}, "", NomAxisBox, {Rotated Tick Labels( 1 )} ),
+					Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+					Dispatch(
+						{},
+						"Oneway Plot",
+						FrameBox,
+						{Frame Size( 460, 250 ), Marker Size( 3 ), Grid Line Order( 3 ), Reference Line Order( 4 ),
+						Row Legend(
+							Name( "Facility-Entity" ),
+							Color( 1 ),
+							Color Theme( "JMP Default" ),
+							Marker( 1 ),
+							Marker Theme( "Solid" ),
+							Continuous Scale( 0 ),
+							Reverse Scale( 0 ),
+							Excluded Rows( 0 )
+						)}
+					)
+				)
+			)
+		);
+		Report( ww_oneway )[Outline Box( 1 )] << Set Title( "Lot p (%) vs Year-Week by Facility-Entity" );
+	
+	, 
+	/*else*/
+		WW_box = Text Box( "Work week trend charts are only made when run ID is a date column" )
+	)
+);
+/***************************************	End Expressions  ***************************************/
+
+
+
+
+/**********************Main Dialog Box*****************************/
+//Initialize variables
+::pbar = .;
+::k = 3;
+::p_k_Sigma = 1 - Normal Distribution( k );
+::trend_graph_ok = .;
+
+//Dialog Box
+diag_result = Column Dialog( Title( "Input" ), 
+	Facility_Col = ColList( "Facility", Max Col( 1 ), MinCol( 1 ), DataType( character ), Columns( :Facility ) ),
+	entity_Col = ColList( "Entity", Max Col( 1 ), MinCol( 1 ), DataType( character ), Columns( :Entity ) ),
+	Monitor_Col = ColList( "Monitor Set", Max Col( 1 ), DataType( character ), Columns( :MONITOR_SET_NAME ) ),
+	Parameter_Col = ColList( "Parameter", Max Col( 1 ), MinCol( 1 ), DataType( character ), Columns( :Loss Code ) ),
+	N_Fails_Col = ColList( "Number of Defects (Required)", Max Col( 1 ), MinCol( 1 ), DataType( Numeric ), Columns( :Data ) ),
+	N_Units_Col = ColList( "Sample Size (Required)", Max Col( 1 ), MinCol( 1 ), DataType( Numeric ), Columns( :OLDQTY1 ) ),
+	Run_Id_Col = ColList( "Order By (Required)", Max Col( 1 ), MinCol( 1 ), Columns( :SITE_WORK_WEEK ) ),
+	VList( Add_On_Limits = RadioButtons( {"Get Online Limits from ATM MRF", "Get Online Limits from Custom File", "No Online Limits"} ) ), //end vlist,
+);
+
+//Extract information from Dialog Box
+diag_result2 = Remove( diag_result );
+Eval List( diag_result2 );
+button1 = diag_result["Button"];
+::run_col_type = Column( dt, Run_Id_Col ) << Get Modeling Type;
+
+//User message warning of long processing times
+_Caption_Window = New Window("Message", 
+	HListBox(
+		Busy Light( << automatic ),
+		Text Box("Processing. The script will take a while to run if file has a large number of parameters.")
+	)
+);
+
+
+/*****************************************Prep Data Table for processing**********************************/
+dt << Select Excluded << Invert Row Selection;	
+
+If( button1 == 1, 
+	//Subset down to just non-excluded rows and sort by monitor_set, parameter, facility and entity
+	::data_table = dt << Subset(
+		columns( Monitor_Col[1], Parameter_Col[1], Facility_Col[1], Entity_Col[1], N_Units_Col[1], N_Fails_Col[1], Run_Id_Col[1] ),
+		invisible,
+		Output Table( Char( dt << GetName ) || "_" || "(Copy)" )
+	);
+	data_table << Sort(
+		By( Monitor_Col[1], Parameter_Col[1], Facility_Col[1], Entity_Col[1] ),
+		Order( Ascending, Ascending, Ascending, Ascending ),
+		Replace Table
+	);
+	dt << Minimize Window;
+	
+	//Find the number of parameters and the average lot size for CLCR calculation
+	Summarize( data_table, params = By( Eval( Monitor_Col ), Eval( Parameter_Col ) ), Mean_N = Mean( Eval( N_Units_Col[1] ) ) );
+	::num_param = N Items( params[2] );
+
+	//Add the lot p and Facility-Entity columns for later use in graphs
+	data_table << New Column( "Lot p (%)",
+		numeric,
+		continuous,
+		formula( 100 * As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) ),
+		eval formula
+	);
+	data_table << New Column( "Facility-Entity",
+		character,
+		formula( As Column( Eval( Facility_Col ) ) || "-" || As Column( Eval( Entity_Col ) ) ),
+		eval formula
+	);
+	
+	//Creating a DATE column in the format of YYYY-WW for use in the trend graphs.
+	If( /*If1*/
+		run_col_type == "Continuous" & Col Maximum( Column( data_table, Run_Id_Col ) ) > 2713996800, 
+		/*Then1*/
+			data_table << New Column( "Week", numeric, continuous, formula( Week Of Year( As Column( Eval( Run_Id_Col ) ) ) ), eval formula );
+			data_table << New Column( "Year", numeric, continuous, formula( Year( As Column( Eval( Run_Id_Col ) ) ) ), eval formula );
+			data_table << New Column( "Year-Week",
+				character,
+				formula( If( Length( Char( :Week ) ) == 1, Char( :Year ) || "-0" || Char( :Week ), Char( :Year ) || "-" || Char( :Week ) ) ),
+				eval formula
+			);
+			Column( data_table, "Year-Week" ) << Delete Formula;,
+		trend_graph_ok = 1;
+		/*If2*/
+		run_col_type == "Continuous" & Length( Char( Col Maximum( Column( data_table, Run_Id_Col ) ) ) ) == 6 & 20 <=
+		Num( Left( Char( Col Maximum( Column( data_table, Run_Id_Col ) ) ), 2 ) ) < 21;, 
+		/*Then2*/
+			data_table << New Column( "Year-Week",
+				character,
+				formula( Left( Char( As Column( Eval( Run_Id_Col ) ) ), 4 ) || "-" || Right( Char( As Column( Eval( Run_Id_Col ) ) ), 2 ) )
+			);
+			trend_graph_ok = 1;, 
+		/*else*/
+		trend_graph_ok = 0
+	);
+	
+	//Begin the pbar_dt which will eventually hold the summary of results for every entity
+	pbar_dt = data_table << Summary(
+		Group( Monitor_Col[1], Parameter_Col[1], Facility_Col[1], Entity_Col[1] ),
+		statistics column name format( "column" ),
+		invisible,
+		Link to original data table( 0 ),
+		Output Table( "pbar_dt" )
+	);
+	//Adding the ID column to use as an index for the for loops
+	pbar_dt << New Column( "ID", numeric, formula( Row() ), EvalFormula );
+	
+	//Adding the ID index column back to data_table
+	data_table << Update(
+		With( pbar_dt ),
+		Match Columns(
+			Monitor_Col[1] = Monitor_Col[1],
+			Parameter_Col[1] = Parameter_Col[1],
+			Facility_Col[1] = Facility_Col[1],
+			Entity_Col[1] = entity_Col[1]
+		),
+		Add Columns from Update table( :ID )
+	);
+	
+);//end if button==1 data table prep statement
+	
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//	Main iteration processing section
+//	Iterates until find p-bar for each parameter/tool combination.
+//  Then fills in the pbar table with iterations and "clean" data to use in matching section below.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
+For( j = 1, j <= N Rows( pbar_dt ), j++,
+	row_vector = data_table << GetRowsWhere( :ID == j );
+	::N_OOC_New = 100;
+	::N_OOC_Total = 0;
+	::Iteration = 0;
+	::pbar = .;
+	::N_Lots = N Rows( row_vector );
+	OOC_row_vector = [];
+	N_Units_Vals = Column( data_table, N_Units_Col[1] )[row_vector];
+	N_Fails_Vals = Column( data_table, N_Fails_Col[1] )[row_vector];
+		/*iterates the p-bar calculation until no new OOC's for each measurement_set/facility/entity combination*/
+	While( N_OOC_New != 0,
+		Iteration = Iteration + 1;
+		N_Units_Vals = Matrix( Remove( As List( N_Units_Vals ), As List( OOC_row_vector ) ) );
+		N_Fails_Vals = Matrix( Remove( As List( N_Fails_Vals ), As List( OOC_row_vector ) ) );
+		pbar = (Sum( N_Fails_Vals ) / Sum( N_Units_Vals )) * 100;
+		::Limit_Matrix = J( N Row( N_Units_Vals ), 1, 0 );
+		For( i = 1, i <= N Row( N_Units_Vals ), i++,
+			Limit_Matrix[i, 1] = exact_bin_OOC( p_k_Sigma, pbar, N_Units_Vals[i], N_Fails_Vals[i] )
+		);//end for
+		N_OOC_New = Sum( Limit_Matrix[0, 1] );
+		N_OOC_Total = N_OOC_Total + N_OOC_New;
+		If( Iteration == 1 & j == 1,
+			temp = Transpose( Matrix( {j/*j=entity*/, Iteration, pbar, N_OOC_Total, N_Lots, Sum( N_Units_Vals ), Sum( N_Fails_Vals )} ) ),
+			temp = temp |/ Transpose( Matrix( {j, Iteration, pbar, N_OOC_Total, N_Lots, Sum( N_Units_Vals ), Sum( N_Fails_Vals )} ) );
+			Wait( 0 );
+		);//end if
+		OOC_row_vector = Loc( Matrix( Limit_Matrix[0, 1] ) );//Finds all the OOC rows in the Limit_Matrix
+	);//end while
+);//end entity for loop
+	
+dt_summary = As Table( temp );
+Column( dt_summary, 1 ) << set name( "ID" );
+Column( dt_summary, 2 ) << set name( "# Iterations" );
+Column( dt_summary, 3 ) << set name( "p-bar (%)" );
+Column( dt_summary, 4 ) << set name( "# OOC (Iterations)" );
+Column( dt_summary, 5 ) << set name( "# Lots" );
+Column( dt_summary, 6 ) << set name( "Clean n units" );
+Column( dt_summary, 7 ) << set name( "Clean n fails" );
+
+	// Create Final p-bar results table
+pbar_dt << Update(
+	With( dt_summary ),
+	Match Columns( :ID = :ID ),
+	Add Columns from Update table(
+		:Name( "# Iterations" ),
+		:Name( "p-bar (%)" ),
+		:Name( "# OOC (Iterations)" ),
+		:Name( "# Lots" ),
+		:Name( "Clean n units" ),
+		:Name( "Clean n fails" )
+	),
+
+);
+	
+pbar_dt << New Column( "% OOC (Iterations)", numeric, formula( :Name( "# OOC (Iterations)" ) / :Name( "# Lots" ) * 100 ) );
+Column( pbar_dt, "p-bar (%)" ) << Format( "Fixed Dec", 6, 4 );
+Column( pbar_dt, "% OOC (Iterations)" ) << Format( "Fixed Dec", 6, 2 );
+pbar_dt << Delete Columns( "N Rows" );
+pbar_dt << Clear Select;
+Close( dt_summary, NoSave );
+	
+
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Entity matching analysis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Since now have "clean" data, perform the matching between sites/Entities
+OA_result = [];
+OA_decision = {};
+bic_def_res = [];
+bic_n_res = [];
+bic_p_res = [];
+bic_rows_res = [];
+
+//Sort parameters in order of p-bar (low to high) for BIC matching
+p_name = "p-bar (%)";
+pbar_dt() << Sort( By( Monitor_Col[1], Parameter_Col[1], Column( pbar_dt, p_name ) ), Order( Ascending ), replace table( 1 ) );
+//Add parameter_ID to match other tables used in script
+pbar_dt() << New Column( "Parameter_ID",
+	Numeric,
+	Continuous,
+	Formula(
+		If(
+			Row() == 1, 1,
+			Lag( As Column( Eval( Monitor_Col ) ), 1 ) == As Column( Eval( Monitor_Col ) ) & Lag( As Column( Eval( Parameter_Col ) ), 1 ) ==
+			As Column( Eval( Parameter_Col ) ), Lag( :Parameter_ID, 1 ),
+			Lag( :Parameter_ID, 1 ) + 1
+		)
+	), EvalFormula
+);
+	
+////////////////////////////////////////////
+For( i = 1, i <= N Items( params[2] ), i++, 
+	parm_rows = pbar_dt << Get Rows Where( :Parameter_ID == i );
+	n_def = Column( pbar_dt, "Clean n fails" )[parm_rows];
+	n_tot = Column( pbar_dt, "Clean n units" )[parm_rows];
+
+	/*check to see if all entities have zero defects*/
+	OA_Chi2 = chi2_fcn( n_def, n_tot );
+	OA_result = OA_result |/ OA_Chi2;
+
+	If(
+		OA_Chi2[1, 3] == 0,
+			Insert Into( OA_decision, "Matched (1 Entity)" );
+			bic_rows = [1];,
+		Sum( n_def ) == 0,
+			Insert Into( OA_decision, "Matched" );
+			bic_rows = (1 :: N Rows( parm_rows ));,
+		OA_Chi2[1, 2] >= 0.05,
+			Insert Into( OA_decision, "Matched" );
+			bic_rows = (1 :: N Rows( parm_rows ));, //Check
+		OA_Chi2[1, 2] < 0.05,
+			Insert Into( OA_decision, "Not Matched" );
+			bic_rows = bic_fcn( n_def, n_tot );,
+		Insert Into( OA_decision, "Error")
+	);
+	
+	bic_def = Sum( n_def[bic_rows] );
+	bic_n = Sum( n_tot[bic_rows] );
+	bic_p = 100 * bic_def / bic_n;
+	bic_def_res = bic_def_res |/ bic_def;
+	bic_n_res = bic_n_res |/ bic_n;
+	bic_p_res = bic_p_res |/ bic_p;
+	bic_rows_res = bic_rows_res |/ parm_rows[bic_rows];
+);
+
+//Add matching results to pbar_dt table
+Current Data Table( pbar_dt );
+BIC_name = "Matching (BIC) Results";
+pbar_dt << New Column( BIC_name, character );
+Column( pbar_dt, BIC_name )[bic_rows_res] = "BIC";
+
+//Format match_dt table
+match_dt = As Table( OA_result );
+match_dt << Set Name( "match_dt" );
+Column( match_dt, 1 ) << set name( "ChiSq" );
+Column( match_dt, 2 ) << set name( "ChiSq p_value" );
+Column( match_dt, 3 ) << set name( "ChiSq DF" );
+match_dt << New Column( "MONITOR_SET", Character, SetValues( params[1] ) );
+match_dt << New Column( "Parameter", Character, SetValues( params[2] ) );
+match_dt << New Column( "Matching Status", Character, SetValues( OA_decision ) );
+match_dt << New Column( "BIC p_bar", numeric, SetValues( bic_p_res ) );
+match_dt << New Column( "Suggested p-bar (%)", numeric, Format( "Fixed Dec", 8, 4 ), formula( If( :BIC p_bar == 0, 0.0001, :BIC p_bar ) ) );
+match_dt << New Column( "Suggested k", numeric, formula( If( :BIC p_bar == 0, 2.5, 3 ) ) );
+match_dt << New Column( "Mean N", numeric, continuous, hide( 1 ), Set Values( Mean_N ) );
+match_dt << Minimize Window;
+
+
+
+/********************************  Adding the Online Limits ******************************/
+If(	/*If #1: MRF online limits*/
+	Add_On_Limits == 1, 
+	/*Then #1*/
+		MRF_dt = Open( "http://mfgreports.ch.intel.com/pcsportal/Copied%20PCS%20Lookup%20Tables/SPC++_Master_Reference_File_Combo.jmp" );
+		non_PNORM = MRF_dt << GetRowsWhere( :Chart Type != "PERCENT_NORM" );
+		MRF_dt << DeleteRows( non_PNORM );
+		match_dt << Update(
+			With( MRF_dt ),
+			Match Columns( :MONITOR_SET = :Monitor Set, :Parameter = :Measurement Set ),
+			Add Columns from Update table( :Area, :Ref LSPECLMT, :Ref UCL )
+		);
+		Column( match_dt, "Ref UCL" ) << set name( "Online k" );
+		Column( match_dt, "Ref LSPECLMT" ) << set name( "Online p-bar (%)" );
+		Close( MRF_dt, NoSave );, 
+	
+	/*If #2: Custom limits file*/
+	Add_On_Limits == 2, 
+	/*Then #2*/
+		limit_dt = Open( Pick File( "Select JMP File with online limits" ) );
+		online_diag = Column Dialog(
+			Title( "Reference File Input Columns" ),
+			On_Area_Col = ColList( "Area Column", Max Col( 1 ), Min Col( 1 ), DataType( character ), Columns( :Area ) ),
+			On_Monitor_Col = ColList( "Monitor Set Column", Max Col( 1 ), Min Col( 1 ), DataType( character ), Columns( :Monitor Set ) ),
+			On_Parameter_Col = ColList( "Parameter Column", Max Col( 1 ), Min Col( 1 ), DataType( charcter ), Columns( :Loss Code ) ),
+			On_k_Col = ColList( "Online k", Max Col( 1 ), Min Col( 1 ), DataType( Numeric ), Columns( :Online k ) ),
+			On_PBAR_Col = ColList( "Online p-bar (%)", Max Col( 1 ), Min Col( 1 ), DataType( Numeric ), Columns( :Online pbar ) )
+		);
+		online_diag2 = Remove( online_diag );
+		Eval List( online_diag2 );
+		match_dt << Update(
+			With( limit_dt ),
+			Match Columns( :MONITOR_SET = On_Monitor_Col[1], :Parameter = On_Parameter_Col[1] ),
+			Add Columns from Update table( On_Area_Col[1], On_PBAR_Col[1], On_k_Col[1] )
+		);
+		Column( match_dt, On_Area_Col[1] ) << Set Name( "Area" );
+		Column( match_dt, On_k_Col[1] ) << Set Name( "Online k" );
+		Column( match_dt, On_PBAR_Col[1] ) << Set Name( "Online p-bar (%)" );
+		Close( limit_dt, NoSave );, 
+	
+	/*If #3: No Online Limits*/
+	Add_On_Limits == 3, 
+	/*Then #2*/
+		match_dt << New Column( "Area", character );
+		match_dt << New Column( "Online k", numeric );
+		match_dt << New Column( "Online p-bar (%)", numeric );
+);//end if
+
+match_dt << Sort(
+	By( :Area, :MONITOR_SET, :Parameter ),
+	Order( Ascending, Ascending, Ascending ),
+	Replace Table
+);
+Wait( 0 );
+match_dt << New Column( "Parameter_ID", numeric, formula( Row() ), EvalFormula ); //used to match parameter_ID in other data tables.
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// Compute pNorm values (online & suggested) and %OOC for all parameters
+//////////////////////////////////////////////////////////////////////////////////
+
+
+//Adding suggested p-bars to data_table
+data_table << Update(
+	With( match_dt ),
+	Match Columns( Monitor_Col[1] = :MONITOR_SET, Parameter_Col[1] = :Parameter ),
+	Add Columns from Update table(
+		:Name( "Suggested p-bar (%)" ),
+		:Name( "Suggested k" ),
+		:Name( "Online p-bar (%)" ),
+		:Name( "Online k" ),
+		:Name( "Parameter_ID" ),
+		:Name( "Area" )
+	)
+);
+
+//Adds percent norm, ooc indicator column, and colors to the data table.
+data_table << New Column( "Percent Norm Suggested",
+	numeric,
+	formula(
+		(As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) - (:Name( "Suggested k" ) - 1.5) / As Column( Eval( N_Units_Col ) ) -
+		:Name( "Suggested p-bar (%)" ) / 100) / Root(
+			((:Name( "Suggested p-bar (%)" ) / 100) * (1 - :Name( "Suggested p-bar (%)" ) / 100)) / As Column( Eval( N_Units_Col ) )
+		)
+	),
+	EvalFormula
+);
+
+data_table << New Column( "% OOC (Suggested)",
+	numeric,
+	formula( If( :Name( "Percent Norm Suggested" ) > :Name( "Suggested k" ), 100, 0 ) ),
+	eval formula
+);
+data_table << New Column( "OOC Legend (Suggested)",
+	character,
+	formula( Match( :Name( "% OOC (Suggested)" ), 0, "In Control", 100, "Out of Control", Empty() ) ),
+	eval formula
+);
+
+//Computing online p-norm columns
+data_table << New Column( "Percent Norm Online",
+	numeric,
+	formula(
+		(As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) - (:Name( "Online k" ) - 1.5) / As Column( Eval( N_Units_Col ) ) -
+		:Name( "Online p-bar (%)" ) / 100) / Root(
+			((:Name( "Online p-bar (%)" ) / 100) * (1 - :Name( "Online p-bar (%)" ) / 100)) / As Column( Eval( N_Units_Col ) )
+		)
+	),
+	EvalFormula
+);
+data_table << New Column( "% OOC (Online)", numeric, formula( If( :Name( "Percent Norm Online" ) > :Name( "Online k" ), 100, 0 ) ), eval formula );
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// Compute Flagging Report Summary for output
+//////////////////////////////////////////////////////////////////////////////////
+
+//////////VF level OOC Rollup
+Current Data Table( data_table );
+Summarize(
+	data_table,
+	params = By( Eval( Monitor_Col ), Eval( Parameter_Col ), Eval( Facility_Col ), Eval( entity_Col ) ),
+	Online_OOC = Mean( :Name( "% OOC (Online)" ) )
+);
+Has_No_Online = Is Missing( Online_OOC );
+OOC_OK = Online_OOC < 5;
+OOC_percent = Round( Sum( OOC_OK ) / (N Rows( OOC_OK ) - Sum( Has_No_Online )) * 100, 2 );
+If( Sum( Has_No_Online ) == NRows( Online_OOC ), VF_OOC = "No Online Limits",
+	VF_OOC = Char( OOC_percent ) || "% (" || Char( Sum( OOC_OK ) ) || "/" || Char( N Rows( OOC_OK ) - Sum( Has_No_Online ) ) || ")";
+);
+
+//////////VF Control Limit Validity Rollup
+CurrentDataTable( match_dt );
+CLCR_Expr;
+  	//Final VF Rollup number for output
+CLV_OK = Column( match_dt, "Control Limit Validity" ) << Get Values;
+Has_No_On_CLV = Is Missing( CLV_OK );
+CLV_percent = Round( Sum( CLV_OK ) / (N Rows( CLV_OK ) - Sum( Has_No_On_CLV )) * 100, 2 );
+If( Sum( Has_No_On_CLV ) == NRows( CLV_OK ), VF_CLV = "No Online Limits",
+	VF_CLV = Char( CLV_percent ) || "% (" || Char( Sum( CLV_OK ) ) || "/" || Char( N Rows( CLV_OK ) - Sum( Has_No_On_CLV ) ) || ")";
+);
+	
+//////////VF Matching Rollup
+MATCH_results = Column( pbar_dt, "Matching (BIC) Results" ) << Get Values;
+MATCH_OK = Loc( MATCH_results, "BIC" );
+MATCH_percent = Round( N Rows( MATCH_OK ) / N Items( MATCH_results ) * 100, 2 );
+VF_MATCH = Char( MATCH_percent ) || "% (" || Char( N Rows( MATCH_OK ) ) || "/" || Char( N Items( MATCH_results ) ) || ")";
+
+
+
+
+///////////////////////////////////////////////
+//           Facility level rollups          //
+///////////////////////////////////////////////
+
+//////////Facility Level OOC Rollup
+Current Data Table( data_table );
+Summarize( data_table, num_facility = By( Eval( Facility_Col ) ) );
+VF_OOC_list = {};
+For( i = 1, i <= N Items( num_facility ), i++,
+	facility_rows = Loc( params[3], num_facility[i] );
+	facility_Online_OOC = Online_OOC[facility_rows];
+	facility_Has_No_Online = Is Missing( facility_Online_OOC );
+	facility_OOC_OK = facility_Online_OOC < 5;
+	facility_OOC_percent = Round( Sum( facility_OOC_OK ) / (N Rows( facility_OOC_OK ) - Sum( facility_Has_No_Online )) * 100, 2 );
+	If( Sum( facility_Has_No_Online ) == NRows( facility_Online_OOC ),
+		Insert Into( VF_OOC_list, "No Online Limits"),
+		Insert Into(
+			VF_OOC_list,
+			Char( facility_OOC_percent ) || "% (" || Char( Sum( facility_OOC_OK ) ) || "/" || 
+			Char( N Rows( facility_OOC_OK ) - Sum( facility_Has_No_Online ) ) || ")"
+		);
+	);//end if
+);//end for loop
+
+
+
+//////////Facility Level Matching Rollup
+Current Data Table( pbar_dt );
+Summarize( pbar_dt, byMATCH = By( Eval( Monitor_Col ), Eval( Parameter_Col ), Eval( Facility_Col ), Eval( entity_Col ), :Name( "Matching (BIC) Results" ) ) );
+VF_MATCH_list = {};
+For( i = 1, i <= N Items( num_facility ), i++,
+	facility_rows = Loc( byMATCH[3], num_facility[i] );
+	facility_MATCH_results = byMATCH[5][facility_rows];
+	facility_MATCH_OK = Loc( facility_MATCH_results, "BIC" );
+	facility_MATCH_percent = Round( N Rows( facility_MATCH_OK ) / N Items( facility_MATCH_results ) * 100, 2 );
+	Insert Into(
+		VF_MATCH_list,
+		Char( facility_MATCH_percent ) || "% (" || Char( N Rows( facility_MATCH_OK ) ) || "/" || Char( N Items( facility_MATCH_results ) ) || ")"
+	);
+);//end for loop
+
+
+
+//////////Facility Level Control Limit Validity Rollup
+facility_pbar_dt = pbar_dt << Summary(
+	Group( Monitor_Col[1], Parameter_Col[1], Facility_Col[1] ),
+	Sum( :Clean n fails ),
+	Sum( :Clean n units ),
+	Freq( "None" ),
+	Weight( "None" ),
+	statistics column name format( "column" ),
+	Link to original data table( 0 ),
+	output table name( "facility_pbar_dt" )
+);
+facility_pbar_dt << Update(
+	With( match_dt ),
+	Match Columns( Monitor_Col[1] = :MONITOR_SET, Parameter_Col[1] = :Parameter ),
+	Add Columns from Update table( :Mean N, :Name( "Online p-bar (%)" ), :Online k )
+);
+facility_pbar_dt << New Column( "Suggested p-bar (%)",
+	numeric,
+	Format( "Fixed Dec", 4 ),
+	formula( If( :Clean n fails / :Clean n units * 100 > 0, :Clean n fails / :Clean n units * 100, 0.0001 ) ), EvalFormula
+);
+facility_pbar_dt << New Column( "Suggested k", numeric, formula( If( :Clean n fails / :Clean n units * 100 > 0, 3, 2.5 ) ), EvalFormula );
+
+
+//Final Facility Level Rollup number for Control Limit Validity
+Current Data Table( facility_pbar_dt );
+CLCR_Expr; wait(0);
+Summarize( facility_pbar_dt, byCLV = By( Eval( Monitor_Col ), Eval( Parameter_Col ), Eval( Facility_Col ), :Control Limit Validity ) );
+VF_CLV_list = {};
+For( i = 1, i <= N Items( num_facility ), i++,
+	facility_rows = Loc( byCLV[3], num_facility[i] );
+	facility_CLV_results = byCLV[4][facility_rows];
+	facility_Has_No_On_CLV = Loc( facility_CLV_results, ".");
+	facility_CLV_OK = Loc( facility_CLV_results, "1" );
+	facility_CLV_percent = Round( N Rows( facility_CLV_OK ) / ( N Items( facility_CLV_results ) - NRows( facility_Has_No_On_CLV ) ) * 100, 2 );
+	If( NRows( facility_Has_No_On_CLV ) == NItems( facility_CLV_results ),
+		Insert Into( VF_CLV_list, "No Online Limits" ),
+		Insert Into(
+			VF_CLV_list,
+			Char( facility_CLV_percent ) || "% (" || Char( N Rows( facility_CLV_OK ) ) || "/" || 
+			Char( N Items( facility_CLV_results ) - NRows( facility_Has_No_On_CLV ) ) || ")"
+		);
+	);//end If
+);//end for
+
+///////////////////////////////////////////////
+//       FLAGGING report rollup table.       //
+///////////////////////////////////////////////
+results_list = {VF_OOC, VF_CLV, VF_MATCH};
+Rollup_dt = New Table( "Flagging Report Rollup",
+	Add Rows( 3 ),
+	New Column( "PCS Metric", character, nominal, Set Values( {"OOC Health", "Control Limit Validity", "Matching"} ) ),
+	New Column( "Rollup Goal",
+		character,
+		nominal,
+		Set Values(
+			{"100% of Chart*Entities <5% OOC", "100% of Charts have valid control limits", "100% of Entities*Parameters with no matching flags"}
+		)
+	),
+	New Column( "VF", character, nominal, Set Values( Eval List( results_list ) ) )
+);
+
+//Control Limit Validity Color Formatting
+Rollup_dt << ClearSelect;
+If(
+	Num( Word( 1, Column( Rollup_dt, 3 )[2], "%" ) ) < 90,
+		Rollup_dt << SelectRows( 2 );
+		Column( Rollup_dt, 3 ) << Color Cells( "Light Red" );,
+	Num( Word( 1, Column( Rollup_dt, 3 )[2], "%" ) ) < 100,
+		Rollup_dt << SelectRows( 2 );
+		Column( Rollup_dt, 3 ) << Color Cells( "Light Yellow" );
+);
+Wait( 0 );
+
+
+Rollup_dt << Add Multiple Columns( "Facility", N Items( num_facility ), Character );
+For( i = 1, i <= N Items( num_facility ), i++,
+	Column( Rollup_dt, 3 + i ) << set name( num_facility[i] );
+	results_list = {VF_OOC_list[i], VF_CLV_list[i], VF_MATCH_list[i]};
+	Column( Rollup_dt, 3 + i ) << Set Values( Eval List( results_list ) );
+	//Site OOC Color formatting
+	Rollup_dt << ClearSelect;
+	If(
+		Num( Word( 1, Column( Rollup_dt, 3 + i )[1], "%" ) ) < 90,
+			Rollup_dt << SelectRows( 1 );
+			Column( Rollup_dt, 3 + i ) << Color Cells( "Light Red" );,
+		Num( Word( 1, Column( Rollup_dt, 3 + i )[1], "%" ) ) < 100,
+			Rollup_dt << SelectRows( 1 );
+			Column( Rollup_dt, 3 + i ) << Color Cells( "Light Yellow" );
+	);
+	//Site Matching Color formatting
+	Rollup_dt << ClearSelect;
+	If(
+		Num( Word( 1, Column( Rollup_dt, 3 + i )[3], "%" ) ) < 90,
+			Rollup_dt << SelectRows( 3 );
+			Column( Rollup_dt, 3 + i ) << Color Cells( "Light Red" );,
+		Num( Word( 1, Column( Rollup_dt, 3 + i )[3], "%" ) ) < 100,
+			Rollup_dt << SelectRows( 3 );
+			Column( Rollup_dt, 3 + i ) << Color Cells( "Light Yellow" );
+	);
+);
+
+Rollup_dt << ClearSelect;
+Rollup_Box_temp = Rollup_dt << Get As Report;
+Rollup_Box = Rollup_Box_temp[Table Box( 1 )];
+Rollup_Box << Set Column Borders( 1 ) << Set Row Borders( 1 ) << Set Scrollable( 0, 0 );
+
+
+
+
+///////////////////////////////////////////////////
+//        Formatting Parameter Summary           //
+///////////////////////////////////////////////////
+param_OOC_dt = data_table << Summary(
+	Group( :Area, Monitor_Col[1], Parameter_Col[1], Facility_Col[1], entity_Col[1] ),
+	Mean( :Name( "% OOC (Suggested)" ) ),
+	Mean( :Name( "% OOC (Online)" ) ),
+	statistics column name format( "column" ),
+	Link to original data table( 0 ),
+	output table name( "param_OOC_dt" )
+);
+pbar_dt << Update(
+	With( param_OOC_dt ),
+	Match Columns(
+		Monitor_Col[1] = Monitor_Col[1],
+		Parameter_Col[1] = Parameter_Col[1],
+		Facility_Col[1] = Facility_Col[1],
+		entity_Col[1] = entity_Col[1]
+	),
+	Add Columns from Update table( :Area, :Name( "% OOC (Suggested)" ), :Name( "% OOC (Online)" ) )
+);
+Column(pbar_dt, "ID") << Delete Formula;
+pbar_dt << Sort(
+	By( :Area, Monitor_Col[1], Parameter_Col[1] ),
+	Order( Ascending, Ascending, Ascending ),
+	Replace Table
+);
+
+//Create OOC status for every individual parameter
+param_OOC_dt << New Column( "OOC OK", numeric, formula( If( :Name( "% OOC (Online)" ) > 5, 0, 1 ) ) );
+param_OOC_dt2 = param_OOC_dt << Summary(
+	Group( Monitor_Col[1], Parameter_Col[1] ),
+	Sum( :OOC OK ),
+	Freq( "None" ),
+	Weight( "None" ),
+	statistics column name format( "column" ),
+	Link to original data table( 0 ),
+	output table name( "param_OOC_dt2" )
+);
+param_OOC_dt2 << New Column( "OOC", numeric, Format( "Fixed Dec", 2 ), formula( :OOC OK / :N Rows * 100 ) );
+param_OOC_dt2 << New Column( "OOC Status",
+	character,
+	formula( If( Is Missing( :OOC ), "N/A", Char( Round( :OOC, 2 ) ) || "% (" || Char( :OOC OK ) || "/" || Char( :N Rows ) || ")" ) )
+);
+
+match_dt << Update(
+	With( param_OOC_dt2 ),
+	Match Columns( :MONITOR_SET = Monitor_Col[1], :Parameter = Parameter_Col[1] ),
+	Add Columns from Update table( :OOC Status )
+);
+Close( param_OOC_dt2, NoSave );
+Close( param_OOC_dt, NoSave );
+
+//Formatting match_dt table
+match_dt << Move Selected Columns( {"Area"}, To First );
+match_dt << Move Selected Columns( {"MONITOR_SET"}, After( "Area" ) );
+match_dt << Move Selected Columns( {"Parameter"}, After( "MONITOR_SET" ) );
+match_dt << Move Selected Columns( {"Online p-bar (%)"}, After( "Parameter" ) );
+match_dt << Move Selected Columns( {"Online k"}, After( "Online p-bar (%)" ) );
+match_dt << Move Selected Columns( {"Suggested p-bar (%)"}, After( "Online k" ) );
+match_dt << Move Selected Columns( {"Suggested k"}, After( "Suggested p-bar (%)" ) );
+match_dt << Move Selected Columns( {"OOC Status"}, After( "Suggested k" ) );
+match_dt << Move Selected Columns( {"p-bar Status"}, After( "OOC Status" ) );
+match_dt << Move Selected Columns( {"k Status"}, After( "p-bar Status" ) );
+match_dt << Move Selected Columns( {"Matching Status"}, After( "k Status" ) );
+
+Column( match_dt, "Online k" ) << Set Field Width( 5 );
+Column( match_dt, "Suggested k" ) << Set Field Width( 5 );
+Column( match_dt, "Online p-bar (%)" ) << Set Field Width( 6 );
+Column( match_dt, "Suggested p-bar (%)" ) << Set Field Width( 6 );
+
+//Parameter Summary Color Formatting
+match_dt << Clear Select;
+match_dt << Clear Column Selection();
+Current Data Table( match_dt );
+
+match_dt << ClearSelect;
+red_list = match_dt << GetRowsWhere( !Is Missing( :Name( "p-bar Status" ) ) );
+Wait( 0 );
+If( N Rows( red_list ) != 0,
+	match_dt << SelectRows( red_list );
+	:Name( "p-bar Status" ) << Color Cells( "Light Red" );
+);
+
+match_dt << ClearSelect;
+red_list = match_dt << GetRowsWhere( !Is Missing( :Name( "k Status" ) ) );
+If( N Rows( red_list ) != 0,
+	match_dt << SelectRows( red_list );
+	:Name( "k Status" ) << Color Cells( "Light Red" );
+);
+
+match_dt << ClearSelect;
+red_list = match_dt << GetRowsWhere( :Name( "Matching Status" ) == "Not Matched" );
+If( N Rows( red_list ) != 0,
+	match_dt << SelectRows( red_list );
+	:Name( "Matching Status" ) << Color Cells( "Light Red" );
+);
+
+match_dt << New Column( "OOC_Color", numeric, formula( Num( Word( 1, :OOC Status, "%" ) ) ) );
+Wait( 0 );
+
+match_dt << ClearSelect;
+red_list = match_dt << GetRowsWhere( :Name( "OOC_Color" ) < 90 );
+If( N Rows( red_list ) != 0,
+	match_dt << SelectRows( red_list );
+	:Name( "OOC Status" ) << Color Cells( "Light Red" );
+);
+match_dt << ClearSelect;
+yellow_list = match_dt << GetRowsWhere( 90 <= :Name( "OOC_Color" ) < 100 );
+If( N Rows( yellow_list ) != 0,
+	match_dt << SelectRows( yellow_list );
+	:Name( "OOC Status" ) << Color Cells( "Light Yellow" );
+);
+
+
+//Selecting needed columns out of match_dt for Parameter Level Summary Box
+Summarize( match_dt, byArea = By( :Area ) );
+
+match_dt << ClearSelect;
+For( i = 1, i <= 11, i++,
+	Column( match_dt, i ) << Set Selected( 1 )
+);
+
+//making final parameter summary box for output
+Parameter_Box = V List Box();
+For( i=1, i <= NItems( byArea ), i++,
+	match_dt << ClearSelect;	
+	AreaRows = match_dt << Get Rows Where( :Area == byArea[i] );
+	match_dt << SelectRows( AreaRows );
+	Parameter_Box_temp = match_dt << Get As Report;
+	Param_Box = Parameter_Box_temp[Table Box(1)];
+	Param_Box << Set Column Borders( 1 ) << Set Row Borders( 1 ) << Set Scrollable( 0, 0 );
+	Parameter_Box << Append( OutlineBox( "Area = "||byArea[i], Param_Box, <<Close));	
+);
+pbar_dt << Move Selected Columns( {"# Lots"}, After( "p-bar (%)" ) );
+pbar_dt << Move Selected Columns( {"% OOC (Suggested)"}, After( "# Lots" ) );
+pbar_dt << Move Selected Columns( {"% OOC (Online)"}, After( "% OOC (Suggested)" ) );
+Column( pbar_dt, "% OOC (Suggested)" ) << Format( "Fixed Dec", 6, 2 );
+Column( pbar_dt, "% OOC (Online)" ) << Format( "Fixed Dec", 6, 2 );
+Column( pbar_dt, "# Iterations" ) << Set Field Width( 5 );
+Column( pbar_dt, "# Lots" ) << Set Field Width( 6 );
+
+
+//Begin making output window
+_Caption_Window << Close Window;
+NW = New Window( "output",
+	V List Box( 
+		Outline Box( "Flagging Report Rollup", Rollup_Box ), 
+		Outline Box( "Parameter Summary", Parameter_Box )
+	)
+);
+_outputJournal = NW << Journal Window;
+NW << Close Window;
+Close( facility_pbar_dt, NoSave );
+Close( Rollup_dt, NoSave );
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+// Individual Parameter summaries including all graphs
+//////////////////////////////////////////////////////////////////////////////////
+Summarize(match_dt, byAreaMon = By(:Area, :MONITOR_SET));
+area_list = Column( match_dt, 1 ) << Get Values;
+mon_list = Column( match_dt, 2 ) << Get Values;
+param_list = Column( match_dt, 3 ) << Get Values;
+online_pbar_list = Column( match_dt, 4 ) << Get Values;
+online_k_list = Column( match_dt, 5 ) << Get Values;
+sugg_pbar_list = Round( Column( match_dt, 6 ) << Get Values, 4 );
+sugg_k_list = Column( match_dt, 7 ) << Get Values;
+
+//Add outline boxes to for placeholders for final graphs
+_Individual_Box = Outline Box("Individual Parameter Summaries");
+_outputJournal << Append(_Individual_Box);
+For( i = 1, i <= NItems(byArea), i++,
+	_Area_Box = Outline Box("SPC++ Area = "||byArea[i]);
+	_outputJournal[OutlineBox("Individual Parameter Summaries")] << Append(_Area_Box);
+	specific_monitors = Loc(byAreaMon[1], byArea[i]);
+	For( k = 1, k <= N Rows( specific_monitors ), k++,
+		_Mon_Box = Outline Box("Area = "||byArea[i]||", Monitor Set = "||byAreaMon[2][specific_monitors[k]]);
+		_outputJournal[OutlineBox("SPC++ Area = "||byArea[i])] << Append(_Mon_Box);
+		
+	);
+);
+
+//Create all individual summaries and journal output
+For( i = 1, i <= N Rows( match_dt ), i++, 
+	//Subset 1 parameter at a time
+	row_vector = data_table << GetRowsWhere( :Parameter_ID == i );
+	temp_dt = data_table << Subset( Selected Rows( 0 ), Rows( row_vector ), Output Table( Char( i ) ) );//end subset
+	WW_dt = temp_dt << Subset( Selected Rows( 0 ), Output Table( Char( i ) || "WW_dt" ) );//end subset
+		
+	pbar_row_vector = pbar_dt << GetRowsWhere( :Parameter_ID == i );
+	pbar_temp_dt = pbar_dt << Subset(
+		Selected Rows( 0 ),
+		Rows( pbar_row_vector ),
+		columns(
+			:Name( "Area" ),
+			Monitor_Col[1],
+			Parameter_Col[1],
+			Facility_Col[1],
+			Entity_Col[1],
+			:Name( "# Iterations" ),
+			:Name( "p-bar (%)" ),
+			:Name( "# Lots" ),
+			:Name( "% OOC (Suggested)" ),
+			:Name( "% OOC (Online)" ),
+			:Name( "Matching (BIC) Results" )
+		)
+	);
+	//Entity-level report out for individual parameter
+	Pbar_Box_temp = pbar_temp_dt << Get As Report;
+	Pbar_Box = Pbar_Box_temp[Table Box( 1 )];
+	Pbar_Box << Set Column Borders( 1 ) << Set Row Borders( 1 ) << Set Scrollable( 0, 0 );
+		
+	//Overall individual parameter summary
+	sum_row_vector = match_dt << GetRowsWhere( :Parameter_ID == i );
+	sum_temp_dt = match_dt << Subset(
+		Selected Rows( 0 ),
+		Rows( sum_row_vector ),
+		columns(
+			:Name( "Online p-bar (%)" ),
+			:Name( "Online k" ),
+			:Name( "Suggested p-bar (%)" ),
+			:Name( "Suggested k" ),
+			:Name( "OOC Status" ),
+			:Name( "p-bar Status" ),
+			:Name( "k Status" ),
+			:Name( "Matching Status" )
+		)
+	);
+	Summary_Box_temp = sum_temp_dt << Get As Report;
+	Summary_Box = Summary_Box_temp[Table Box( 1 )];
+	Summary_Box << Set Column Borders( 1 ) << Set Row Borders( 1 ) << Set Scrollable( 0, 0 );
+	
+	//Graphs (see expressions section)	
+	PNorm_Graph;
+	Percent_Graph;
+	Trend_Graph;
+
+	//create individual parameter output window
+	newtitle = "Area = "|| area_list[i] ||", Monitor Set = " || mon_list[i] || " and Parameter = " || param_list[i];
+	nw_temp = New Window( "Output",
+		V List Box(
+			Outline Box( newtitle,
+				V List Box(
+					H List Box( Outline Box( "Summary", Summary_Box ) ),
+					H List Box( P_box, PNorm_box ),
+					H List Box( WW_box, Outline Box( "Entity Summary", Pbar_Box ) )
+				),
+				<<Close
+			)
+		)
+	);
+	OutlineBox_Name = "Area = "||area_list[i]|| ", Monitor Set = "||mon_list[i];
+	_outputJournal[OutlineBox(OutlineBox_Name)] << Append(nw_temp);
+
+	//nw_temp << Journal Window;
+	Close( pbar_temp_dt, NoSave );
+	Close( sum_temp_dt, NoSave );
+	Close( WW_dt, NoSave );
+	Close( temp_dt, NoSave );
+	nw_temp << Close Window;
+		
+	//stop = tickseconds(); show(stop-start);	
+
+);//close for loop
+Wait( 0 );
+
+//Close all windows for formatting
+For( i = 1, i <= N Items( byAreaMon[1] ), i++,
+	_outputJournal[OutlineBox("Area = "||byAreaMon[1][i]||", Monitor Set = "||byAreaMon[2][i])] << Close(1);
+);
+For( i = 1, i <= N Items( byArea ), i++,
+	_outputJournal[OutlineBox("SPC++ Area = "||byArea[i])] << Close(1);
+);
+/*Close(limit_dt, NoSave);*/
+Close( match_dt, NoSave );
+Close( pbar_dt, NoSave );
+Close( data_table, NoSave );
+

@@ -1,0 +1,334 @@
+﻿/*******************************************************************************************
+
+	TCB Logistic Regression Analysis
+	Author: Paul Wenz
+	Rev: 1.1
+	Date: 5/16/13
+	JMP Version: 9 or 10
+	Input: Response column (character).  Passing values are blank, fails are anything else.  
+	Output: Two tabs, one with all data, other with outliers removed
+	Changes: 
+		Added response coding conventions in dialog box.
+		"pass" is now recognized as a valid passing result.
+		Added grid lines to all plots
+		Added varchart of plotting factors / passfail.
+	
+********************************************************************************************/
+clear globals();
+dt1 = currentdatatable();
+
+// Dialog Box
+	r = Column Dialog(
+		YID = ColList( "Y, Response (Required)", Max Col(1), MinCol(1), DataType(Character)),
+		XID = ColList( "X, Inputs (Required)", Min Col(1), DataType(Numeric)),
+		VarChartID = ColList( "Plotting Factors (Required)", Min Col(1)), 
+		Lineup(2, 
+			Text Box("Critical P Value"), pcrit = EditNumber( 0.01 ),
+			Text Box("K for Outlier Screening"), k = EditNumber( 8 )
+		),
+		Text Box("Note: Required coding for passing responses are either \!"pass\!" or null (case insensitive). All other values are treated as fails.")
+	);
+	buttonR = r["Button"]; if (buttonR==-1, throw());
+	YID=r["YID"]; 
+	XID=r["XID"]; 
+	VarChartID = r["VarChartID"];
+	pcrit=r["pcrit"];
+	k=r["k"]; alpha_k = Normal Distribution(-k);
+	Subset_cols = Insert(XID,YID); InsertInto(Subset_cols,VarChartID);
+
+// Make subset table of only columns of interest and add new columns
+	dt1 << ClearSelect << ClearColumnSelection;
+	dt_orig = dt1 << Subset(
+		Rows(dt1 << GetRowsWhere(!Excluded())), 
+		columns(Eval(Subset_cols)),
+		Output Table(dt1 << GetName|| "_(Copy)")	
+	);
+	pf_name = (Column(dt_orig,YID) << Get Name)||"_Pass_Fail";
+	//dt_orig << New column(pf_name,character,formula(If(Is Missing(As Column(Eval(YID))), "Pass", Concat("Fail"))),eval formula);
+	dt_orig << New column(pf_name,character,formula(If(Is Missing(As Column(Eval(YID))), "Pass", Concat(If(Uppercase(As Column(Eval(YID))) == "PASS", "Pass", "Fail")))),eval formula);
+	c2_name = (Column(dt_orig,YID) << Get Name)||"_Result";
+	//dt_orig << New column(c2_name,character,formula(If(Is Missing(As Column(Eval(YID))), "Pass", "Fail: " || As Column(Eval(YID)))),eval formula);
+	dt_orig << New column(c2_name,character,formula(If(Is Missing(As Column(Eval(YID))), "Pass", If(Uppercase(As Column(Eval(YID))) == "PASS", "Pass", "Fail: " || As Column(Eval(YID))))),eval formula);
+	VarChartID2 = Insert(VarChartID, Column(dt_orig,pf_name) );
+
+////////////////////////////////////////////////// Main Analysis Function ////////////////////////////////////////////////////////////////
+TCB_Analysis = Function({dt,mode},
+
+// Get pvalues
+	log_window = dt << Logistic(Y(eval(pf_name)), X(eval(XID)));
+	If(NItems(XID)==1,
+		pt = report(log_window)[outlinebox("Whole Model Test")][tablebox(1)] << Make Combined Data Table,
+		pt = report(log_window[1])[outlinebox("Whole Model Test")][tablebox(1)] << Make Combined Data Table
+	);
+	log_window << Close Window;
+
+// Organize pvalue table
+	pt << Select where (IsMissing(:Name("Prob>ChiSq")));
+	If( NRow( pt << GetSelectedRows) != 0, pt << Delete Rows); 		
+	pt << Sort(By(:Name("Prob>ChiSq")), Order(Ascending),Replace Table);
+	If(mode=="Original",
+		pt << Set Name("All Factors"),
+		pt << Set Name("All Factors (Outliers Removed)")
+	);	
+
+// Get significant pvalues
+	pt << Select where (:Name("Prob>ChiSq") < pcrit );
+	Continue_Function=1;
+	If( NRow( pt << GetSelectedRows) == 0,
+		If(mode=="Original", 
+			New Window("TCB Analysis",TextBox("No Significant Factors Found"));throw(),
+			// Else
+			Final_Box = TextBox("No Significant Factors Found"); Continue_Function=0;
+		)
+	);
+	
+	If(Continue_Function,
+// Organize and store significant pvalues
+	pt_sig = pt << Subset(
+		columns(:X, :Y, :ChiSquare, :Name("Prob>ChiSq")),
+		Output Table("Significant Factors");
+	);
+	Sigx = Column(pt_sig,"X") << Get Values;
+	pvals = Column(pt_sig,"Prob>ChiSq") << Get Values;
+	close(pt_sig,nosave);
+	
+// store pvalues as units in column property
+	For(i=1,i<=NItems(Sigx),i++,
+		Column(dt,Sigx[i]) << Set Property("units",Eval(Format(pvals[i],"PValue",4)));
+	);
+
+// Make pvalue outline box
+	Pvalue_box = Outlinebox(
+		"Variables of Interest",
+		TableBox(
+			StringColBox("Factor",Sigx),
+			n=NumberColBox("P-Value",pvals),
+			PlotColBox("plot",log(pvals))
+		)
+	);
+	n << set format("Pvalue",8);
+
+// Make logistic plot of only significant factors
+	Logistic_Box = VListBox(
+		dt << Logistic(Y(eval(pf_name)), X(eval(Sigx)),	
+			SendToReport(
+				Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+				Dispatch( {}, "2", ScaleBox, {Show Major Grid( 1 )} ),
+				Dispatch(
+					{},
+					"FitNom Plot",
+					FrameBox,
+						{Row Legend(
+						Eval(pf_name),
+						Color(1),
+						Color Theme("Red to Gray to Blue"),
+						Marker(0),
+						Marker Theme(""),
+						Continuous Scale(0),
+						Reverse Scale(0),
+						Excluded Rows(0)
+					), Row Legend(
+						Eval(c2_name),
+						Color(0),
+						Color Theme(""),
+						Marker(1),
+						Marker Theme("Standard"),
+						Continuous Scale(0),
+						Reverse Scale(0),
+						Excluded Rows(0)
+					)}
+				),
+				Dispatch({}, "Whole Model Test", OutlineBox, {Close(1)}),
+				Dispatch({}, "Parameter Estimates", OutlineBox, {Close(1)})
+			)
+		);
+	);
+
+// Make multivariate plot of only significant factors
+	Multi_box = VListBox(
+		dt << Multivariate(
+			Y(Eval(Sigx)),
+			Set α Level(eval(alpha_k)),
+			Estimation Method("Row-wise"),
+			Scatterplot Matrix(Density Ellipses(1), Shaded Ellipses(0), Ellipse Color(3)),
+			Correlations Multivariate(1),
+			Cluster the Correlations(1),
+			Mahalanobis Distances(1, Save Outlier Distances)
+		);
+	);
+
+// Make Oneway plot
+	oneway_box = VListBox(
+		dt << Oneway(
+			Y( eval(Sigx) ),
+			X( eval(pf_name) ),
+			Means and Std Dev( 1 ),
+			Box Plots( 1 ),
+			Mean Diamonds( 1 ),
+			Mean Error Bars( 0 ),
+			Std Dev Lines( 0 ),
+			X Axis Proportional( 0 ),
+			Points Jittered( 1 ),
+			SendToReport(
+				Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+				Dispatch(
+					{},
+					"Oneway Plot",
+					FrameBox,
+					{DispatchSeg(BoxPlotSeg(1), {Box Style("Outlier"), Line Color("Red")}), DispatchSeg(BoxPlotSeg(2), {Box Style("Outlier"), Line Color("Red")})}
+				)
+			)
+		);
+	);
+
+
+// Make variability plot vs plotting factors
+	Var_box = VListBox(
+		var_chart = dt << Variability Chart(
+				Y(eval(Sigx)),
+				X(eval(VarChartID)),
+				Max Iter(100),
+				Conv Limit(0.00000001),
+				Number Integration Abscissas(128),
+				Number Function Evals(65536),
+				Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")),
+				Process Variation(0),
+				Connect Cell Means(1),
+				Show Group Means(1),
+				Std Dev Chart(0),
+				Points Jittered(1),
+				Show Box Plot Whisker Bars(0),
+				SendToReport(
+					Dispatch( {},"2",ScaleBox,{Show Major Grid( 1 )}),
+					Dispatch(
+						{},
+						"Variability Chart",
+						FrameBox,
+							{Row Legend(
+							Eval(pf_name),
+							Color(1),
+							Color Theme("Red to Gray to Blue"),
+							Marker(0),
+							Marker Theme(""),
+							Continuous Scale(0),
+							Reverse Scale(0),
+							Excluded Rows(0)
+							), Row Legend(
+							Eval(c2_name),
+							Color(0),
+							Color Theme(""),
+							Marker(1),
+							Marker Theme("Standard"),
+							Continuous Scale(0),
+							Reverse Scale(0),
+							Excluded Rows(0)
+						)}
+					)
+				)
+			)
+	);
+	// Add units to varchart axis label
+	If(NItems(Sigx)==1,
+		// then
+		report(var_chart)[axisbox(1)] << Add Axis Label(Column(dt,Sigx[1]) << Get Property("units")),
+		//else
+		For(i=1,i<=NItems(Sigx),i++, 
+			report(var_chart[i])[axisbox(1)] << Add Axis Label(Column(dt,Sigx[i]) << Get Property("units"));
+		);
+	);
+
+	// Make variability plot vs plotting factors and pass fail
+	Var_box2 = VListBox(
+		var_chart2 = dt << Variability Chart(
+				Y(eval(Sigx)),
+				X(eval(VarChartID2)),
+				Max Iter(100),
+				Conv Limit(0.00000001),
+				Number Integration Abscissas(128),
+				Number Function Evals(65536),
+				Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")),
+				Process Variation(0),
+				Connect Cell Means(1),
+				Show Group Means(1),
+				Std Dev Chart(0),
+				Points Jittered(1),
+				Show Box Plot Whisker Bars(0),
+				SendToReport(
+					Dispatch( {},"2",ScaleBox,{Show Major Grid( 1 )}),
+					Dispatch(
+						{},
+						"Variability Chart",
+						FrameBox,
+							{Row Legend(
+							Eval(pf_name),
+							Color(1),
+							Color Theme("Red to Gray to Blue"),
+							Marker(0),
+							Marker Theme(""),
+							Continuous Scale(0),
+							Reverse Scale(0),
+							Excluded Rows(0)
+							), Row Legend(
+							Eval(c2_name),
+							Color(0),
+							Color Theme(""),
+							Marker(1),
+							Marker Theme("Standard"),
+							Continuous Scale(0),
+							Reverse Scale(0),
+							Excluded Rows(0)
+						)}
+					)
+				)
+			);
+		);
+	// Add units to varchart axis label
+	If(NItems(Sigx)==1,
+		// then
+		report(var_chart2)[axisbox(1)] << Add Axis Label(Column(dt,Sigx[1]) << Get Property("units")),
+		//else
+		For(i=1,i<=NItems(Sigx),i++, 
+			report(var_chart2[i])[axisbox(1)] << Add Axis Label(Column(dt,Sigx[i]) << Get Property("units"));
+		);
+	);
+
+
+// Make output box
+	Final_Box = VListBox(
+		Pvalue_box,
+		Logistic_Box,
+		oneway_box,
+		HListBox(Var_box,Var_box2),
+		Multi_box,
+	);
+	); // end continue
+	Final_Box
+);
+////////////////////////////////////////////////// End Analysis Function //////////////////////////////////////////////
+	
+	outbox1 = TCB_Analysis(dt_orig,"Original");	
+	
+	//UCL = Column(dt_orig,"Mahal. Distances") << Get Property("Mahal. Value");
+	// outlier screening
+	q50 = ColQuantile(Column(dt_orig,"Mahal. Distances"), 0.5);
+	q75 = ColQuantile(Column(dt_orig,"Mahal. Distances"), 0.75);
+	Upper_screen = q50 + k * (q75 – q50) / 0.6745;
+	outbox1[outlinebox("Mahalanobis Distances")][axisbox(1)] << Add Ref Line(Upper_screen, Dotted, "Red","Outlier Screen");
+	outbox1[outlinebox("Mahalanobis Distances")][framebox(1)] << Frame Size( 600, 300 );
+	
+	dt_orig << New column("Outlier Flag",character,formula(If(:Mahal. Distances > Upper_screen, "Yes", "No")),eval formula);
+	dt_orig << Select Where(:Outlier Flag == "No");
+	If( NRow( dt_orig << GetSelectedRows) != NRow(dt_orig), 
+		dt_orig << ClearColumnSelection;
+		dt_sub = dt_orig << Subset(Output Table(dt_orig << GetName|| "_(Outliers Removed)"));
+		outlier_box = OutlineBox("Outlier Summary",TextBox(char(NRow(dt_orig)-NRow( dt_orig << GetSelectedRows))||" Outliers Removed, using k = "||char(k)));
+		outbox2 = TCB_Analysis(dt_sub,"Outliers Removed");
+		outbox2 << Prepend(outlier_box),
+		// Else
+		outbox2 = TextBox("No Outliers Found");
+	);
+	dt_orig << ClearSelect;
+
+	nw= New Window("Logistic Regression Analysis",
+		TabBox("Original Data",outbox1,"Outliers Removed",outbox2)
+	);

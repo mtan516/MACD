@@ -1,0 +1,574 @@
+////////////////FINISH Repeatability Script////////////////////////
+///////////////////////////////////////////////////////////////////
+///////////Written by Michael Tan : 12/1/2014 Version 1.0//////////
+
+// User-defined data structure //
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+
+// Save folder //
+Close All(Data Tables, No Save);
+	save_path = Pick Directory( "Select the folder where the final output will be saved." );
+	
+// T130 files //
+RPTdt = Pick File(
+	"Select the repeatability tabulated report.",
+	save_path
+	);
+// Open Source file and cleanup/prepare for Zcor.txt
+RPTfull = Open( RPTdt );
+RPTfull = Current Data Table();
+// Unit level
+RPTUdt = Current Data Table() << Summary(
+		Group( :Name( "2DID" ), :Name( "BGA No." )),
+		Range( :Name ( "CO [micron]" ))
+	);
+// Rename Cols
+for(i=1, i<=Ncol(RPTUdt),i++,Column(RPTUdt,i)<< Set Lock(0););
+Column( RPTUdt, "2DID" ) << Set Name( "DataMatrix");
+Column( RPTUdt, "N Rows" ) << Set Name( "Ball Count" );
+Column( RPTUdt, "Range(CO [micron])" ) << Set Name( "Unit_CO" );
+// Save and close the rest
+Close( RPTUdt, save( save_path || "Repeatability.jmp" ) );
+Close All(Data Tables, No Save);
+RPTdt = Open( save_path || "Repeatability.jmp" );
+RPTdt = Current Data Table();
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+logme("Repeat", "MCA");
+
+Try( Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" ), ::FooterBox = V List Box( Text Box( " " ) ) );
+
+
+::dt1 = {};
+::dt1name = {};
+::dt = {};
+
+If( N Table() == 0,
+	dt1 = Open(),
+	dt1 = Current Data Table()
+);
+//dt1 << MinimizeWindow;
+dt1name = dt1 << GetName;
+dt1 << ClearSelect;
+dt1 << ClearColumnSelection;
+dt = dt1 << Subset( Rows( dt1 << GetRowsWhere( !Excluded() ) ), AllColumns );
+dt << SetName( Char( dt1name ) || "_" || "B" );
+Current Data Table( dt );
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+//Guidelines to evaluate P/T;
+::t1 = Text Box(
+	"Acceptable Repeatability :
+	1) P/T Ratio (%) < 10% for manual tool
+	2) P/T Ratio (%) < 20% for automated tool
+	3) Short Term Stability (No OOCs)"
+);
+
+//Guidelines to apply Levey Jennings;
+::t2 = Text Box(
+	"Note: The Levey Jennings method was used to calculate control limits since there were 5 or fewer distinct values in the data set."
+);
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//Name: close_rptdt
+//Type: Expression
+//Description:
+// 1. This expression closes all remaining tables upon closure of the output window  
+///////////////////////////////////////////////////////////////////////////////////
+::close_rptdt = Expr(
+	Try( Close( dt, nosave ) );
+	Try( Close( dt_sigplot, nosave ) );
+);
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+//Variables and Vectors//;
+::Pmeanlist = {};
+::Pmeanl = {};
+::sigmalist = {};
+::cnamelist = {};
+::USLlist = {};
+::LSLlist = {};
+::USLl = {};
+::LSLl = {};
+::PTlist = {};
+::PTRlist = {};
+::statlist = {};
+::z = {};
+::button = 1;
+::order = 0;
+::SPEC = 0;
+::Error = 1;
+::Avglist = {};
+::LCLlist = {};
+::UCLlist = {};
+::NOOClist = {};
+::POOClist = {};
+::nrlist = {};
+::Stabilitylist = {};
+::collistg = {};
+::yCols = {};
+::xcols = {};
+::bcols = {};
+::a = .;
+::LSL = .;
+::USL = .;
+::Pmean = .;
+::dtswrk2 = "";
+::dtswrk = "";
+::b = .;
+::yseq = .;
+::PT = .;
+::PTR = .;
+::cc = "";
+::repeatability = "";
+::tbx = "";
+::toollist = "";
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+/****************************** Input Dialog Box *******************************************/
+::button = 1;
+::Y = {:Unit_CO};
+::X = {};
+::Bcol = {:DataMatrix};
+
+/*::dlg = Column Dialog(
+	title( "Repeatability Analysis" ),
+	yCols = ColList( "Y, Response (Required)", MinCol( 1 ), DataType( Numeric ) ),
+	xcols = ColList( "Run Order (Optional)", Max Col( 1 ) ),
+	bcols = ColList( "By", MaxCol( 1 ) )
+);*/
+
+button = 1;
+
+If( button == -1,
+	Close( dt, no save )
+);
+
+If( button == 1,
+	If( x == {},
+		order = 1,
+		order = Char( Column( X[1] ) )
+	);
+	If( order == 1,
+		dt = Current Data Table(),
+		If( Bcol == {},
+			dt << Sort( By( Column( x[1] ) ), Order( Ascending ), replace table ),
+			dt << Sort( By( Column( Bcol[1] ), Column( x[1] ) ), Order( Ascending, Ascending ), replace table )
+		)
+	);
+	For( a = 1, a <= N Items( Y ), a++,
+		::s_button = 2;
+		While( s_button == 2,
+			::dtxt = "Enter values for " || Char( Y[a] );
+			::dlg2 = Dialog(
+				title( dtxt ),
+				VList(
+					"Two-Sided Spec Limits: Input LSL and USL",
+					"",
+					"One-Sided Spec Limits: Input Process Mean and LSL or USL",
+					"",
+					HList( "LSL", LSL = EditNumber(), "Process Mean", PMean = EditNumber(), "USL", USL = EditNumber() ),
+					" ",
+					HList( Button( "OK" ), Button( "Cancel" ) )
+				)
+			);
+			USL = dlg2["USL"];
+			LSL = dlg2["LSL"];
+			PMean = dlg2["PMean"];
+			s_button = dlg2["button"];
+
+			/* Error Checking for SPEC Limits */
+			If( s_button == 1,
+				If(
+					!Is Missing( LSL ) & !Is Missing( USL ),
+						If( LSL > USL,
+							Dialog( "The LSL must be less than USL", "", Button( "OK" ) );
+							s_button = 2;
+						,
+							Insert Into( z, 1 )
+						),
+					!Is Missing( LSL ) & !Is Missing( PMean ),
+						If( LSL > PMean,
+							Dialog( "LSL must be less than Process Mean", "", Button( "OK" ) );
+							s_button = 2;
+						,
+							Insert Into( z, 2 )
+						),
+					!Is Missing( USL ) & !Is Missing( PMean ),
+						If( Pmean > USL,
+							Dialog( "USL must be greater than Process Mean", "", Button( "OK" ) );
+							s_button = 2;
+						,
+							Insert Into( z, 3 )
+						),
+					Dialog( "You must provide two of three values", "", Button( "OK" ) );
+					s_button = 2;
+				)
+			);
+			If( s_button == -1,
+				a = N Items( Y ) + 1;
+				button = -1;
+			);
+			If( s_button == 1,
+				Insert Into( USLl, USL );
+				Insert Into( LSLl, LSL );
+				Insert Into( Pmeanl, PMean );
+			);
+		);
+	);
+);
+
+If( s_button == -1,
+	Close( dt, no save )
+);
+
+/* End of user input & begin calculations algorithm */
+If( button == 1,
+	If( bcol != {},
+		Column( bcol ) << Data Type( Character )
+	);
+
+/*get combination list*/
+	If( N Items( y ) > 1,
+		::stkcol = ":Name(\!"" || Char( y[1] ) || "\!")";
+		For( a = 2, a <= N Items( y ), a++,
+			stkcol = stkcol || ", :Name(\!"" || Char( y[a] ) || "\!")"
+		);
+		::stkcmd = "dtswrk = dt << Stack(columns(" || stkcol || "), Source Label Column(\!"pna198\!"), Stacked Data Column(\!"Stk198\!"))";
+		Eval( Parse( stkcmd ) );
+	
+		If( bcol != {},
+			dtswrk2 = dtswrk << Summary( Group( :pna198, Column( Char( bcol[1] ) ) ), Std Dev( :Stk198 ), statistics column name format( "column" ) ),
+			dtswrk2 = dtswrk << Summary( Group( :pna198 ), Std Dev( :Stk198 ), statistics column name format( "column" ) )
+		);
+	,   /* if 1 variable*/
+		dtswrk = New Table();
+		Current Data Table( dt );
+		If( bcol == {},
+			dtswrk2 = dt << Summary( Group, Std Dev( Column( Char( y[1] ) ) ) ),
+			dtswrk2 = dt << Summary( Group( Column( Char( bcol[1] ) ) ), Std Dev( Column( Char( y[1] ) ) ) )
+		);
+		dtswrk2 << add multiple Columns( "pna198", 1, before first, character );
+		::necl = Column( 1 );
+		For( a = 1, a <= N Row( dtswrk2 ), a++,
+			necl[a] = Char( y[1] )
+		);
+		Column( N Col( dtswrk2 ) ) << Set Name( "Stk198" );
+	);
+		
+	dtswrk2 << Select Where( Is Missing( Stk198 ) );
+	::missr = dtswrk2 << get selected rows;
+	Try( dtswrk2 << Delete Rows() );
+
+	::pnamelist = Column( dtswrk2, "pna198" ) << get values;
+	::stdlist = Column( dtswrk2, "stk198" ) << get values;
+	If( bcol != {},
+		toollist = Column( dtswrk2, Char( bcol[1] ) ) << get values
+	);
+	Close( dtswrk2, no save );
+	Close( dtswrk, no save );
+
+	::zlist = {};
+	For( a = 1, a <= N Items( pnamelist ), a++,
+		b = 1;
+		While( pnamelist[a] != Char( y[b] ), b++ );
+		Insert Into( zlist, z[b] );
+		Insert Into( pmeanlist, pmeanl[b] );
+		Insert Into( usllist, usll[b] );
+		Insert Into( lsllist, lsll[b] );
+	);
+
+/*loop for sequence*/
+	For( yseq = 1, yseq <= N Items( pnamelist ), yseq++, 
+
+	//Checking to evaluate Levey Jennings application on Control Chart Type;
+		Current Data Table( dt );
+		dt << ClearSelect;
+		dt << ClearColumnSelection;
+
+		If( bcol != {}, 
+			/*::slcmd = "dt<<Select where(" || Char(bcol[1]) || "== \!"" || toollist[yseq] || "\!");";
+			Eval(Parse(slcmd));*/
+			dt << Select where( As Column( bcol[1] ) == toollist[yseq] );
+			::dtsub = dt << Subset( Output Table( "Subset" ) );
+		,
+			dtsub = dt
+		);
+		::dta = dtsub << Summary( Group( Column( pnamelist[yseq] ) ) );
+		Current Data Table( dta );
+		dta << select where( Is Missing( Eval( pnamelist[yseq] ) ) );
+		::missr = dta << get selected rows;
+		Try( dta << delete rows );
+		::nrn = N Row();
+		Close( dta, no save );
+		If( bcol != {},
+			Close( dtsub, no save )
+		);
+
+//P/T computation according with SPEC LIMITS definition;
+		If(
+			Zlist[yseq] == 1, PT = (6 * stdlist[yseq] / (USLlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 2, PT = (3 * STDlist[yseq] / (PMeanlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 3, PT = (3 * STDlist[yseq] / (USLlist[yseq] - PMeanlist[yseq]))
+		);
+		If( PT > 0.001,
+			PTR = Round( (PT * 100), 1 ),
+			PTR = PT * 100
+		);
+
+//Round(n, places) if PT ratio > 0.1%
+		stat = If( PT < 0.10,
+			"Capable for manual or automated tool",
+			(If( PT < 0.20, "Capable only for automated tool", "Not Capable" ))
+		);
+		Insert Into( PTlist, PT );
+		Insert Into( PTRlist, PTR );
+		Insert Into( statlist, stat );
+
+/* Stability Report*/
+		Current Data Table( dt );
+//Generate control chart line//;
+		::ctrlcmd = "Control Chart(Sample Label(";
+		If( order == 1,
+			ctrlcmd = ctrlcmd || "Empty()), KSigma(3), Chart Col( Eval(Column(pnamelist[yseq])),",
+			ctrlcmd = ctrlcmd || "Column(x[1])), Group Size( 1 ), KSigma(3), Chart Col( Eval(Column(pnamelist[yseq])),"
+		);
+		If( nrn < 6,
+			ctrlcmd = ctrlcmd || "Levey Jennings(Test 1(1), Line Width(Medium)))",
+			ctrlcmd = ctrlcmd || "Individual Measurement(Test 1(1), Line Width(Medium)))"
+		);
+		If( N Items( bcol ) == 0,
+			ctrlcmd = ctrlcmd || ");",
+			ctrlcmd = ctrlcmd || ", Where (:Name(\!"" || Char( bcol[1] ) || "\!") == \!"" || ::toollist[::yseq] || "\!"));"
+		);
+
+/* Extract limits */
+		::w2 = New Window( "Control Limits Extraction", Eval( Parse( "cc = " || ctrlcmd ) ) );
+		If( jmpvernum <= 8,
+			cc << Save Limits( in New Table ),  //JMP 5-8 syntax
+			cc << in New Table;  // JMP 9 syntax
+		);
+		::dtx = Current Data Table();
+		If( nrn < 6,
+			::LCLNum = Column( dtx, 2 )[5];
+			::UCLnum = Column( dtx, 2 )[6];
+			::Avgnum = Column( dtx, 2 )[4];
+		,
+			::LCLnum = Column( dtx, 2 )[6];
+			::UCLnum = Column( dtx, 2 )[7];
+			::Avgnum = Column( dtx, 2 )[5];
+		);
+		Close( dtx, NoSave );
+		w2 << close window;
+		Insert Into( LCLlist, LCLnum );
+		Insert Into( UCLlist, UCLnum );
+		Insert Into( Avglist, Avgnum );
+
+/* Check for OOC */
+		Current Data Table( dt );
+		dt << ClearSelect;
+		dt << ClearColumnSelection;
+		If( bcol != {}, 
+			/*::slcmd = "dt<<Select where(" || Char(bcol[1]) || "== \!"" || toollist[yseq] || "\!");";
+			Eval(Parse(slcmd));*/
+			dt << Select where( As Column( bcol[1] ) == toollist[yseq] )
+		);
+		::dtooc = dt << Subset( Output Table( "Subset" ), columns( Column( pnamelist[yseq] ) ) );
+		::ooccol = dtooc << New Column( "OOC" );
+		Column( dtooc, 1 ) << Set Name( "OOCname198" );
+		ooccol << set each value( If( :OOCname198 > UCLlist[yseq] | :OOCname198 < LCLlist[yseq], 1, 0 ) );
+		Insert Into( NOOClist, Col Sum( Column( N Col( dtooc ) ) ) );
+		Insert Into( nrlist, N Row( dtooc ) );
+		Insert Into( POOClist, NOOClist[yseq] / nrlist[yseq] * 100 );
+		Close( dtooc, NoSave );
+		Insert Into( Stabilitylist, If( NOOClist[yseq] == 0, "Yes", "No" ) );
+
+/* Build distribution command */
+		::distcmd = "Distribution(Column(pnamelist[yseq]), Quantiles(0)";
+		If( bcol == {},
+			distcmd = distcmd || ");",
+			distcmd = distcmd || ", Where (:Name(\!"" || Char( bcol[1] ) || "\!") == \!"" || toollist[yseq] || "\!"));"
+		);
+
+/* Generate report */
+		Current Data Table( dt );
+		::ctrlrep = V List Box( Eval( Parse( ctrlcmd ) ) );
+		::distrep = V List Box( Eval( Parse( distcmd ) ) );
+		If( bcol != {},
+			ctrlrep[Text Box( 1 )] << delete;
+			distrep[Text Box( 1 )] << delete;
+		);
+		If( nrn < 6,
+			ctrlrep << append( T2 )
+		);
+		::cname = pnamelist[yseq];
+		If( bcol != {},
+			cname = cname || " (" || toollist[yseq] || ")"
+		);
+
+		Insert Into( collistg, cname );
+		::stabrep = Table Box(
+			String Col Box( "Parameter", {collistg[yseq]} ),
+			Number Col Box( "LCL", {LCLlist[yseq]} ),
+			Number Col Box( "CL", {Avglist[yseq]} ),
+			Number Col Box( "UCL", {UCLlist[yseq]} ),
+			Number Col Box( "# Runs", {nrlist[yseq]} ),
+			Number Col Box( "# OOC", {NOOClist[yseq]} ),
+			Number Col Box( "% OOC", {POOClist[yseq]} ),
+			String Col Box( "Short Term Stability", {stabilitylist[yseq]} )
+		);
+		::reptrep = Table Box(
+			String Col Box( "Parameter", {collistg[yseq]} ),
+			Number Col Box( "LSL", {LSLlist[yseq]} ),
+			Number Col Box( "Process Mean", {Pmeanlist[yseq]} ),
+			Number Col Box( "USL", {USLlist[yseq]} ),
+			Number Col Box( "Sigma(rpt)", {stdlist[yseq]} ),
+			Number Col Box( "P/T Ratio (%)", {PTRlist[yseq]} ),
+			String Col Box( "Statistical Evaluation", {statlist[yseq]} )
+		);
+		If( yseq == 1,
+			repeatability = New Window( "Repeatability Analysis",
+				<<OnClose( Eval( close_rptdt ) ),
+				tbx = Outline Box( cname,
+					H List Box( ctrlrep, distrep ),
+					Outline Box( "Stability Report", stabrep ),
+					Outline Box( "Repeatability Report", reptrep ),
+					Text Box( " " )
+				)
+			),
+			repeatability << Append(
+				tbx = Outline Box( cname,
+					H List Box( ctrlrep, distrep ),
+					Outline Box( "Stability Report", stabrep ),
+					Outline Box( "Repeatability Report", reptrep ),
+					Text Box( " " )
+				)
+			)
+		);
+		//If(N Items(pnamelist) > 1, tbx << close);
+	);
+
+/* Summary Report */
+	::sumbox = Table Box(
+		String Col Box( "Parameter", collistg ),
+		Number Col Box( "% OOC", POOClist ),
+		String Col Box( "Short Term Stability", stabilitylist ),
+		Number Col Box( "LSL", LSLlist ),
+		Number Col Box( "Process Mean", Pmeanlist ),
+		Number Col Box( "USL", USLlist ),
+		Number Col Box( "Sigma(rpt)", stdlist ),
+		Number Col Box( "P/T Ratio (%)", PTRlist ),
+		String Col Box( "Statistical Evaluation", statlist )
+	);
+	sumbox << Table Style( Bordered );
+	repeatability << Prepend( Outline Box( "Overall Repeatability Evaluation Summary Table", sumbox, Text Box( " " ) ) );
+	repeatability << Append( Outline Box( "Guidelines", H List Box( t1 ) ), Text Box( " " ) );
+	repeatability << Append( FooterBox );
+);
+
+/*  Pooled Results   */
+pooled_res = Expr(
+	collistg2 = {};
+	POOClist2 = {};
+	stabilitylist2 = {};
+	LSLlist2 = {};
+	PMeanlist2 = {};
+	USLlist2 = {};
+	stdlist2 = {};
+	PTRlist2 = {};
+	statlist2 = {};
+	For( i = 1, i <= N Items( y ), i++,
+		sub_rows = Loc( pnamelist, Char( y[i] ) );
+		Insert Into( collistg2, Char( y[i] ) );
+		Insert Into( POOClist2, Sum( NOOClist[sub_rows] ) / Sum( nrlist[sub_rows] ) * 100 );
+		If( Sum( NOOClist[sub_rows] ) == 0,
+			Insert Into( stabilitylist2, "Yes" ),
+			Insert Into( stabilitylist2, "No" )
+		);
+		Insert Into( LSLlist2, lsll[i] );
+		Insert Into( PMeanlist2, pmeanl[i] );
+		Insert Into( USLlist2, usll[i] );
+		Insert Into( stdlist2, Sqrt( Mean( stdlist[sub_rows] ^ 2 ) ) );
+		If(
+			Mean( Zlist[sub_rows] ) == 1, PT = (6 * stdlist2[i] / (usll[i] - lsll[i])),
+			Mean( Zlist[sub_rows] ) == 2, PT = (3 * stdlist2[i] / (PMeanlist2[i] - lsll[i])),
+			Mean( Zlist[sub_rows] ) == 3, PT = (3 * stdlist2[i] / (usll[i] - PMeanlist2[i]))
+		);
+		If( PT > 0.001,
+			Insert Into( PTRlist2, Round( (PT * 100), 1 ) ),
+			Insert Into( PTRlist2, PT * 100 )
+		);
+		stat = If( PT < 0.10,
+			"Capable for manual or automated tool",
+			(If( PT < 0.20, "Capable only for automated tool", "Not Capable" ))
+		);
+		Insert Into( statlist2, stat );
+	);
+	::sumbox2 = Outline Box( "Overall Pooled Repeatability Evaluation Summary Table",
+		Table Box(
+			String Col Box( "Parameter", collistg2 ),
+			Number Col Box( "Pooled% OOC", POOClist2 ),
+			String Col Box( "Short Term Stability", stabilitylist2 ),
+			Number Col Box( "LSL", LSLlist2 ),
+			Number Col Box( "Process Mean", Pmeanlist2 ),
+			Number Col Box( "USL", USLlist2 ),
+			Number Col Box( "Pooled Sigma(rpt)", stdlist2 ),
+			Number Col Box( "Pooled P/T Ratio (%)", PTRlist2 ),
+			String Col Box( "Statistical Evaluation", statlist2 ),
+			<<Table Style( Bordered )
+		)
+	);
+	repeatability[1, Outline Box( 1 )] << append( sumbox2 );
+	dt_sigplot = New Table( "Sigmas to plot" );
+	dt_sigplot << New Column( "Parameter", datatype( character ), setvalues( pnamelist ) );
+	If( bcol != {},
+		dt_sigplot << New Column( Char(bcol[1]), datatype( character ), setvalues( toollist ) )
+	);
+	dt_sigplot << New Column( "Sigmas", setvalues( stdlist ) );
+	sigplot = V List Box(
+		dt_sigplot << oneway(
+			Y( :Name( "Sigmas" ) ),
+			X( :Name( "Parameter" ) ),
+			Means and Std Dev( 0 ),
+			Box Plots( 1 ),
+			Mean Lines( 1 ),
+			X Axis Proportional( 0 ),
+			Points Jittered( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Oneway Plot",
+					FrameBox,
+					{Marker Size( 4 ), Row Legend(
+						bcol[1],
+						Color( 1 ),
+						Color Theme( "JMP Default" ),
+						Marker( 1 ),
+						Marker Theme( "Standard" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				)
+			)
+		)
+	);
+	repeatability[1, Table Box( 1 )] << append( sigplot );
+	Wait( 0.2 );
+	repeatability << bring window to front;
+);
+
+If( bcol != {},
+	Eval( pooled_res )
+);//end if
+
+repeatability << scroll window( 0, -10000 );
+dt << ClearSelect;
+Current Data Table( dt1 );
+

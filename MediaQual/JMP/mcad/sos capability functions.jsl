@@ -1,0 +1,3362 @@
+///////////////////////////////////////////////////////////////////////
+/*	Capability Analysis Expressions
+	
+	Expressions called by capabilty analysis
+	Version 1.1
+	7/9/2010
+	Created by Philip Brown
+	Edited by Paul Wenz
+	JMP versions: 5.1 to 8
+	Edited By Todd Jordan and John Xu
+	JMP versions: 9 to 10
+	Edited By Xin Guan, bug fix for one-sided spec limit for both cpk and auto cpk summary stats, suppress  JMP alert, add error msg for inapproriate data input, make target optional for one-sided limit and leave cp blank for both scripts
+	JMP versions: 12 to 14
+	Latest updated: 2/16/2022 by Xin Guan to replace "temp" to "tempVar" to avoid possible bug
+
+List of Expressions
+	Initialize_capability_globals - used in main script
+	Capability_MainDiag_Expr - used in main script
+	Capability_PreProc_Expr - used in main script
+	dist_expr - used in cap_expr
+	cap_expr - used in CP_main
+	cap_vcht_expr
+	CP_Status_Guidelines - used in Capability_Summary_Report
+	GenerateCapCharts - used in Capability_Summary_Report
+	Capability_Summary_Report - used in CP_main
+	CP_Main- used in main script
+	Cpk_SummaryStats_MainDiag_Expr - Used in Cpk Summary Stats
+	Overall_Cpk_Expr - used in Cpk Summary Stats
+	AutoCpk_SummaryStats_MainDiag_Expr - Used in Cpk Summary Stats_Automotive
+	Overall_AutoCpk_Expr - used in Cpk Summary Stats_Automotive
+	AutoCP_Status_Guidelines - used in Cpk Summary Stats_Automotive
+*/
+
+////////////////////////////////////// Initialize_capability_globals ////////////////////////////////////////////////////
+Initialize_capability_globals = Expr(
+	::button = {0, 0};
+	::ref_select = 1;
+	::N_Param = 0;
+	::N_z = 0;
+	::Col_Count = 0;
+	::dist_select = {};
+	::d_sel = .;
+	::Grp_list = {};
+	::Grp_Expr = {};
+	::Var_Chart = {};
+	::Var_Chart_alt = {};
+	::lsl_val = {};
+	::usl_val = {};
+	::target_val = {};
+	::Param_List = {};
+	::Param_Type = {};
+	::N_OOS = {};
+	::Cap_Params = {};
+	::Spec_Params = {};
+	::ReportSubBox = {};
+	::y_name = "";
+	::x_name = "";
+	::z_name = "";
+	::t_name = "";
+	::parms = {0, 0, 0};
+	::K_Val = 0;
+	::exclQ = 0;
+	::savrsQ = 0;
+	::cont = 1;
+	::tem = 1;
+	::counter = .;
+	::j = .;
+	::vswitch = .;
+	::y_max = .;
+	::y_min = .;
+	::param_name_arg = "PARAMETERID";
+	::N_Grp_List = 0;
+);
+
+////////////////////////////// Capability_MainDiag_Expr ///////////////////////////////////////////////////
+::Capability_MainDiag_Expr = Expr(
+	::result = ColumnDialog(
+		Title("Capability Analysis"),
+		::Response = ColList("Response Variable (Required)", Max Col(1), MinCol(1), DataType(Numeric), Columns(:PARAMETERVALUE)),
+		::Param = ColList("Parameter ID", DataType(Character)),
+		::Col_List = ColList("Facility (Optional)", Max Col(1), DataType(Character), Columns(FACILITY)),
+		" ",
+		::z = ColList("Group By (Optional)",DataType(Character)),
+		HList(
+			VList(""),
+			VList(
+				VList(
+					"Choose Source of Spec Limits",
+					::ref_select = ComboBox("Enter Manually", "Create Reference Table", "Retrieve Saved Reference Table", 1)
+				),
+				" ",
+				"NOTE: PARAMETERID is required when using a reference table to supply limits"
+			)
+		)
+	);
+	::Param = result["Param"];
+	::Response = result["Response"];
+	::Col_List = result["Col_List"];		//Facility and Entity
+	::z = result["z"];
+	::ref_select = result["ref_select"];
+	button[1] = result["Button"];
+	/*bug fix for v9 eliminates the need for this (tj)
+	If(button[1]==1 & (jmpvernum >= 8) & NItems(Result["Col_List"])==0 & NItems(Result["Param"])==0, 
+		Dialog(Title("Error"),"Parameter ID and Facility columns cannot both be empty in JMP 8",Button("cancel"))
+	);  */
+	
+); //EndExpr
+
+////////////////////////////// Capability_PreProc_Expr ///////////////////////////////////////////////////
+::Capability_PreProc_Expr = Expr(
+show("PreProc_Expr");
+show(Param);
+	::Grp_Cols = {};
+	If(button[1] == 1,
+		y_name = Char(Response[1]);
+		Col_Count = NItems(Col_List);
+		N_z = NItems(z);
+		N_Param = NItems(Param);
+		N_Grp_List = Expr(NItems(Grp_List));
+		CurrentDataTable(dt);
+		Eval(Substitute(NameExpr(Generate_ParamID), Expr(p_arg), Expr(Param)));
+		show(Param_Grp_List); wait(1);
+		If(IS_EPASS, ref_tab_join = ProcessRVT(ref_tab, dt, fac_col));
+		If(Col_Count != 0, InsertInto(Grp_List, Col_List));
+		If(do_altQ,
+			InsertInto(Grp_List, alt_ent_col);
+			alt_col_offset = 1;
+			alt_op_info = GetAltOpID(dt);
+			If(NItems(alt_op_info[1]) != 0,
+				If(alt_op_info[1][1] == "",
+					alt_op_info[1] = Remove(alt_op_info[1], 1)
+				);
+				alt_op_text = " At OPER=" || alt_op_info[1][1];
+			,
+				alt_op_text = ""
+			);
+		,
+			alt_col_offset = 0
+		);
+		If(N_z != 0, InsertInto(Grp_List, z, 1));
+		If(N_Param != 0, InsertInto(Grp_List, Parse(parmid << GetName), 1));
+		InsertInto(Grp_Cols, If(Eval(N_Grp_List) != 0, Grp_List[1 :: (NItems(Grp_List) - alt_col_offset)], ""));
+		colindx = N_Grp_List + 2;
+		
+		If(jmpvernum >= 8, 
+			summ_param_tab = dt << Summary(Group(Param_Grp_List[1::NItems(Param_Grp_List)])), // JMP 8 code
+			summ_param_tab = dt << Summary( Group(Eval( Param_Grp_List )) ); // JMP 5-7 code
+		);
+		//summ_param_tab << MinimizeWindow;
+		InsertInto(tab_create_list, summ_param_tab << GetName);
+	,
+		
+		Eval(close_dts);
+	); //EndIf Button[1]
+); //EndExpr
+
+//////////////////////////////////// dist_expr //////////////////////////////////
+::dist_expr = Expr(
+	tempVar = n;
+	Choose(d_sel,
+		Distribution(
+			Uniform Scaling(0),  // changed from 1 to 0
+			Continuous Distribution(
+				Column(y),
+				Horizontal Layout(1),
+				Normal Quantile Plot(1),
+				Quantiles(0)//,
+				//Axis Settings(Scale(Linear), Format(Best, 2), Min(scale_min), Max(scale_max), Inc(scale_inc), Minor Ticks(1))
+			),
+			Where(Selected()),
+			SendToReport(
+				Dispatch({y}, "1", ScaleBox, {Scale(Linear), Format(Best)}),
+				Dispatch({y}, "Distrib Histogram", FrameBox, Background Color(2))
+			)
+		),  
+		Distribution(
+			Uniform Scaling(0),  // changed from 1 to 0
+			Continuous Distribution(
+				Column(y),
+				Horizontal Layout(1),
+				Normal Quantile Plot(1),
+				Quantiles(0),
+				//Axis Settings(Scale(Linear), Format(Best), Min(scale_min), Max(scale_max), Inc(scale_inc), Minor	Ticks(1)),
+				Capability Analysis(LSL(lsl_val[m]), USL(usl_val[m]), Target(target_val[m]))
+			),
+			Where(Selected()),
+			SendToReport(
+				Dispatch({y}, "1", ScaleBox, {Scale(Linear), Format(Best)}),
+				Dispatch({y}, "Distrib Histogram", FrameBox, Background Color(2))
+			)
+		)
+	);
+); //EndExpr
+
+////////////////////////////// cap_expr ///////////////////////////////////////////////////
+::cap_expr = Expr(
+	output = OutlineBox(Char(Grp_ID),
+		HListBox(
+			CurrentDataTable(dt);
+			dist = Eval(Substitute(NameExpr(dist_expr), Expr(y), y_name, Expr(m), j));
+			Wait(0);
+		)
+	)
+); //EndExpr
+
+////////////////////////////// cap_vcht_expr ///////////////////////////////////////////////////
+::cap_vcht_expr = Expr(
+	VListBox(
+		CurrentDataTable(sum_grpstab);
+		If(N_Params != 1,
+			sum_grpstab << SelectWhere(Column(param_name_arg)[] == Param_List[m]),
+			sum_grpstab << SelectAllRows
+		);
+		CurrentDataTable(dt);
+		Variability Chart(
+			Y(Column(y_name)),
+			X(Eval(_x_group)),
+			Connect Cell Means(1),
+			Show Group Means(1),
+			Show Grand Mean(0),
+			StdDev Chart(0),
+			Points Jittered(1),
+			AIAG Labels(0),
+			Where(Selected()),
+			SendToReport(Dispatch({}, "", AxisBox, ShowMajorGrid))
+		);
+		sum_grpstab << ClearSelect;
+		Wait(0);
+	)
+); //EndExpr
+
+////////////////////////////// CP_Status_Guidelines ///////////////////////////////////////////////////
+::CP_Status_Guidelines = Expr(
+	OutlineBox("Status Guidelines",
+		TableBox(StringColBox("Status", {"Capable", "Not Capable"}), StringColBox("Condition", {"Cpk >= 1.33", "Cpk < 1.33"})),
+		<<Close(1)
+	)
+); //EndExpr
+
+////////////////////////////// GenerateCapCharts ///////////////////////////////////////////////////
+//Cpk %OOS Summary Chart Function
+::GenerateCapCharts = Function({cap_summ_dt1_},
+	cap_summ_dt1_ << ClearSelect;
+	cap_summ_dt1_ << ClearColumnSelection;
+	cap_summ_dt_ = cap_summ_dt1_ << Subset(AllRows, Invisible);
+	CurrentDataTable(cap_summ_dt_);
+	Cap_Summ_Chart_Box = VListBox();
+	Cap_Summ_Chart_List = {};
+	Cap_Summ_Chart = {};
+	ref_line_mat = {{., ., ., .}, {., 1.33, ., .}};
+	y_inc_mat = {1, 1};
+	x_cap_vcht = Insert(z, Column(cap_summ_dt_, param_name_arg), 1);
+	type_select = {"% OOS", "Cpk"};
+	num_cp_cols = 2;
+
+	For(q = 1, q <= num_cp_cols, q++,
+		Cap_Summ_Chart[q] = HListBox(
+			Variability Chart(
+				Y(Column(cap_summ_dt_, type_select[q])),
+				X(Eval(x_cap_vcht)),
+				Connect Cell Means(1),
+				Show Group Means(0),
+				Show Grand Mean(0),
+				Std Dev Chart(0),
+				Points Jittered(1)
+			)
+		);
+		Choose(q,
+			Cap_Summ_Max = Max(10, ColMax(Column(cap_summ_dt_, type_select[q])));
+			Cap_Summ_Min = Min(0, ColMin(Column(cap_summ_dt_, type_select[q])));,  
+
+			Cap_Summ_Max = Max(3, ColMax(Column(cap_summ_dt_, type_select[q])));
+			Cap_Summ_Min = Min(0, ColMin(Column(cap_summ_dt_, type_select[q])));
+		);
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << AxisSettings(
+			Min(Cap_Summ_Min),
+			Max(Cap_Summ_Max),
+			Inc(y_inc_mat[q]),
+			Format("Best"),
+			MinorTicks(0),
+			Show Major Grid(0)
+		);
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << AddRefLine(ref_line_mat[q][1], "Dotted", "Grey");
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << AddRefLine(ref_line_mat[q][2], "Dashed", "Grey");
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << AddRefLine(ref_line_mat[q][3], "Solid", "Grey");
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << AddRefLine(ref_line_mat[q][4], "Solid", "Grey");
+		Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << ShowMajorGrid(1);
+		If(type_select[q] == "Cpk",
+			Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << MinorTicks(2);
+			Cap_Summ_Chart[q][OutlineBox(1)][AxisBox(1)] << ShowMinorGrid(1);
+		);
+		Cap_Summ_Chart[q][TextBox(1)] << SetText(Munger(Cap_Summ_Chart[q][TextBox(1)] << GetText, 1, Char(q), ""));
+		Cap_Summ_Chart[q][FrameBox(1)] << MarkerSize(3);
+		If(NItems(Col_List) != 0,
+			Cap_Summ_Chart[q][FrameBox(1)] << RowLegend(Column(cap_summ_dt_, Col_List[1]), Color(1), Marker(1))
+		);
+		Cap_Summ_Chart_Box << Append(HListBox(Cap_Summ_Chart[q][OutlineBox(2)]));
+	); //EndFor
+	Close(cap_summ_dt_, NoSave);
+	Cap_Summ_Chart_Box;
+); //EndFunction
+
+////////////////////////////// Capability_Summary_Report ///////////////////////////////////////////////////
+::Capability_Summary_Report = Expr(
+	::Col_List_Names = {};
+	For(i = 1, i <= NItems(Col_List), i++,
+		InsertInto(Col_List_Names, Parse(Uppercase(Char(Col_List[i]))))
+	);
+
+	cap_grp_head_txt = If(NItems(Col_List) == 0,
+		Substr(Eval(grp_head_txtexpr), 1, Length(Eval(grp_head_txtexpr)) - 2),
+		Eval(grp_head_txtexpr)
+	);
+
+	::cap_lev2summ_box = OutlineBox(
+		Char(
+			"Capability Analysis Summary Report by " || "PARAMETER, " || Eval(cap_grp_head_txt) || Munger(
+				Munger(Char(Col_List_Names), 1, "{", ""),
+				1,
+				"}",
+				""
+			)
+		),
+		caplev2tab_box = TableBox()
+	);
+
+	::cap_lev1summ_box = OutlineBox("Capability Analysis Summary Report by PARAMETER", caplev1tab_box = TableBox());
+
+	sum_grpstab << AddMultipleColumns("# Cpk >= 1.33", 1, AfterLast, Numeric);
+	CurrentDataTable(sum_grpstab);
+	ForEachRow(Column(sum_grpstab, "# Cpk >= 1.33")[] = If(Trim(Column(sum_grpstab, "Cpk Status")[]) == "Capable", 1, 0));
+
+  // Create Level 1 summary report table
+	::cap_summ1_basecols = If(N_z != 0,
+		Insert(Param_Grp_List, z),
+		Param_Grp_List
+	);
+  //If( N_Params == 1, cap_summ1_basecols=Param_Grp_List );
+	If(jmpvernum >=8,
+		::cap_summ_lev1 = sum_grpstab << Summary(	Group(cap_summ1_basecols[1::NItems(cap_summ1_basecols)]), Sum(:N), Sum(:Name("# OOS")), Sum(:Name("# Cpk >= 1.33"))), // JMP 8
+		::cap_summ_lev1 = sum_grpstab<<Summary( Group( Eval(cap_summ1_basecols) ), Sum( :N ), Sum( :Name("# OOS") ), Sum( :Name("# Cpk >= 1.33") ) ); // JMP 5-7
+	);
+	
+	cap_summ_lev1 << NewColumn("% OOS");
+	Column(cap_summ_lev1, "% OOS") << SetFormula((:Name("Sum(# OOS)") / :Name("Sum(N)")) * 100) << EvalFormula;
+	cap_summ_lev1 << NewColumn("  %(#) Cpk >= 1.33");
+	cap_summ_lev1 << NewColumn("% Cpk >= 1.33");
+	Column(cap_summ_lev1, "% Cpk >= 1.33") << SetFormula((:Name("Sum(# Cpk >= 1.33)") / :N Rows) * 100) << EvalFormula;
+	cap_summ_lev1 << MoveSelectedColumns({:Name("% OOS")}, After(:Name("Sum(# OOS)")));
+	cap_summ_lev1 << MoveSelectedColumns({:Name("  %(#) Cpk >= 1.33")}, After(:Name("% OOS")));
+	cap_summ_lev1 << MoveSelectedColumns({:N Rows}, After(:Name("Sum(N)")));
+	facent_head = If(Col_Count != 1,
+		"# Groups",
+		Char("# " || Munger(Munger(Char(Col_List), 1, "{", ""), 1, "}", ""))
+	);
+	Column(cap_summ_lev1, "N Rows") << SetName(Eval(facent_head));
+
+	num_cap_summ1_cols = NCol(cap_summ_lev1);
+	num_cap_summ2_cols = NCol(sum_grpstab);
+	charoffset = Expr(Munger(Column(cap_summ_lev1, r) << GetName, 1, "(") + 1);
+	::cp_fmt1 = {., ., ., ., 2, ., .};
+	::cp_fmt2 = {., ., ., ., ., 2, ., 1, ., 2, 2, 2, .};
+	For(::fill = 1, fill <= NItems(z) + Col_Count, fill++,
+		InsertInto(cp_fmt2, Expr(.), 1)
+	);
+	For(::fill = 1, fill <= NItems(z), fill++,
+		InsertInto(cp_fmt1, Expr(.), 1)
+	);
+
+	If(num_cap_summ1_cols != 1 & N_Params > 1,
+		cap_summ_lev1 << Sort(By(Eval(param_name_arg)), Order(Ascending), ReplaceTable)
+	);
+	For(r = 1, r <= num_cap_summ1_cols, r++,
+		If(Contains(Column(cap_summ_lev1, r) << GetName, "Sum"),
+			Column(cap_summ_lev1, r) << SetName(
+				Munger(Column(cap_summ_lev1, r) << GetName, charoffset, (Munger(Column(cap_summ_lev1, r) << GetName, 1, ")") - charoffset))
+			)
+		)
+	);
+
+	cap_summ1_actcols = cap_summ_lev1 << GetColumnNames(String);
+	cap_summ1_actcols = cap_summ1_actcols[1 :: NItems(cap_summ1_actcols) - 2];
+	num_cap_summ1_actcols = NItems(cap_summ1_actcols);
+
+	For(r = 1, r <= num_cap_summ2_cols - 1, r++,
+		If(Type(GetColAsTable(r, sum_grpstab)[2]) == "List",
+			If(GetColAsTable(r, sum_grpstab)[1] == param_name_arg,
+				caplev2tab_box << Append(StringColBox("PARAMETER", GetColAsTable(r, sum_grpstab)[2])),
+				caplev2tab_box << Append(StringColBox(GetColAsTable(r, sum_grpstab)[1], GetColAsTable(r, sum_grpstab)[2]))
+			),
+			If(!IsMissing(cp_fmt2[r]),
+				caplev2tab_box << Append(
+					NumberColBox(GetColAsTable(r, sum_grpstab)[1], GetColAsTable(r, sum_grpstab)[2], <<SetFormat(5, cp_fmt2[r]))
+				),
+				caplev2tab_box << Append(NumberColBox(GetColAsTable(r, sum_grpstab)[1], GetColAsTable(r, sum_grpstab)[2]))
+			)
+		)
+	);
+
+	For(i = 1, i <= NRow(cap_summ_lev1), i++,
+		Column(cap_summ_lev1, "  %(#) Cpk >= 1.33")[i] = Char(Column(cap_summ_lev1, "% Cpk >= 1.33")[i]) || "% (" ||
+		Char(Column(cap_summ_lev1, "# Cpk >= 1.33")[i]) || ")";
+		spc_pad = "";
+		If(Contains(Substr(Column(cap_summ_lev1, "  %(#) Cpk >= 1.33")[i], 1, 3), "%"),
+			spc_pad ||= " "
+		);
+		For(k = 1, k <= spc_pad_base - Length(Column(cap_summ_lev1, "  %(#) Cpk >= 1.33")[i]), k++,
+			spc_pad ||= " "
+		);
+		Column(cap_summ_lev1, "  %(#) Cpk >= 1.33")[i] = spc_pad || Column(cap_summ_lev1, "  %(#) Cpk >= 1.33")[i];
+	);
+
+	allsumm_toolcnt = Sum(Column(cap_summ_lev1, facent_head) << GetValues);
+	allsumm_pass = Sum(Column(cap_summ_lev1, "# Cpk >= 1.33") << GetValues);
+	allsummpct = spc_pad || Char(Round(Eval(allsumm_pass / allsumm_toolcnt * 100), 2)) || "% (" || Char(allsumm_pass) || ")";
+	cp_lev1ntoolcnt = Column(cap_summ_lev1, facent_head) << GetValues |/ Expr(.) |/ allsumm_toolcnt;
+	cp_lev1pcntoolcnt = Insert(Column(cap_summ_lev1, "  %(#) Cpk >= 1.33") << GetValues, EvalList({Char(spc_pad || "."), allsummpct}));
+
+	For(r = 1, r <= NItems(cap_summ1_basecols), r++,
+		If(Type(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[2]) == "List",
+			If(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[1] == param_name_arg,
+				caplev1tab_box << Append(
+					StringColBox("PARAMETER", Insert(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[2], {".", "All Parameters"}))
+				),  
+				caplev1tab_box << Append(
+					StringColBox(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[1],
+						GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[2]
+					)
+				)
+			)
+		,
+			If(!IsMissing(cp_fmt1[r]),
+				caplev1tab_box << Append(
+					NumberColBox(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[1],
+						GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[2],
+						<<SetFormat(5, cp_fmt1[r])
+					)
+				),
+				caplev1tab_box << Append(
+					NumberColBox(GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[1],
+						GetColAsTable(Char(cap_summ1_basecols[r]), cap_summ_lev1)[2]
+					)
+				)
+			)
+		)
+	);
+
+	caplev1tab_box << Append(NumberColBox(facent_head, cp_lev1ntoolcnt));
+	caplev1tab_box << Append(NumberColBox("N", Column(cap_summ_lev1, "N") << GetValues));
+	caplev1tab_box << Append(NumberColBox("# OOS", Column(cap_summ_lev1, "# OOS") << GetValues));
+	caplev1tab_box << Append(NumberColBox("% OOS", Column(cap_summ_lev1, "% OOS") << GetValues, <<SetFormat(5, 2)));
+	caplev1tab_box << Append(StringColBox("  %(#) Cpk >= 1.33", cp_lev1pcntoolcnt));
+
+	cap_summary = NewWindow("Capability Analysis Summary",
+		cap_lev2summ_box,
+		cap_lev1summ_box,
+		TextBox(" "),
+		GenerateCapCharts(sum_grpstab),
+		CP_Status_Guidelines,
+		FooterBox
+	);
+	//cap_summary << ZoomWindow;
+); //End Expr
+
+
+////////////////////////////////////// CP_Main ////////////////////////////////////////////////////
+::CP_Main = Expr(
+	CurrentDataTable(dt);
+	If(ref_select > 1,
+		If(!IS_EPASS,
+			ref_tab_join = dt << Join(
+				With(ref_tab),
+				Merge Same Name Columns,
+				Select(:PARAMETERID),
+				SelectWith(:Parameter LSL, :Parameter Target, :Parameter USL),
+				By Matching Columns(:PARAMETERID = :PARAMETERID),
+				Drop Multiples(1, 0),
+				Include Non Matches(1, 0)
+			), 
+			If(NRow(ref_tab_join) == 0,
+				button[1] = 2;
+				warn_msg << Append(VListBox(TextBox("Reference Value Table is EMPTY!", <<FontColor("Red"), <<SetFontSize(8)), TextBox("")));
+			)
+		);
+
+		// Find which parameters  are in Ref Table
+		Choose(button[1],
+			matchflgvals = Column(ref_tab_join, "Match Flag") << GetValues;
+			delrows = ref_tab_join << GetRowsWhere(:Match Flag != 3);
+			If(NRow(delrows) != 0,
+				param_nomatch = Column(ref_tab_join, param_name_arg)[delrows];
+				If(NRow(delrows) == NRow(ref_tab_join),
+					warn_msg << Append(
+						VListBox(
+							TextBox("None of the parameters were found in the Reference Value Table!", <<FontColor("Red"), <<SetFontSize(8)),
+							TextBox("")
+						)
+					)
+				);
+				warn_msg << Append(
+					VListBox(
+						StringColBox("The following parameter(s) were not found in the Reference Value Table:", Eval(param_nomatch)),
+						TextBox("")
+					)
+				);
+				button[1] = 2; 
+      //ref_tab_join<<DeleteRows( delrows );
+			);, 
+			
+			If(JMPvernum >= 8,
+				ref_tab_join = dt << Summary(Group(Param_Grp_List[1::NItems(Param_Grp_List)])), // JMP 8
+				ref_tab_join = dt << Summary(Group(Eval(Param_Grp_List))); // JMP 5-7
+			);
+			
+			CurrentDataTable(ref_tab_join);
+			ref_tab_join << AddMultipleColumns("parameter_lsl", 1, AfterLast, Numeric);
+			ref_tab_join << AddMultipleColumns("parameter_target", 1, AfterLast, Numeric);
+			ref_tab_join << AddMultipleColumns("parameter_usl", 1, AfterLast, Numeric);
+			matchflgvals = J(NRow(ref_tab_join), 1, 3);
+		); //EndChoose
+
+		// Get Reference Table Values 
+		ParamID_Ref = If(col_offset == 0,
+			Param_List[1],
+			Column(ref_tab_join, param_name_arg) << GetValues
+		);
+		If(!IS_EPASS,
+			Param_LSL_Ref = Column(ref_tab_join, "Parameter LSL") << GetValues;
+			Param_Target_Ref = Column(ref_tab_join, "Parameter Target") << GetValues;
+			Param_USL_Ref = Column(ref_tab_join, "Parameter USL") << GetValues;
+		, 
+			Param_Type_Ref = Column(ref_tab_join, "parameter_type") << GetValues;
+			Param_LSL_Ref = Column(ref_tab_join, "parameter_lsl") << GetValues;
+			Param_Target_Ref = Column(ref_tab_join, "parameter_target") << GetValues;
+			Param_USL_Ref = Column(ref_tab_join, "parameter_usl") << GetValues;
+		);
+		// Check for reference table parameters that have no values
+		If(button[1] != 2,
+			missrows = [];
+			chkval_list = Param_LSL_Ref || Param_Target_Ref || Param_USL_Ref;
+			For(nchk = 1, nchk <= NRow(chkval_list), nchk++,
+				If(All(IsMissing(chkval_list[nchk, 0])),
+					missrows |/= nchk
+				)
+			);
+			If(NRow(missrows) != 0,
+				param_novals = Column(ref_tab_join, param_name_arg)[missrows];
+				If(NRow(missrows) == NRow(ref_tab_join),
+					warn_msg << Append(
+						VListBox(
+							TextBox(
+								"For all the parameters, No reference values were found in the Reference Value Table!",
+								<<FontColor("Red"),
+								<<SetFontSize(8)
+							),
+							TextBox("")
+						)
+					)
+				);
+				warn_msg << Append(
+					VListBox(
+						StringColBox("The following parameter(s) have no values entered in Reference Value Table:", Eval(param_novals)),
+						TextBox("")
+					)
+				);
+				button[1] = 2;
+			);
+		);
+		//Resize param table to only matching parameters
+		summ_param_tab << AddMultipleColumns("Match Flag", 1, AfterLast, Numeric);
+		Column(summ_param_tab, "Match Flag") << SetValues(matchflgvals);
+		Match_Flag_Col = Column(summ_param_tab, "Match Flag");
+		delrows = summ_param_tab << GetRowsWhere(:Match Flag != 3);
+		//  If( NRow(delrows) != 0,summ_param_tab<<DeleteRows(Eval( delrows )) );
+		If(col_offset == 1,
+			Param_List = Column(summ_param_tab, 1) << GetValues;
+			N_Params = NItems(Param_List);
+		);
+		If(NRow(summ_param_tab) == 0,
+			button[1] = -1;
+			button[2] = -1;
+		);
+		If(!IS_EPASS,
+			//Close(ref_tab, Save(Ref_Table_Name)) // remove for JMP 7
+			Close(ref_tab, NoSave)
+		);
+		Close(ref_tab_join, NoSave);
+	); //EndIf Ref_Select
+
+	//Get Spec Limits for each parmid group
+	If(button[1] >= 1,
+		::n = 1;
+		While(n <= N_Params & cont == 1,
+			If(ref_select > 1,
+				lsl_val[n] = Param_LSL_Ref[n];
+				usl_val[n] = Param_USL_Ref[n];
+				target_val[n] = Param_Target_Ref[n];
+				Button[2] = 1;
+			,  /*ELSE*/
+				x_name = Char(Param_List[n]);
+				Specs_Diag = Dialog(
+					Title("Specification Limits"),
+					LineUp(2, "Enter LSL, Target and USL Values for Parameter:", x_name),
+					"",
+					LineUp(2, "LSL", lsl = EditNumber(), "Target", target = EditNumber(), "USL", usl = EditNumber()),
+					"",
+					"",
+					HList(Button("OK"), Button("Cancel"))
+				);
+				button[2] = Specs_Diag["Button"];
+				lsl_val[n] = Specs_Diag["lsl"];
+				usl_val[n] = Specs_Diag["usl"];
+				target_val[n] = Specs_Diag["target"];
+			);
+			If(button[2] != -1,
+				If((IsMissing(lsl_val[n]) & IsMissing(usl_val[n])) & IsMissing(target_val[n]),
+					dist_select[n] = 1,
+					dist_select[n] = 2
+				);
+				cont = 1;
+			, 
+				cont = 0
+			); // EndIf button[2] != -1 (1)   
+			n++;
+		); // EndWhile
+
+		If(button[2] != -1,
+			
+			If(jmpvernum >=8,
+				sum_grpstab = dt << Summary(Group(Grp_Cols[1::NItems(Grp_Cols)])), //JMP 8
+				sum_grpstab = dt << Summary( Group(Eval(Grp_Cols)) ); // JMP 5-7
+			);
+			
+			InsertInto(tab_create_list, sum_grpstab << GetName);
+			If(ref_select > 1,
+				CurrentDataTable(summ_param_tab);
+				summ_param_tab << ClearSelect;
+				summ_param_tab << SelectAllRows;
+				CurrentDataTable(sum_grpstab);
+				sum_grpstab << InvertRowSelection;
+				delrows = sum_grpstab << GetSelectedRows;
+				If(NRow(delrows) != 0,
+					sum_grpstab << DeleteRows(Eval(delrows))
+				);
+			);
+  
+			N_Param_Groups = NRow(sum_grpstab);
+
+			If(N_Params == 1 & NItems(Param) == 0,
+				Group_ID = GetTableAsText(sum_grpstab);
+				sum_grpstab << AddMultipleColumns("PARAMETERID", 1, BeforeFirst, Character);
+				ForEachRow(Column(sum_grpstab, param_name_arg)[] = Param_List[1]);
+				Column(dt, param_name_arg) << SetEachValue(Param_List[1]);
+				Param_Grp_List[1] = param_name_arg;
+			, 
+				If(N_Param_Groups != 1,
+					sum_grpstab << Sort(By(Eval(param_name_arg)), Order(Ascending), ReplaceTable)
+				);
+				Group_ID = GetTableAsText(sum_grpstab);
+			);
+  
+			Column(sum_grpstab, "N Rows") << SetName("N");
+			colnames = sum_grpstab << GetColumnNames;
+
+			sum_grpstab << AddMultipleColumns("LSL", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("Target", 1, After(LSL), Numeric);
+			sum_grpstab << AddMultipleColumns("USL", 1, After(Target), Numeric);
+			sum_grpstab << AddMultipleColumns("Cpk", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("# OOS", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("% OOS", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("   Cpk Status", 1, AfterLast, Character);
+			sum_grpstab << AddMultipleColumns("Cpl", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("Cpu", 1, AfterLast, Numeric);
+			sum_grpstab << AddMultipleColumns("Cp", 1, AfterLast, Numeric);
+			newcolnames = sum_grpstab << GetColumnNames;
+			//JMP 9 bug fix here?  tj
+			//If(jmpvernum >=8,
+			If(jmpvernum ==8,
+				missval_tab = dt << Summary(Group(Grp_List[1::NItems(Grp_List)]), NMissing(Response[1])), // JMP 8
+				missval_tab = dt << Summary( Group( Eval(Grp_List) ), NMissing( Response[1] )  ); // JMP 5-7
+			);
+			
+			CurrentDataTable(sum_grpstab);
+			sum_grpstab << ClearSelect;
+			sum_grpstab << SelectAllRows;
+			CurrentDataTable(missval_tab);
+			missval_chk_list = Column(missval_tab, colindx)[missval_tab << GetSelectedRows];
+			missval_compare = Column(missval_tab, colindx - 1)[missval_tab << GetSelectedRows];
+			Close(missval_tab, NoSave);
+
+			counter = 1;
+			vswitch = 1;
+			j = 1;
+			For(i = 1, i <= N_Param_Groups, i++,
+				CurrentDataTable(sum_grpstab);
+				sum_grpstab << ClearSelect;
+				If(i != NRow(sum_grpstab) & N_Params != 1,
+					If(j != counter, vswitch = 1);
+					If((Trim(Column(sum_grpstab, param_name_arg)[i]) == Trim(Column(sum_grpstab, param_name_arg)[i + 1])),
+						j = counter,
+						j = counter;
+						counter++;
+					);
+				, 
+					j = counter
+				);
+				If(i == NRow(sum_grpstab),
+					If(i != 1,
+						If(Column(sum_grpstab, 1)[i] != Column(sum_grpstab, 1)[i - 1],
+							vswitch = 1
+						), 
+        
+						vswitch = 1
+					)
+				);
+				d_sel = dist_select[j];
+				//If( NItems(Param) ==1 & N_Grp_List == 1, vswitch=0);
+				//If( N_z !=0, x_grp = Grp_List, x_grp = Param_Grp_List ); //replace this line
+				If(Col_Count != 0,
+					x_grp = Grp_Cols;
+					If(do_altQ,
+						x_grp_alt = Remove(Grp_List, NItems(Grp_List) - 1)
+					);
+				, 
+					x_grp = Insert(Param_Grp_List, z)
+				);
+
+				If(missval_chk_list[i] != missval_compare[i],
+					If(vswitch,
+						vswitch = 0;
+						CurrentDataTable(sum_grpstab);
+						If(N_Params != 1,
+							sum_grpstab << SelectWhere(Column(param_name_arg)[] == Param_List[j]),
+							sum_grpstab << SelectAllRows
+						);
+						Var_Chart[i] = PCS_vcht(dt, x_grp, y_name);
+						Var_Chart[i][TextBox(1)] << Delete;
+						Var_Chart[i][OutlineBox(2)] << SetTitle(Char(Param_List[j]));
+						Var_Chart[i][FrameBox(1)] << FrameSize(430, 190);
+						If(d_sel == 2,
+							Var_Chart[i][AxisBox(1)] << AddRefLine(lsl_val[j], "Dashed", "Blue");
+							Var_Chart[i][AxisBox(1)] << AddRefLine(target_val[j], "Dashed", "Blue");
+							Var_Chart[i][AxisBox(1)] << AddRefLine(usl_val[j], "Dashed", "Blue");
+							Var_Chart[i][AxisBox(1)] << Min(lsl_val[j] - Abs(usl_val[j] - lsl_val[j]) / 10);
+							Var_Chart[i][AxisBox(1)] << Max(usl_val[j] + Abs(usl_val[j] - lsl_val[j]) / 10);
+							Var_Chart[i][AxisBox(1)] << Inc(Round(Abs(usl_val[j] - lsl_val[j])/5, Round(-Log10(Abs(usl_val[j] - lsl_val[j])/100))));
+						);
+						If(do_altQ,
+							Var_Chart_alt[i] = PCS_vcht(dt, x_grp_alt, y_name);
+							Var_Chart_alt[i][TextBox(1)] << Delete;
+							Var_Chart_alt[i][OutlineBox(2)] << SetTitle(Char(Param_List[j] || alt_op_text));
+							Var_Chart_alt[i][FrameBox(1)] << FrameSize(430, 190);
+							If(d_sel == 2,
+								Var_Chart_alt[i][AxisBox(1)] << AddRefLine(lsl_val[j], "Dashed", "Blue");
+								Var_Chart_alt[i][AxisBox(1)] << AddRefLine(target_val[j], "Dashed", "Blue");
+								Var_Chart_alt[i][AxisBox(1)] << AddRefLine(usl_val[j], "Dashed", "Blue");
+								Var_Chart_alt[i][AxisBox(1)] << Min(lsl_val[j] - Abs(usl_val[j] - lsl_val[j]) / 10);
+								Var_Chart_alt[i][AxisBox(1)] << Max(usl_val[j] + Abs(usl_val[j] - lsl_val[j]) / 10);
+								Var_Chart_alt[i][AxisBox(1)] << Inc(Round(Abs(usl_val[j] - lsl_val[j])/5, Round(-Log10(Abs(usl_val[j] - lsl_val[j])/100))));
+								//Var_Chart_alt[i][AxisBox(1)] << Inc(Round((Abs(lsl_val[j]) + Abs(usl_val[j])) / 10, 1));
+							);
+						, 
+							Var_Chart_alt[i] = .;
+						);
+					, 
+						Var_Chart[i] = .;
+						Var_Chart_alt[i] = .;
+					);
+
+					sum_grpstab << ClearSelect;
+					CurrentDataTable(sum_grpstab);
+					Selected(RowState(i)) = 1;
+    
+					CurrentDataTable(dt);
+					If(exclQ,
+						parms = ScreenDataSub(y_name, K_Val)
+					);
+					rowlist = dt << GetRowsWhere(Selected() & !Excluded());
+					If(NRow(rowlist) <= 2,
+						d_sel = 1
+					);
+					y_max = Max(Column(dt, y_name)[rowlist]);
+					y_min = Min(Column(dt, y_name)[rowlist]);
+					scale_max = Round(y_max + Abs(y_max / 10), 2);
+					scale_min = Round(y_min - Abs(y_min / 10), 2);
+					scale_inc = Round((scale_max - scale_min) / 5, 2);
+					If(y_max == y_min, d_sel = 1);
+
+					Grp_Expr[i] = Eval(Substitute(NameExpr(cap_expr), Expr(y_name), y_name, Expr(Grp_ID), Group_ID[i][1], Expr(j), j));
+					Grp_Expr[i][TextBox(1)] << Delete;
+					Grp_Expr[i][OutlineBox(3)] << SetTitle(Char(Param_List[j]));      
+					//Group selection is still valid at this point
+					CurrentDataTable(sum_grpstab);
+					If(N_Params != 1,
+						:Target[i] = target_val[j];
+						:LSL[i] = lsl_val[j];
+						:USL[i] = usl_val[j];
+					, 
+						:Target[i] = target_val[1];
+						:LSL[i] = lsl_val[1];
+						:USL[i] = usl_val[1];
+					);
+					N_OOS[i] = .;
+					Cap_Params[i] = .;
+					Spec_Params[i] = .;
+					If(d_sel == 2,
+						CurrentDataTable(dt);
+						N_OOS[i] = RangeCheckDataSub(dt, y_name, lsl_val[j], usl_val[j], 0)[3]; 
+
+						CurrentDataTable(sum_grpstab);
+						Cap_Params[i] = Grp_Expr[i]["Capability?"][OutlineBox(2)][TableBox(1)] << GetAsMatrix;
+						Spec_Params[i] = Grp_Expr[i]["Capability?"][OutlineBox(1)][TableBox(1)] << GetAsMatrix;
+						:Cpk[i] = Round(Cap_Params[i][0, 1][2], 2);
+						:Name("# OOS")[i] = N_OOS[i];
+						:Name("% OOS")[i] = (N_OOS[i] / Eval(:N[i])) * 100;
+						// :Name("% OOS")[i]=Round(Spec_Params[i][0,2][3],2);
+						:Cpk Status[i] = If(!IsMissing(:Cpk[i]),
+							If(:Cpk[i] >= 1.33,
+								"   Capable",
+								"   Not Capable"
+							),
+							"   "
+						);
+						:Cpl[i] = Round(Cap_Params[i][0, 1][4], 2);
+						:Cpu[i] = Round(Cap_Params[i][0, 1][5], 2);
+						:Cp[i] = Round(Cap_Params[i][0, 1][1], 2);
+					);
+					Wait(0);
+				, 
+					Var_Chart[i] = .;
+					Var_Chart_alt[i] = .;
+					Grp_Expr[i] = .;
+					Cap_Params[i] = .;
+					Spec_Params[i] = .;
+					N_OOS[i] = .;
+				);
+			); // EndFor N_Param_Groups
+
+			// Make Output Window
+			cap_output = NewWindow("Distribution and Capability Analysis", If(button[1] == 2, warn_msg), AnalysisBox = VListBox(), FooterBox); //End NewWindow
+			For(k = 1, k <= NItems(Grp_expr), k++,
+				If(Type(Var_Chart[k]) == "DisplayBox",
+					AnalysisBox << Append(Eval(Var_Chart[k]))
+				);
+				If(Type(Var_Chart_alt[k]) == "DisplayBox",
+					AnalysisBox << Append(Eval(Var_Chart_alt[k]))
+				);
+				If(Type(Grp_Expr[k]) == "DisplayBox",
+					AnalysisBox << Append(Eval(Grp_Expr[k]))
+				);
+			);
+			
+		,
+			
+			// Close extra data tables upon "Cancel" selection //
+			Eval( close_dts );
+			
+		);	// EndIf button[2] != -1 (2)
+		Eval(Capability_Summary_Report);
+		//cap_output << ZoomWindow;
+		cap_output << BringWindowToFront;
+		Close(sum_grpstab, NoSave);
+	); //EndIf button[1]
+	dt << DeleteColumns(Column(dt, "PARAMETERID"));
+	dt << ClearSelect;
+
+	main_tab_box = Tab Box(
+		"Capability Analysis Summary Reports",
+		Cap_Summary,
+		"Distribution and Capability Analysis Reports",
+		Cap_output
+	);
+
+	::oneclick_Cpk_Window = New Window( "Capability Analysis Reports", main_tab_box );
+	oneclick_Cpk_Window << BringWindowToFront;
+	
+	//make 1 click variables
+	::oneclick_Cpk_Summary_Box = main_tab_box[tabpanebox(1)][outlinebox(1)][tablebox(1)];
+	::oneclick_Cpk_Rollup_Box = main_tab_box[tabpanebox(1)][outlinebox(2)][tablebox(1)];
+
+	Close(summ_param_tab, NoSave);
+
+//Close report windows and some tables
+	Try(
+		Cap_Summary << close window;
+		Cap_output << close window;
+		Close(dt, NoSave);
+	);
+
+	If(button[1] == -1, CleanUp());
+); //End Expr
+
+
+////////////////////////////////////// Cpk_SummaryStats_MainDiag_Expr ////////////////////////////////////////////////////
+::Cpk_SummaryStats_MainDiag_Expr = Expr(
+
+	While( spec_ck == 1,
+		::dlg = Column Dialog(
+			title( "Cpk based on Lot/Entity Summary Statistics" ),
+			_N = ColList( "N (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Numeric ) ),
+			_Mean = ColList( "Mean (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Numeric ) ),
+			_Sigma = ColList( "Standard Deviation (Required)",
+				MinCol( 1 ),
+				MaxCol( 1 ),
+				DataType( Numeric )
+			),
+			_Lot = ColList( "Lot ID (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Facility = ColList( "Facility (Optional)", MinCol( 0 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Entity = ColList( "Entity (Optional)", MinCol( 0 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Date = ColList( "Date/Time (Optional)", Mincol( 0 ), MaxCol( 1 ) ),
+			vlist(
+				"",
+				vlist(
+					"Enter: At least one of USL and LSL", //modified requirement of inputs, Xin
+					lineup( 4,
+
+						"LSL: ", lsl = editNumber( lsl ), "", "",
+						"Target:", pmt = editNumber( pmt ), "(Optional)", "",
+						"USL: ", usl = editNumber( usl ), "", "",
+						"", "", "", "",
+						"Enter ParameterID: ", parmid = editText( ParameterID ), "", "",
+						"", "", "", ""
+					)
+				)
+			)
+		);
+		::button = Dlg["Button"];
+		::_N = dlg["_N"];
+		::_Mean = dlg["_Mean"];
+		::_Sigma = dlg["_Sigma"];
+		::_Lot = dlg["_Lot"];
+		::_Entity = dlg["_Entity"];
+		::_Facility = dlg["_Facility"];
+		::_Date = dlg["_Date"];
+		::lsl = dlg["LSL"];
+		::pmt = dlg["pmt"];
+		::usl = dlg["USL"];
+		::parmid = dlg["parmid"];
+		If( button == -1,
+			Close( dt, no save );
+			Throw();
+		);
+
+/*** Appropriate Spec Limit Combinations check, modified by Xin  ***/
+		If( Is Missing( usl ) & Is Missing( lsl ),
+			spec_ck = 1;
+			//add error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("USL and LSL cannot be both missing!"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			),
+			If( !Is Missing( usl ) & !Is Missing( lsl ),
+				If( usl > lsl,
+					spec_ck = 0;
+					TOL = usl - lsl;
+					TOL_type = 2;
+					pmt = (usl + lsl) / 2;
+				,
+					spec_ck = 1;
+					//add error window
+					New Window("Error",
+						<<Modal,
+						vlistbox(
+							textbox(""),
+							textbox("USL must be larger than LSL!"),
+							textbox(""),
+							hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+							textbox("")
+						)
+					)
+				)//LSL and USL error exception
+			,
+				If( !Is Missing( usl ),  //if USL is entered
+					If( !Is Missing( pmt ) & (usl > pmt), //target is entered for cp calculation
+						spec_ck = 0;
+						//TOL = usl - pmt;
+						TOL =.;  //NOT CALCULATE CP FOR ONE-SIDED SPEC
+						TOL_type = 1;
+					,
+						if (!Is Missing(pmt),  //usl<pmt
+						spec_ck = 1;
+						//add error window
+						New Window("Error",
+							<<Modal,
+							vlistbox(
+								textbox(""),
+								textbox("USL must be larger than target!"),
+								textbox(""),
+								hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+								textbox("")
+							)
+						), //else is pmt missing
+						spec_ck=0; //script still run to calculate cpk
+						TOL = .; //if pmt is missing, not calculate cp
+						TOL_type=1;
+						))
+				,  //else is LSL is entered
+					If( !Is Missing( pmt ) & (lsl < pmt),
+						spec_ck = 0;
+						//TOL = pmt - lsl;
+						TOL =.;  //NOT CALCULATE CP FOR ONE-SIDED SPEC
+						TOL_type = -1;
+					,
+						if (!Is Missing(pmt),  //lsl > pmt
+						spec_ck = 1;
+						//add error window
+						New Window("Error",
+							<<Modal,
+							vlistbox(
+								textbox(""),
+								textbox("LSL must be smaller than target!"),
+								textbox(""),
+								hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+								textbox("")
+							)
+						), //else is pmt missing
+						spec_ck=0; //script still run to calculate cpk
+						TOL = .; //if pmt is missing, not calculate cp
+						TOL_type=1;
+						)
+					)
+				)
+			)
+		);
+	); //end While (Spec_ck = 1)
+); //End Expr
+
+
+////////////////////////////////////// Overall_Cpk_Expr ////////////////////////////////////////////////////
+:: Overall_Cpk_Expr = Expr(
+
+/*** Remove Missing data  ***/
+dt << select where( Is Missing( _N[1][] ) | Is Missing( _Mean[1][] ) ) ;
+If(nrows(dt << get selected rows)>0, 
+dt << get selected rows << delete rows);  //use if statement to suppress JMP alert
+
+/***   overall_cpk   ***/
+n_entries = N Rows( dt );
+If( N Items( _Date ) == 0,
+	datamat = dt << get as matrix( Eval List( {_N[1], _Mean[1], _Sigma[1]} ) ),
+	datamat = dt << get as matrix( Eval List( {_N[1], _Mean[1], _Sigma[1], _Date[1]} ) )
+);
+datamat[Loc( Is Missing( datamat[0, 3] ) ), 3] = 0;
+wgt_var = (datamat[0, 1] - 1) :* datamat[0, 3] ^ 2;
+ss_all = datamat[0, 1] :* datamat[0, 2];
+n_total = Sum( datamat[0, 1] );
+g_mean = Sum( ss_all ) / n_total;
+ss_pooled = wgt_var + datamat[0, 1] :* (datamat[0, 2] - g_mean) ^ 2;
+total_sigma = Sqrt( Sum( ss_pooled ) / (n_total - 1) );
+oos_above = (1-Normal Distribution((USL-g_mean)/total_sigma));
+oos_below = (Normal Distribution((LSL - g_mean)/total_sigma));
+if(Is Missing(oos_below), oos_below=0);   //replace missing value with 0 for one-sided spec limit
+if(Is Missing(oos_above), oos_above=0);   //replace missing value with 0 for one-sided spec limit
+oos_per = 100*(oos_above + oos_below);
+oos_n = round(n_total * (oos_above + oos_below), 0);
+cp_total = TOL / ( Abs(tol_type) * 3 * total_sigma);
+cpl_total = (g_mean - LSL) / (3 * total_sigma);
+cpu_total = (USL - g_mean) / (3 * total_sigma);
+cpk_total = Min( cpl_total, cpu_total );
+
+If( cpk_total >= 1.33,
+	status_total = "Capable",
+	status_total = "Not Capable"
+);
+
+dplace_mean = If( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) ) + 2, 2);
+dplace_sigma = If( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) ) + 2, 2);
+if(Is Missing(LSL)|Is Missing(USL), dplace=2, dplace = If( Floor( Log10( USL - LSL ) ) < 1, Abs( Floor( Log10( USL - LSL ) ) ) + 2, 2)); //set decimal places to 2 for one-sided spec limit
+increment = round((usl-lsl)/8, dplace);
+
+/***   Facility Level Statistics   ***/
+/***	 Note:  Could convert to an Expression    ***/
+If( N Items( _Facility ) > 0,
+	Current Data Table( dt );
+	dt_sumfac = Data Table( dt ) << Summary(
+		Group(  _Facility[1] ),
+		sum(_N[1]),
+		Link to original data table( 1 )
+	);
+
+	fac_val = column(dt_sumfac,1)<<get values;
+	fac_n = column(dt_sumfac,3)<<get as matrix;
+	fac_name = Char( _Facility[1] );
+	n_fac = N Rows( dt_sumfac );
+	fac_mean = J( n_fac, 1, . );
+	fac_sd = J( n_fac, 1, . );
+	For( i = 1, i <= n_fac, i++,
+		dt_sumfac << clear select;
+		dt_sumfac << select rows( i );
+		fac_rows = dt << get selected rows;
+		wgt_var_temp = wgt_var[fac_rows];
+		ss_temp = ss_all[fac_rows];
+		fac_mean[i] = Sum( ss_temp ) / fac_n[i];
+		ss_pooled = wgt_var_temp + datamat[fac_rows, 1] :* (datamat[fac_rows, 2] - fac_mean[i])
+		 ^ 2;
+		fac_sd[i] = Sqrt( Sum( ss_pooled ) / (fac_n[i] - 1) );
+
+	);
+	Close( dt_sumfac, no save );
+	oos_above_fac = (1-Normal Distribution((USL-fac_mean):/fac_sd));
+	oos_below_fac = (Normal Distribution((LSL - fac_mean):/fac_sd));
+	if(Is Missing(oos_below_fac[1]), oos_below_fac=0);   //replace missing value with 0 for one-sided spec limit
+	if(Is Missing(oos_above_fac[1]), oos_above_fac=0);   //replace missing value with 0 for one-sided spec limit
+	oos_per_fac = 100*(oos_above_fac + oos_below_fac);  //note it is a summation of matrix and scaler of 0 for one-sided spec
+	oos_n_fac = round(fac_n :* (oos_above_fac + oos_below_fac), 0);
+	fac_mp3s = fac_mean + 3 * fac_sd;
+	fac_mm3s = fac_mean - 3 * fac_sd;
+	cp_fac = (TOL) / (Abs( tol_type ) * 3 * fac_sd);
+	cpl_fac = (fac_mean - lsl) :/ (3 * fac_sd);
+	cpu_fac = (USL - fac_mean) :/ (3 * fac_sd);
+	cpk_fac = V Min( (cpl_fac || cpu_fac)` );
+	lsl_fac = J( n_fac, 1, lsl );
+	target_fac = J( n_fac, 1, pmt );
+	usl_fac = J( n_fac, 1, usl );
+	dt_fac = As Table(
+		fac_n,
+		fac_mean,
+		fac_sd,
+		fac_mp3s,
+		fac_mm3s,
+		cpk_fac`,
+		<<column names( {"N", "Mean", "Std Dev", "Mean+3s", "Mean-3s", "Cpk"} )
+	);
+	dt_fac << set name( fac_name || " Cpk" );
+	dt_fac << add multiple columns( "Col", 1, before first, character );
+	Column( dt_fac, 1 ) << set values( fac_val ) << set name( Char( _Facility[1] ) );
+	
+	fac_parmid = {};
+	status_fac = {};
+	For( i = 1, i <= n_fac, i++,
+		Insert Into( fac_parmid, parmid );
+		If(
+			Is Missing( cpk_fac[i] ), Insert Into( status_fac, "" ),
+			cpk_fac[i] >= 1.33, Insert Into( status_fac, "Capable" ),
+			Insert Into( status_fac, "Not Capable" )
+		);
+	);
+	dt_fac << New Column( "ParameterID", character, setvalues( fac_parmid ) );
+	Current Data Table( dt_fac );
+	dt_fac << color by column(_Facility[1]);
+	fac_cpk_plot = Expr(
+		dt_fac << Variability Chart(
+			Y( :Cpk ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_fac ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.33" ), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+
+		)
+	);
+	/*** Facility Mean 3Sigma Var Chart   ***/
+	dt_fac_stacked = dt_fac << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s" ), :Name( "Mean+3s" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( fac_name || " Stacked" )
+	);
+	
+	fac_3svc = Expr(
+		current data table(dt_fac_stacked);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		fac_tvc = dt_fac_stacked << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment), 
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+);  //end facility level computations
+
+
+/***     Entity Level Statistics    ***/
+/***	 Note:  Could convert to an Expression    ***/
+ent_list = {_Facility[1], _Entity[1]};
+If( N Items( _Entity ) == 0,
+	Remove From( ent_list, 2 )
+);
+If( N Items( _Facility ) == 0,
+	Remove From( ent_list, 1 )
+);
+If( N Items( _Entity ) > 0,
+	Current Data Table( dt );
+	ent_name = Char( _Entity[1] );
+	dt_sument = Data Table( dt ) << Summary(
+		Group( Eval List( ent_list ) ),
+		sum(_N[1]),
+		Link to original data table( 1 )
+	);
+	if(nitems(ent_list)==1,
+		ent_val = column(dt_sument,1)<<get values,
+		fac_val2 = column(dt_sument,1)<<get values;
+		ent_val = column(dt_sument,2)<<get values
+	);
+	ent_n = column(dt_sument,nitems(ent_list)+2)<<get as matrix;
+	n_ent = N Rows( ent_n );
+	ent_mean = J( n_ent, 1, . );
+	ent_sd = J( n_ent, 1, . );
+	For( i = 1, i <= n_ent, i++,
+		dt_sument << clear select;
+		dt_sument << select rows( i );
+		ent_rows = dt << get selected rows;
+		wgt_var_temp = wgt_var[ent_rows];
+		ss_temp = ss_all[ent_rows];
+		ent_mean[i] = Sum( ss_temp ) / ent_n[i];
+		ss_pooled = wgt_var_temp + datamat[ent_rows, 1] :* (datamat[ent_rows, 2] - ent_mean[i])
+		 ^ 2;
+		ent_sd[i] = Sqrt( Sum( ss_pooled ) / (ent_n[i] - 1) );
+	);
+	Close( dt_sument, no save );
+	oos_above_ent = (1-Normal Distribution((USL-ent_mean):/ent_sd));
+	oos_below_ent = (Normal Distribution((LSL - ent_mean):/ent_sd));
+	if(Is Missing(oos_below_ent[1]), oos_below_ent=0);   //replace missing value with 0 for one-sided spec limit
+	if(Is Missing(oos_above_ent[1]), oos_above_ent=0);   //replace missing value with 0 for one-sided spec limit
+	oos_per_ent = 100*(oos_above_ent + oos_below_ent);
+	oos_n_ent = round(ent_n :* (oos_above_ent + oos_below_ent), 0);
+	ent_mp3s = ent_mean + 3 * ent_sd;
+	ent_mm3s = ent_mean - 3 * ent_sd;
+	cp_ent = (TOL) / (Abs( tol_type ) * 3 * ent_sd);
+	cpl_ent = (ent_mean - lsl) :/ (3 * ent_sd);
+	cpu_ent = (USL - ent_mean) :/ (3 * ent_sd);
+	cpk_ent = V Min( (cpl_ent || cpu_ent)` );
+	lsl_ent = J( n_ent, 1, lsl );
+	target_ent = J( n_ent, 1, pmt );
+	usl_ent = J( n_ent, 1, usl );
+	dt_ent = As Table(
+		ent_n,
+		ent_mean,
+		ent_sd,
+		ent_mp3s,
+		ent_mm3s,
+		cpk_ent`,
+		<<column names( {"N", "Mean", "Std Dev", "Mean+3s", "Mean-3s", "Cpk"} )
+	);
+	dt_ent << set name( "Entity Cpk" );
+	dt_ent << add multiple columns( "Col", N Items( ent_list ), before first, character );
+	If( N Items( ent_list ) == 1,
+		Column( dt_ent, 1 ) << set values( ent_val ) << setname( Char( Eval( ent_list[1] ) ) ),
+		Column( dt_ent, 1 ) << set values( fac_val2 ) << setname( Char( Eval( ent_list[1] ) ) );
+		Column( dt_ent, 2 ) << set values( ent_val ) << setname( Char( Eval( ent_list[2] ) ) )
+	);
+	
+	ent_parmid = {};
+	status_ent = {};
+	For( i = 1, i <= n_ent, i++,
+		Insert Into( ent_parmid, parmid );
+		If(
+			Is Missing( cpk_ent[i] ), Insert Into( status_ent, "" ),
+			cpk_ent[i] >= 1.33, Insert Into( status_ent, "Capable" ),
+			Insert Into( status_ent, "Not Capable" )
+		);
+	);
+	dt_ent << New Column( "ParameterID", character, setvalues( ent_parmid ) );
+	dt_ent << color by column(_Entity[1]);
+	ent_cpk_plot = Expr(
+		dt_ent << Variability Chart(
+			Y( :Cpk ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_ent ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.33"), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+		)
+	);
+	dt_ent_stacked = dt_ent << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s" ), :Name( "Mean+3s" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( "Entity Stacked" )
+	);
+	
+	ent_3svc = Expr(
+		current data table(dt_ent_stacked);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		ent_tvc = dt_ent_stacked << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment),
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+);//end Entity calculations
+
+/***   Lot Level Calculations    ***/
+Current Data Table( dt );
+struc_list = {_Facility[1], _Entity[1], _Lot[1]};
+If( N Items( _Entity ) == 0,
+	Remove From( struc_list, 2 )
+);
+If( N Items( _Facility ) == 0,
+	Remove From( struc_list, 1 )
+);
+struc_name = Char( Eval( struc_list[1] ) );
+For( i = 2, i <= N Items( struc_list ), i++,
+	struc_name = struc_name || "_" || Char( Eval( struc_list[i] ) )
+);
+
+dt_struc = Data Table( dt ) << Summary(
+	Group( Eval List( struc_list ) ),
+	sum(_N[1]),
+	Link to original data table( 1 )
+);
+If(nitems(ent_list)>0, 
+	n_color = ent_list[nitems(ent_list)];
+	dt_struc << color by column(eval(n_color));
+);
+lot_n = column(dt_struc, nitems(struc_list)+2);
+n_lot = N Rows( dt_struc );
+lot_mean = J( n_lot, 1, . );
+lot_sd = J( n_lot, 1, . );
+lot_date = J( n_lot, 1, . );
+
+For( i = 1, i <= n_lot, i++,
+	dt_struc << clear select;
+	dt_struc << select rows( i );
+	lot_rows = dt << get selected rows;
+	wgt_var_temp = wgt_var[lot_rows];
+	ss_temp = ss_all[lot_rows];
+	lot_mean[i] = Sum( ss_temp ) / lot_n[i];
+	ss_pooled = wgt_var_temp + datamat[lot_rows, 1] :* (datamat[lot_rows, 2] - lot_mean[i]) ^ 2;
+	lot_sd[i] = Sqrt( Sum( ss_pooled ) / (lot_n[i] - 1) );
+	If( N Items( _Date ) == 1,
+		date_temp = datamat[lot_rows, 4];
+		lot_date[i] = Mean( date_temp );
+	);
+);
+dt_struc<<clear select;
+lot_mp3s = lot_mean + 3 * lot_sd;
+lot_mm3s = lot_mean - 3 * lot_sd;
+
+dt_struc << set name( "Lot Level Summary" );
+
+lot_n<<set name("N");
+dt_struc << new column("Mean", continuous, set values(lot_mean));
+dt_struc << new column("Std Dev", continuous, set values(lot_sd));
+dt_struc << new column("Mean+3s", continuous, set values(lot_mp3s));
+dt_struc << new column("Mean-3s", continuous, set values(lot_mm3s));
+dt_struc << new column("Date", continuous, set values(lot_date));
+
+
+dt_struc << sort( By( Column( "Date" ) ), order( Ascending ), Replace Table );
+Column( dt_struc, _Lot[1] << get name ) << set property( "Row Order Levels", 1 );
+
+/****   Var Charts by Structure   ****/
+dt_struc_stacked = dt_struc << stack(
+	columns( :Name( "Mean" ), :Name( "Mean-3s" ), :Name( "Mean+3s" ) ),
+	Source Label Column( "Stat" ),
+	Stacked Data Column( "Mean +/- 3sigma" ),
+	Output Table( "Lot Summary Stacked" )
+);
+
+struc_varchart = Expr(
+	current data table(dt_struc_stacked);
+	min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+	max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+	struc_vc = dt_struc_stacked << Variability Chart(
+		Y( :Name( "Mean +/- 3sigma" ) ),
+		X( Eval List( struc_list ) ),
+		Process Variation( 0 ),
+		Connect Cell Means( 1 ),
+		Show Range Bars( 1 ),
+		Show Points( 0 ),
+		Std Dev Chart( 0 ),
+		SendToReport(
+			Dispatch(
+				{"Variability Chart for Mean +/- 3sigma"},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Add Ref Line( pmt, Dotted, "Red", "Target" ),
+				Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+				Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+				Rotated Labels( "Horizontal" )}
+			),
+			Dispatch(
+				{"Variability Chart for Mean +/- 3sigma"},
+				"",
+				NomAxisBox( 2 ),
+				{Rotated Tick Labels( 1 )}
+			)
+		)
+	)
+);
+ 
+Current Data Table( dt_struc );
+n_struc = N Items( struc_list );
+If( N Items( struc_list ) == 1,
+	struc_meanplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "Mean" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "Mean", OutlineBox, {Set Title( "Lot Means" )} ),
+				Dispatch( {"Mean"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"Mean"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End mean plot expression
+	struc_sigmaplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "Std Dev" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "Std Dev", OutlineBox, {Set Title( "Lot Standard Deviations" )} ),
+				Dispatch( {"Std Dev"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"Std Dev"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End std dev plot expression
+	struc_nplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "N" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "N", OutlineBox, {Set Title( "Lot N" )} ),
+				Dispatch( {"N"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"N"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End N plot expression
+	struc_varchart2 = Expr( Text Box( "Nothing to Plot" ) );
+, //else
+	struc_list2 = Remove( struc_list, n_struc );
+	struc_meanplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "Mean" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for Mean",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot Means" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end mean plot
+	struc_sigmaplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "Std Dev" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for Std Dev",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot Standard Deviations" )}
+				),
+				Dispatch(
+					{"Variability Chart for Std Dev"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Std Dev"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end sigma plot
+	struc_nplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "N" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for N",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot N" )}
+				),
+				Dispatch(
+					{"Variability Chart for N"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for N"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end N plot
+	
+/***    Detailed Summary Plots    ***/
+	struc_varchart2 = Expr(
+		current data table(dt_struc_stacked);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		struc_vc2 = dt_struc_stacked << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( Eval( _Lot )[1] ),
+			By( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment),
+					Minor Ticks(0),
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);
+); //End IF for Lot Summary plots
+
+
+/***    Hide Data Table Windows    ***/
+hide_dts = Expr(
+	If( !Is Empty( dt_struc_stacked ),
+		dt_struc_stacked << show window( 0 )
+	);
+	If( !Is Empty( dt_struc ),
+		dt_struc << show window( 0 )
+	);
+	If( !Is Empty( dt_ent_stacked ),
+		dt_ent_stacked << show window( 0 )
+	);
+	If( !Is Empty( dt_ent ),
+		dt_ent << show window( 0 )
+	);
+	If( !Is Empty( dt_fac_stacked ),
+		dt_fac_stacked << show window( 0 )
+	);
+	If( !Is Empty( dt_fac ),
+		dt_fac << show window( 0 )
+	);
+	If( !Is Empty( dt ),
+		dt << show window( 0 )
+	);
+);
+
+
+/***    Report Table   ***/
+currentdatatable(dt);
+cpk_summary = Expr(
+	::oneclick_Cpk_SS_Window = New Window( "Cpk Based on Summary Statistics",
+		<<OnClose( Eval( close_dts ) ),
+		cpk_summ_box = V List Box(
+			Outline Box( "Overall Cpk Summary",
+				::oneclick_Cpk_SS_Overall_SummaryBox = Table Box(
+					String Col Box( "Parameter ID", {parmid} ),
+					Number Col Box( "Total N",
+						Matrix( n_total ),
+						<<set format( 8, 0, "Fixed Dec", "Use thousands separator" )
+					),
+					Number Col Box( "Grand Mean",
+						Matrix( g_mean ),
+						<<set format( 8, dplace_mean )
+					),
+					Number Col Box( "Total Sigma",
+						Matrix( total_sigma ),
+						<<set format( 8, dplace_sigma )
+					),
+					Number Col Box( "LSL", Matrix( lsl ) ),
+					Number Col Box( "Target", Matrix( pmt ) ),
+					Number Col Box( "USL", Matrix( usl ) ),
+					Number Col Box( "#OOS(est.)", Matrix( oos_n ) , <<set format( 8, 0 ) ),
+					Number Col Box( "%OOS(est.)", Matrix( oos_per ) , <<set format( 8, dplace ) ),
+					Number Col Box( "Cpk", Matrix( cpk_total ), <<set format( 8, dplace ) ),
+					String Col Box( "Cpk Status", {status_total} ),
+					Number Col Box( "Cpl", Matrix( cpl_total ), <<set format( 8, dplace ) ),
+					Number Col Box( "Cpu", Matrix( cpu_total ), <<set format( 8, dplace ) ),
+					Number Col Box( "Cp", Matrix( cp_total ), <<set format( 8, dplace ) ),
+					<<table Style( Bordered )
+				)
+			),
+			If( N Items( _Facility ) > 0,
+				Outline Box( "Cpk by Facility Summary",
+					V List Box(
+						::oneclick_Cpk_SS_by_Facility_SummaryBox = Table Box(
+							String Col Box( "Parameter ID", fac_parmid ),
+							String Col Box( fac_name, fac_val ),
+							Number Col Box( "N",
+								fac_n,
+								<<set format( 8, 0, "Fixed Dec", "Use thousands separator" )
+							),
+							Number Col Box( "Mean", fac_mean, <<set format( 8, dplace_mean ) ),
+							Number Col Box( "Sigma", fac_sd, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "LSL", lsl_fac ),
+							Number Col Box( "Target", target_fac ),
+							Number Col Box( "USL", usl_fac ),
+							Number Col Box( "#OOS(est.)", Matrix( oos_n_fac ) , <<set format( 8, 0 ) ),
+							Number Col Box( "%OOS(est.)", Matrix( oos_per_fac ) , <<set format( 8, dplace ) ),
+							Number Col Box( "Cpk", cpk_fac, <<set format( 8, dplace ) ),
+							String Col Box( "Cpk Status", status_fac ),
+							Number Col Box( "Cpl", cpl_fac, <<set format( 8, dplace ) ),
+							Number Col Box( "Cpu", cpu_fac, <<set format( 8, dplace ) ),
+							Number Col Box( "Cp", cp_fac, <<set format( 8, dplace ) ),
+							<<table Style( Bordered )
+						),
+						H List Box( Eval( fac_cpk_plot ), Eval( fac_3svc ) )
+					)
+				)
+			),
+			If( N Items( _Entity ) > 0,
+				Outline Box( "Cpk by Entity Summary",
+					V List Box(
+						::oneclick_Cpk_SS_by_Entity_SummaryBox = Table Box(
+							String Col Box( "Parameter ID", ent_parmid ),
+							If( N Items( _Facility ) > 0,
+								String Col Box( fac_name, fac_val2 )
+							)
+							,
+							String Col Box( ent_name, ent_val ),
+							Number Col Box( "N",
+								ent_n,
+								<<set format( 8, 0, "Fixed Dec", "Use thousands separator" )
+							),
+							Number Col Box( "Mean", ent_mean, <<set format( 8, dplace_mean ) ),
+							Number Col Box( "Sigma", ent_sd, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "LSL", lsl_ent ),
+							Number Col Box( "Target", target_ent ),
+							Number Col Box( "USL", usl_ent ),
+							Number Col Box( "#OOS(est.)", Matrix( oos_n_ent ) , <<set format( 8, 0 ) ),
+							Number Col Box( "%OOS(est.)", Matrix( oos_per_ent ) , <<set format( 8, dplace ) ),
+							Number Col Box( "Cpk", cpk_ent, <<set format( 8, dplace ) ),
+							String Col Box( "Cpk Status", status_ent ),
+							Number Col Box( "Cpl", cpl_ent, <<set format( 8, dplace ) ),
+							Number Col Box( "Cpu", cpu_ent, <<set format( 8, dplace ) ),
+							Number Col Box( "Cp", cp_ent, <<set format( 8, dplace ) ),
+							<<table Style( Bordered )
+						),
+						H List Box( Eval( ent_cpk_plot ), Eval( ent_3svc ) )
+					)
+				)
+			),
+			Outline Box( "Summary Plots",
+				Tab Box(
+					"Overall Plots",
+					V List Box(
+						Eval( struc_varchart ),
+						H List Box(
+							Eval( struc_meanplot ),
+							Eval( struc_sigmaplot ),
+							Eval( struc_nplot )
+						)
+					),
+					"Detailed Summary Plots",
+					(dsp_ob = Outline Box( "Detailed Summary Plots", Eval( struc_varchart2 )))
+				)
+			),
+			CP_Status_Guidelines,
+			footerbox
+		)
+	)
+);
+
+
+/***    Close Windows Expression    ***/
+close_dts = Expr(
+	If( !Is Empty( dt_struc_stacked ),
+		Close( dt_struc_stacked, nosave )
+	);
+	If( !Is Empty( dt_struc ),
+		Close( dt_struc, nosave )
+	);
+	If( !Is Empty( dt_ent_stacked ),
+		Close( dt_ent_stacked, nosave )
+	);
+	If( !Is Empty( dt_ent ),
+		Close( dt_ent, nosave )
+	);
+	If( !Is Empty( dt_fac_stacked ),
+		Close( dt_fac_stacked, nosave )
+	);
+	If( !Is Empty( dt_fac ),
+		Close( dt_fac, nosave )
+	);
+	If( !Is Empty( dt ),
+		Close( dt, nosave )
+	);
+);
+
+Wait( 0.1 );
+Eval( hide_dts );
+Eval( cpk_summary );
+dsp_ob<<Close(1);
+
+
+); //End Expr
+
+
+////////////////////////////// AutoCP_Status_Guidelines ///////////////////////////////////////////////////
+::AutoCP_Status_Guidelines = Expr(
+	OutlineBox("Status Guidelines",
+		TableBox(StringColBox("Status", {"Capable", "Not Capable"}), StringColBox("Intel Cpk", {">= 1.33", "< 1.33"}),StringColBox("Auto Cpk", {">= 1.67", "< 1.67"})),
+		<<Close(1)
+	)
+); //EndExpr
+
+
+////////////////////////////////////// AutoCpk_SummaryStats_MainDiag_Expr ////////////////////////////////////////////////////
+::AutoCpk_SummaryStats_MainDiag_Expr = Expr(
+
+	While( spec_ck == 1, //spec_ck=1 when limit were not entered appropriately
+		::dlg = Column Dialog(
+			title( "Intel Cpk (Ppk)/Automotive Cpk based on Lot/Entity Summary Statistics" ),
+			_N = ColList( "N (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Numeric ) ),
+			_Mean = ColList( "Mean (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Numeric ) ),
+			_Sigma = ColList( "Standard Deviation (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Numeric ) ),
+			_Lot = ColList( "Lot ID (Required)", MinCol( 1 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Facility = ColList( "Facility (Optional)", MinCol( 0 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Entity = ColList( "Entity (Optional)", MinCol( 0 ), MaxCol( 1 ), DataType( Nominal ) ),
+			_Date = ColList( "Date/Time (Optional)", Mincol( 0 ), MaxCol( 1 ) ),
+			_TrendBy = ColList( "Time Trend By (Optional)", MinCol( 0 ), MaxCol( 1 ), DataType( Nominal ) ),
+			vlist(
+				"",
+				vlist(
+					"Enter: At least one of USL and LSL", //modified requirement of inputs, Xin
+					lineup( 4,						 
+						"LSL: ", lsl = editNumber( lsl ), "", "",
+						"Target:", pmt = editNumber( pmt ), "(Optional)", "",
+						"USL: ", usl = editNumber( usl ), "", "",
+						"", "", "", "",
+						"Enter ParameterID: ", parmid = editText( ParameterID ), "", "",
+						"", "", "", ""
+					)
+				)
+			)
+		);
+		::button = Dlg["Button"];
+		::_N = dlg["_N"];
+		::_Mean = dlg["_Mean"];
+		::_Sigma = dlg["_Sigma"];
+		::_Lot = dlg["_Lot"];
+		::_Entity = dlg["_Entity"];
+		::_Facility = dlg["_Facility"];
+		::_Date = dlg["_Date"];
+		::_TrendBy = dlg["_TrendBy"];
+		::lsl = dlg["LSL"];
+		::pmt = dlg["pmt"];
+		::usl = dlg["USL"];
+		::parmid = dlg["parmid"];
+		If( button == -1,
+			Close( dt, no save );
+			Throw();
+		);
+
+/*** Appropriate Spec Limit Combinations check, modified by Xin  ***/
+		If( Is Missing( usl ) & Is Missing( lsl ),
+			spec_ck = 1;
+			//add error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("USL and LSL cannot be both missing!"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			),
+			If( !Is Missing( usl ) & !Is Missing( lsl ),
+				If( usl > lsl,
+					spec_ck = 0;
+					TOL = usl - lsl;
+					TOL_type = 2;
+					pmt = (usl + lsl) / 2;
+				,
+					spec_ck = 1;
+					//add error window
+					New Window("Error",
+						<<Modal,
+						vlistbox(
+							textbox(""),
+							textbox("USL must be larger than LSL!"),
+							textbox(""),
+							hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+							textbox("")
+						)
+					)
+				)//LSL and USL error exception
+			,
+				If( !Is Missing( usl ),  //if USL is entered
+					If( !Is Missing( pmt ) & (usl > pmt), //target is entered for cp calculation
+						spec_ck = 0;
+						//TOL = usl - pmt;
+						TOL =.;  //NOT CALCULATE CP FOR ONE-SIDED SPEC
+						TOL_type = 1;
+					,
+						if (!Is Missing(pmt),  //usl<pmt
+						spec_ck = 1;
+						//add error window
+						New Window("Error",
+							<<Modal,
+							vlistbox(
+								textbox(""),
+								textbox("USL must be larger than target!"),
+								textbox(""),
+								hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+								textbox("")
+							)
+						), //else is pmt missing
+						spec_ck=0; //script still run to calculate cpk
+						TOL = .; //if pmt is missing, not calculate cp
+						TOL_type=1;
+						))
+				,  //else is LSL is entered
+					If( !Is Missing( pmt ) & (lsl < pmt),
+						spec_ck = 0;
+						//TOL = pmt - lsl;
+						TOL =.;  //NOT CALCULATE CP FOR ONE-SIDED SPEC
+						TOL_type = -1;
+					,
+						if (!Is Missing(pmt),  //lsl > pmt
+						spec_ck = 1;
+						//add error window
+						New Window("Error",
+							<<Modal,
+							vlistbox(
+								textbox(""),
+								textbox("LSL must be smaller than target!"),
+								textbox(""),
+								hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+								textbox("")
+							)
+						), //else is pmt missing
+						spec_ck=0; //script still run to calculate cpk
+						TOL = .; //if pmt is missing, not calculate cp
+						TOL_type=1;
+						)
+					)
+				)
+			)
+		);
+	); //end While (Spec_ck = 1)
+); //End Expr
+
+
+////////////////////////////////////// Overall_AutoCpk_Expr ////////////////////////////////////////////////////
+:: Overall_AutoCpk_Expr = Expr(
+
+/*** Remove Missing data  ***/
+
+dt << select where( Is Missing( _N[1][] ) | Is Missing( _Mean[1][] ) ) ;
+If(nrows(dt << get selected rows)>0, 
+dt << get selected rows << delete rows);  //use if statement to suppress JMP alert
+
+/***   overall_cpk   ***/
+n_entries = N Rows( dt );
+If( N Items( _Date ) == 0,
+	datamat = dt << get as matrix( Eval List( {_N[1], _Mean[1], _Sigma[1]} ) ),
+	datamat = dt << get as matrix( Eval List( {_N[1], _Mean[1], _Sigma[1], _Date[1]} ) )
+);
+datamat[Loc( Is Missing( datamat[0, 3] ) ), 3] = 0;
+wgt_var = (datamat[0, 1] - 1) :* datamat[0, 3] ^ 2;
+ss_all = datamat[0, 1] :* datamat[0, 2];
+n_total = Sum( datamat[0, 1] );
+g_mean = Sum( ss_all ) / n_total;
+ss_pooled = wgt_var + datamat[0, 1] :* (datamat[0, 2] - g_mean) ^ 2;
+total_sigma = Sqrt( Sum( ss_pooled ) / (n_total - 1) );
+oos_above = (1-Normal Distribution((USL-g_mean)/total_sigma));
+oos_below = (Normal Distribution((LSL - g_mean)/total_sigma));
+if(Is Missing(oos_below), oos_below=0);   //replace missing value with 0 for one-sided spec limit
+if(Is Missing(oos_above), oos_above=0);   //replace missing value with 0 for one-sided spec limit
+oos_per = 100*(oos_above + oos_below);
+oos_n = round(n_total * (oos_above + oos_below), 0);
+cp_total = TOL / ( Abs(tol_type) * 3 * total_sigma);
+cpl_total = (g_mean - LSL) / (3 * total_sigma);
+cpu_total = (USL - g_mean) / (3 * total_sigma);
+cpk_total = Min( cpl_total, cpu_total );
+
+If( cpk_total >= 1.33,
+	status_total = "Capable",
+	status_total = "Not Capable"
+);
+
+//---------------------------------------- Auto_cpk ----------------------------------------
+//if SubgroupSize 2-25 -> refer to following list, if SubgroupSize >25 -> using formula, 4(n-1)/(4n-3)
+c4 = {0.000,0.7979,0.8862,0.9213,0.9400,0.9515,0.9594,0.9650,0.9693,0.9727,
+		0.9754,0.9776,0.9794,0.9810,0.9823,0.9835,0.9845,0.9854,0.9862,0.9869,
+		0.9876,0.9882,0.9887,0.9892,0.9896};
+nlot_total = N rows(dt);
+subgrp_size = Floor( Quantile(0.5,datamat[0, 1]) );
+if(subgrp_size>1 & subgrp_size<26,
+	total_sigma_auto = Mean( datamat[0, 3] )/c4[subgrp_size],
+	if(subgrp_size>25,
+		total_sigma_auto = Mean( datamat[0, 3] )/(4*(subgrp_size-1)/(4*subgrp_size-3))
+	);
+);
+
+cp_total_auto = TOL / ( Abs(tol_type) * 3 * total_sigma_auto);
+cpl_total_auto = (g_mean - LSL) / (3 * total_sigma_auto);
+cpu_total_auto = (USL - g_mean) / (3 * total_sigma_auto);
+cpk_total_auto = Min( cpl_total_auto, cpu_total_auto );
+
+If( cpk_total_auto >= 1.67,
+	status_total_auto = "Capable",
+	status_total_auto = "Not Capable"
+);
+//------------------------------------------------------------------------------------------
+
+dplace_mean = If( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) ) + 2, 2);
+dplace_sigma = If( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) ) + 2, 2);
+//dplace = If( Floor( Log10( USL - LSL ) ) < 1, Abs( Floor( Log10( USL - LSL ) ) ) + 2, 2);
+if(Is Missing(LSL)|Is Missing(USL), dplace=2, dplace = If( Floor( Log10( USL - LSL ) ) < 1, Abs( Floor( Log10( USL - LSL ) ) ) + 2, 2)); //set decimal places to 2 for one-sided spec limit
+increment = round((usl-lsl)/8, dplace);
+
+/***  Timeframe Statistics  ***/
+/***  Note:  Could convert to an Expression  ***/
+If( N Items( _TrendBy ) > 0,
+	Current Data Table( dt );
+	if(	(_TrendBy[1] << Get Data Type)=="Numeric", _TrendBy[1] << Data Type(Character) );
+	dt_sumtfrm = Data Table( dt ) << Summary(
+		Group( _TrendBy[1] ),
+		sum(_N[1]),
+		Link to original data table( 1 )
+	);
+
+	tfrm_val = column(dt_sumtfrm,1)<<get values;
+	tfrm_n = column(dt_sumtfrm,3)<<get as matrix;
+	tfrm_name = Char( _TrendBy[1] );
+	n_tfrm = N Rows( dt_sumtfrm );
+	tfrm_mean = J( n_tfrm, 1, . );
+	tfrm_sd = J( n_tfrm, 1, . );
+	tfrm_nlot = J( n_tfrm, 1, . );
+	//------ Auto_cpk
+	tfrm_sd_auto = J( n_tfrm, 1, . );
+	For( i = 1, i <= n_tfrm, i++,
+		dt_sumtfrm << clear select;
+		dt_sumtfrm << select rows( i );
+		tfrm_rows = dt << get selected rows;
+		tfrm_nlot[i] = N Rows(tfrm_rows);
+		wgt_var_temp = wgt_var[tfrm_rows];
+		ss_temp = ss_all[tfrm_rows];
+		tfrm_mean[i] = Sum( ss_temp ) / tfrm_n[i];
+		ss_pooled = wgt_var_temp + datamat[tfrm_rows, 1] :* (datamat[tfrm_rows, 2] - tfrm_mean[i])
+		 ^ 2;
+		tfrm_sd[i] = Sqrt( Sum( ss_pooled ) / (tfrm_n[i] - 1) );
+		//------ Auto_cpk
+		subgrp_size = Floor( Quantile(0.5,datamat[tfrm_rows, 1]) );
+		if(subgrp_size>1 & subgrp_size<26,
+			tfrm_sd_auto[i] = Mean( datamat[tfrm_rows, 3] )/c4[subgrp_size],
+			if(subgrp_size>25,
+				tfrm_sd_auto[i] = Mean( datamat[tfrm_rows, 3] )/(4*(subgrp_size-1)/(4*subgrp_size-3))
+			);
+		);
+		//------
+	);
+	Close( dt_sumtfrm, no save );
+	oos_above_tfrm = (1-Normal Distribution((USL-tfrm_mean):/tfrm_sd));
+	oos_below_tfrm = (Normal Distribution((LSL - tfrm_mean):/tfrm_sd));
+	if(Is Missing(oos_below_tfrm[1]), oos_below_tfrm=0);   //replace missing value with 0 for one-sided spec limit
+	if(Is Missing(oos_above_tfrm[1]), oos_above_tfrm=0);   //replace missing value with 0 for one-sided spec limit
+	oos_per_tfrm = 100*(oos_above_tfrm + oos_below_tfrm);  //note it is a summation of matrix and scaler of 0 for one-sided spec
+	oos_n_tfrm = round(tfrm_n :* (oos_above_tfrm + oos_below_tfrm), 0);
+	tfrm_mp3s = tfrm_mean + 3 * tfrm_sd;
+	tfrm_mm3s = tfrm_mean - 3 * tfrm_sd;
+	cp_tfrm = (TOL) / (Abs( tol_type ) * 3 * tfrm_sd);
+	cpl_tfrm = (tfrm_mean - lsl) :/ (3 * tfrm_sd);
+	cpu_tfrm = (USL - tfrm_mean) :/ (3 * tfrm_sd);
+	cpk_tfrm = V Min( (cpl_tfrm || cpu_tfrm)` );
+	//------ Auto_cpk
+	tfrm_mp3s_auto = tfrm_mean + 3 * tfrm_sd_auto;
+	tfrm_mm3s_auto = tfrm_mean - 3 * tfrm_sd_auto;
+	cp_tfrm_auto = (TOL) / (Abs( tol_type ) * 3 * tfrm_sd_auto);
+	cpl_tfrm_auto = (tfrm_mean - lsl) :/ (3 * tfrm_sd_auto);
+	cpu_tfrm_auto = (USL - tfrm_mean) :/ (3 * tfrm_sd_auto);
+	cpk_tfrm_auto = V Min( (cpl_tfrm_auto || cpu_tfrm_auto)` );
+	//------
+	lsl_tfrm = J( n_tfrm, 1, lsl );
+	target_tfrm = J( n_tfrm, 1, pmt );
+	usl_tfrm = J( n_tfrm, 1, usl );
+	dt_tfrm = As Table(
+		tfrm_n,
+		tfrm_mean,
+		tfrm_sd,
+		tfrm_mp3s,
+		tfrm_mm3s,
+		cpk_tfrm`,
+		tfrm_mp3s_auto,
+		tfrm_mm3s_auto,
+		cpk_tfrm_auto`,
+		<<column names( {"N", "Mean", "Std Dev", "Mean+3s (Intel)", "Mean-3s (Intel)", "Intel Cpk", 
+			"Mean+3s (Auto)", "Mean-3s (Auto)", "Auto Cpk"} )
+	);
+	dt_tfrm << add multiple columns( "Col", 1, before first, character );
+	Column( dt_tfrm, 1 ) << set values( tfrm_val ) << set name( Char( _TrendBy[1] ) );
+	
+	tfrm_parmid = {};
+	status_tfrm = {};
+	//------ Auto_cpk
+	status_tfrm_auto = {};
+	For( i = 1, i <= n_tfrm, i++,
+		Insert Into( tfrm_parmid, parmid );
+		If(
+			Is Missing( cpk_tfrm[i] ), Insert Into( status_tfrm, "" ),
+			cpk_tfrm[i] >= 1.33, Insert Into( status_tfrm, "Capable" ),
+			Insert Into( status_tfrm, "Not Capable" )
+		);
+		//------ Auto_cpk
+		If(
+			Is Missing( cpk_tfrm_auto[i] ), Insert Into( status_tfrm_auto, "" ),
+			cpk_tfrm_auto[i] >= 1.67, Insert Into( status_tfrm_auto, "Capable" ),
+			Insert Into( status_tfrm_auto, "Not Capable" )
+		);
+		//------
+	);
+	dt_tfrm << New Column( "ParameterID", character, setvalues( tfrm_parmid ) );
+	dt_tfrm2 = dt_tfrm << Stack(
+		columns( :Intel Cpk, :Auto Cpk ),
+		Source Label Column( "Cpk Type" ),
+		Stacked Data Column( "Cpk" )
+	);
+	dt_tfrm2 << set name( tfrm_name || " Cpk" );
+	Current Data Table( dt_tfrm2 );
+	tfrm_cpk_plot = Expr(
+		tfrm_oneway = dt_tfrm2 << Oneway(
+			Y( :Cpk ),
+			X( _TrendBy[1] ),
+			Matching Column(:Cpk Type),
+			Quantiles( 0 ),
+			Means( 0 ),
+			Means and Std Dev( 0 ),
+			Unequal Variances( 0 ),
+			Plot Actual by Quantile( 0 ),
+			Box Plots( 0 ),
+			Mean Lines( 0 ),
+			X Axis Proportional( 0 ),
+			Grand Mean( 0 ),
+			Points Jittered( 0 ),
+			Matching Lines( 1 ),
+			Matching Dotted Lines( 0 ),
+			Mean CI Lines( 0 ),
+			Mean Diamonds( 0 ),
+			Mean Error Bars( 0 ),
+			Std Dev Lines( 0 ),
+			Connect Means( 0 ),
+			Points Spread( 0 ),
+			Mean of Means( 0 ),
+			Histograms( 0 ),
+			SendToReport(
+				Dispatch( {}, "", NomAxisBox, {Rotated Tick Labels( 1 )} ),
+				Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 ), Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.33" ), 
+					Add Ref Line( 1.67, Dotted, "Red", "Cpk=1.67" )} ),
+				Dispatch(
+					{},
+					"Oneway Plot",
+					FrameBox,
+					{Frame Size( 350, 220 ), Marker Size( 3 ), Grid Line Order( 3 ), Reference Line Order( 4 ),
+					Row Legend(
+						Name( "Cpk Type" ),
+						Color( 1 ),
+						Color Theme( "JMP Default" ),
+						Marker( 1 ),
+						Marker Theme( "Solid" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				)
+			)
+		);
+		Report( tfrm_oneway )[Outline Box( 1 )] << Set Title( "Cpk Trend By " || tfrm_name);
+	);
+	
+	/*** Timeframe Mean 3Sigma Var Chart   ***/
+	dt_tfrm_stack1 = dt_tfrm << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Intel)" ), :Name( "Mean+3s (Intel)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( tfrm_name || " Stacked_Intel" )
+	);
+	dt_tfrm_stack2 = dt_tfrm << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Auto)" ), :Name( "Mean+3s (Auto)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( tfrm_name || " Stacked_Auto" )
+	);
+	
+	tfrm_3svc1 = Expr(
+		current data table(dt_tfrm_stack1);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		tfrm_tvc1 = dt_tfrm_stack1 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( _TrendBy[1] ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment), 
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch( {}, "Variability Gauge", OutlineBox, {Set Title( "Intel" )})
+			)
+		)
+	);
+	tfrm_3svc2 = Expr(
+		current data table(dt_tfrm_stack2);
+		tfrm_tvc2 = dt_tfrm_stack2 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( _TrendBy[1] ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment), 
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch( {}, "Variability Gauge", OutlineBox, {Set Title( "Auto" )})
+			)
+		)
+	);
+);  //end CPK trend
+
+/***   Facility Level Statistics   ***/
+/***	 Note:  Could convert to an Expression    ***/
+If( N Items( _Facility ) > 0,
+	Current Data Table( dt );
+	dt_sumfac = Data Table( dt ) << Summary(
+		Group(  _Facility[1] ),
+		sum(_N[1]),
+		Link to original data table( 1 )
+	);
+
+	fac_val = column(dt_sumfac,1)<<get values;
+	fac_n = column(dt_sumfac,3)<<get as matrix;
+	fac_name = Char( _Facility[1] );
+	n_fac = N Rows( dt_sumfac );
+	fac_mean = J( n_fac, 1, . );
+	fac_sd = J( n_fac, 1, . );
+	fac_nlot = J( n_fac, 1, . );
+	//------ Auto_cpk
+	fac_sd_auto = J( n_fac, 1, . );
+	For( i = 1, i <= n_fac, i++,
+		dt_sumfac << clear select;
+		dt_sumfac << select rows( i );
+		fac_rows = dt << get selected rows;
+		fac_nlot[i] = N Rows(fac_rows);
+		wgt_var_temp = wgt_var[fac_rows];
+		ss_temp = ss_all[fac_rows];
+		fac_mean[i] = Sum( ss_temp ) / fac_n[i];
+		ss_pooled = wgt_var_temp + datamat[fac_rows, 1] :* (datamat[fac_rows, 2] - fac_mean[i])
+		 ^ 2;
+		fac_sd[i] = Sqrt( Sum( ss_pooled ) / (fac_n[i] - 1) );
+		//------ Auto_cpk
+		if(subgrp_size>1 & subgrp_size<26,
+			fac_sd_auto[i] = Mean( datamat[fac_rows, 3] )/c4[subgrp_size],
+			if(subgrp_size>25,
+				fac_sd_auto[i] = Mean( datamat[fac_rows, 3] )/(4*(subgrp_size-1)/(4*subgrp_size-3))
+			);
+		);
+		//------
+	);
+	Close( dt_sumfac, no save );
+	oos_above_fac = (1-Normal Distribution((USL-fac_mean):/fac_sd));
+	oos_below_fac = (Normal Distribution((LSL - fac_mean):/fac_sd));
+	if(Is Missing(oos_below_fac[1]), oos_below_fac=0);   //replace missing value with 0 for one-sided spec limit
+	if(Is Missing(oos_above_fac[1]), oos_above_fac=0);   //replace missing value with 0 for one-sided spec limit
+	oos_per_fac = 100*(oos_above_fac + oos_below_fac);  //note it is a summation of matrix and scaler of 0 for one-sided spec
+	oos_n_fac = round(fac_n :* (oos_above_fac + oos_below_fac), 0);
+	fac_mp3s = fac_mean + 3 * fac_sd;
+	fac_mm3s = fac_mean - 3 * fac_sd;
+	cp_fac = (TOL) / (Abs( tol_type ) * 3 * fac_sd);
+	cpl_fac = (fac_mean - lsl) :/ (3 * fac_sd);
+	cpu_fac = (USL - fac_mean) :/ (3 * fac_sd);
+	cpk_fac = V Min( (cpl_fac || cpu_fac)` );
+	//------ Auto_cpk
+	fac_mp3s_auto = fac_mean + 3 * fac_sd_auto;
+	
+	fac_mm3s_auto = fac_mean - 3 * fac_sd_auto;
+	cp_fac_auto = (TOL) / (Abs( tol_type ) * 3 * fac_sd_auto);
+	cpl_fac_auto = (fac_mean - lsl) :/ (3 * fac_sd_auto);
+	cpu_fac_auto = (USL - fac_mean) :/ (3 * fac_sd_auto);
+	cpk_fac_auto = V Min( (cpl_fac_auto || cpu_fac_auto)` );
+	//------
+	lsl_fac = J( n_fac, 1, lsl );
+	target_fac = J( n_fac, 1, pmt );
+	usl_fac = J( n_fac, 1, usl );
+	dt_fac = As Table(
+		fac_n,
+		fac_mean,
+		fac_sd,
+		fac_mp3s,
+		fac_mm3s,
+		cpk_fac`,
+		fac_mp3s_auto,
+		fac_mm3s_auto,
+		cpk_fac_auto`,
+		<<column names( {"N", "Mean", "Std Dev", "Mean+3s (Intel)", "Mean-3s (Intel)", "Intel Cpk", 
+			"Mean+3s (Auto)", "Mean-3s (Auto)", "Auto Cpk"} )
+	);
+	dt_fac << set name( fac_name || " Cpk" );
+	dt_fac << add multiple columns( "Col", 1, before first, character );
+	Column( dt_fac, 1 ) << set values( fac_val ) << set name( Char( _Facility[1] ) );
+	
+	fac_parmid = {};
+	status_fac = {};
+	//------ Auto_cpk
+	status_fac_auto = {};
+	For( i = 1, i <= n_fac, i++,
+		Insert Into( fac_parmid, parmid );
+		If(
+			Is Missing( cpk_fac[i] ), Insert Into( status_fac, "" ),
+			cpk_fac[i] >= 1.33, Insert Into( status_fac, "Capable" ),
+			Insert Into( status_fac, "Not Capable" )
+		);
+		//------ Auto_cpk
+		If(
+			Is Missing( cpk_fac_auto[i] ), Insert Into( status_fac_auto, "" ),
+			cpk_fac_auto[i] >= 1.67, Insert Into( status_fac_auto, "Capable" ),
+			Insert Into( status_fac_auto, "Not Capable" )
+		);
+		//------
+	);
+	dt_fac << New Column( "ParameterID", character, setvalues( fac_parmid ) );
+	Current Data Table( dt_fac );
+	dt_fac << color by column(_Facility[1]);
+	fac_cpk_plot1 = Expr(
+		dt_fac << Variability Chart(
+			Y( :Intel Cpk ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_fac ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.33" ), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+		);
+	);
+	fac_cpk_plot2 = Expr(
+		dt_fac << Variability Chart(
+			Y( :Auto Cpk ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_fac ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.67" ), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+		)
+	);
+	
+	/*** Facility Mean 3Sigma Var Chart   ***/
+	dt_fac_stack1 = dt_fac << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Intel)" ), :Name( "Mean+3s (Intel)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( fac_name || " Stacked_Intel" )
+	);
+	
+	dt_fac_stack2 = dt_fac << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Auto)" ), :Name( "Mean+3s (Auto)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( fac_name || " Stacked_Auto" )
+	);
+	
+	fac_3svc1 = Expr(
+		current data table(dt_fac_stack1);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		fac_tvc1 = dt_fac_stack1 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment), 
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+	fac_3svc2 = Expr(
+		current data table(dt_fac_stack2);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		fac_tvc2 = dt_fac_stack2 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( _Facility[1] ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment), 
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+);  //end facility level computations
+
+/***     Entity Level Statistics    ***/
+/***	 Note:  Could convert to an Expression    ***/
+ent_list = {_Facility[1], _Entity[1]};
+If( N Items( _Entity ) == 0,
+	Remove From( ent_list, 2 )
+);
+If( N Items( _Facility ) == 0,
+	Remove From( ent_list, 1 )
+);
+If( N Items( _Entity ) > 0,
+	Current Data Table( dt );
+	ent_name = Char( _Entity[1] );
+	dt_sument = Data Table( dt ) << Summary(
+		Group( Eval List( ent_list ) ),
+		sum(_N[1]),
+		Link to original data table( 1 )
+	);
+	if(nitems(ent_list)==1,
+		ent_val = column(dt_sument,1)<<get values,
+		fac_val2 = column(dt_sument,1)<<get values;
+		ent_val = column(dt_sument,2)<<get values
+	);
+	ent_n = column(dt_sument,nitems(ent_list)+2)<<get as matrix;
+	n_ent = N Rows( ent_n );
+	ent_mean = J( n_ent, 1, . );
+	ent_sd = J( n_ent, 1, . );
+	ent_nlot = J( n_ent, 1, . );
+	//------ Auto_cpk
+	ent_sd_auto = J( n_ent, 1, . );
+	For( i = 1, i <= n_ent, i++,
+		dt_sument << clear select;
+		dt_sument << select rows( i );
+		ent_rows = dt << get selected rows;
+		ent_nlot[i] = N Rows(ent_rows);
+		wgt_var_temp = wgt_var[ent_rows];
+		ss_temp = ss_all[ent_rows];
+		ent_mean[i] = Sum( ss_temp ) / ent_n[i];
+		ss_pooled = wgt_var_temp + datamat[ent_rows, 1] :* (datamat[ent_rows, 2] - ent_mean[i])
+		 ^ 2;
+		ent_sd[i] = Sqrt( Sum( ss_pooled ) / (ent_n[i] - 1) );
+		//------ Auto_cpk
+		if(subgrp_size>1 & subgrp_size<26,
+			ent_sd_auto[i] = Mean( datamat[ent_rows, 3] )/c4[subgrp_size],
+			if(subgrp_size>25,
+				ent_sd_auto[i] = Mean( datamat[ent_rows, 3] )/(4*(subgrp_size-1)/(4*subgrp_size-3))
+			);
+		);
+		//------
+	);
+	Close( dt_sument, no save );
+	oos_above_ent = (1-Normal Distribution((USL-ent_mean):/ent_sd));
+	oos_below_ent = (Normal Distribution((LSL - ent_mean):/ent_sd));
+	if(Is Missing(oos_below_ent[1]), oos_below_ent=0);   //replace missing value with 0 for one-sided spec limit
+	if(Is Missing(oos_above_ent[1]), oos_above_ent=0);   //replace missing value with 0 for one-sided spec limit
+	oos_per_ent = 100*(oos_above_ent + oos_below_ent);
+	oos_n_ent = round(ent_n :* (oos_above_ent + oos_below_ent), 0);
+	ent_mp3s = ent_mean + 3 * ent_sd;
+	ent_mm3s = ent_mean - 3 * ent_sd;
+	cp_ent = (TOL) / (Abs( tol_type ) * 3 * ent_sd);
+	cpl_ent = (ent_mean - lsl) :/ (3 * ent_sd);
+	cpu_ent = (USL - ent_mean) :/ (3 * ent_sd);
+	cpk_ent = V Min( (cpl_ent || cpu_ent)` );
+	//------ Auto_cpk
+	ent_mp3s_auto = ent_mean + 3 * ent_sd_auto;
+	ent_mm3s_auto = ent_mean - 3 * ent_sd_auto;
+	cp_ent_auto = (TOL) / (Abs( tol_type ) * 3 * ent_sd_auto);
+	cpl_ent_auto = (ent_mean - lsl) :/ (3 * ent_sd_auto);
+	cpu_ent_auto = (USL - ent_mean) :/ (3 * ent_sd_auto);
+	cpk_ent_auto = V Min( (cpl_ent_auto || cpu_ent_auto)` );
+	//------
+	lsl_ent = J( n_ent, 1, lsl );
+	target_ent = J( n_ent, 1, pmt );
+	usl_ent = J( n_ent, 1, usl );
+	dt_ent = As Table(
+		ent_n,
+		ent_mean,
+		ent_sd,
+		ent_mp3s,
+		ent_mm3s,
+		cpk_ent`,
+		ent_mp3s_auto,
+		ent_mm3s_auto,
+		cpk_ent_auto`,
+		<<column names( {"N", "Mean", "Std Dev", "Mean+3s (Intel)", "Mean-3s (Intel)", "Intel Cpk", 
+			"Mean+3s (Auto)", "Mean-3s (Auto)", "Auto Cpk"} )
+	);
+	dt_ent << set name( "Entity Cpk" );
+	dt_ent << add multiple columns( "Col", N Items( ent_list ), before first, character );
+	If( N Items( ent_list ) == 1,
+		Column( dt_ent, 1 ) << set values( ent_val ) << setname( Char( Eval( ent_list[1] ) ) ),
+		Column( dt_ent, 1 ) << set values( fac_val2 ) << setname( Char( Eval( ent_list[1] ) ) );
+		Column( dt_ent, 2 ) << set values( ent_val ) << setname( Char( Eval( ent_list[2] ) ) )
+	);
+	
+	ent_parmid = {};
+	status_ent = {};
+	//------ Auto_cpk
+	status_ent_auto = {};
+	For( i = 1, i <= n_ent, i++,
+		Insert Into( ent_parmid, parmid );
+		If(
+			Is Missing( cpk_ent[i] ), Insert Into( status_ent, "" ),
+			cpk_ent[i] >= 1.33, Insert Into( status_ent, "Capable" ),
+			Insert Into( status_ent, "Not Capable" )
+		);
+		//------ Auto_cpk
+		If(
+			Is Missing( cpk_ent_auto[i] ), Insert Into( status_ent_auto, "" ),
+			cpk_ent_auto[i] >= 1.67, Insert Into( status_ent_auto, "Capable" ),
+			Insert Into( status_ent_auto, "Not Capable" )
+		);
+		//------
+	);
+	dt_ent << New Column( "ParameterID", character, setvalues( ent_parmid ) );
+	dt_ent << color by column(_Entity[1]);
+	ent_cpk_plot1 = Expr(
+		dt_ent << Variability Chart(
+			Y( :Intel Cpk ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_ent ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.33"), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+		);
+	);
+	ent_cpk_plot2 = Expr(
+		dt_ent << Variability Chart(
+			Y( :Auto Cpk ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Points Jittered( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"2",
+					ScaleBox,
+					{Min( 0 ), Max(Max(Max( cpk_ent ),1) + .5 ), Inc( .5 ),
+					Add Ref Line( 1.33, Dotted, "Red", "Cpk=1.67"), Show Major Grid( 1 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Cpk",
+					TextEditBox,
+					{Set Text( parmid || " Cpk" )}
+				),
+				Dispatch(
+					{"Variability Chart for Cpk"},
+					"Variability Chart",
+					FrameBox,
+					{Marker Size( 3 )}
+				)
+			)
+		)
+	);
+	
+	dt_ent_stack1 = dt_ent << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Intel)" ), :Name( "Mean+3s (Intel)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( "Entity Stacked_Intel" )
+	);
+	dt_ent_stack2 = dt_ent << stack(
+		columns( :Name( "Mean" ), :Name( "Mean-3s (Auto)" ), :Name( "Mean+3s (Auto)" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Mean +/- 3sigma" ),
+		Output Table( "Entity Stacked_Auto" )
+	);
+	
+	ent_3svc1 = Expr(
+		current data table(dt_ent_stack1);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		ent_tvc1 = dt_ent_stack1 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment),
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+	ent_3svc2 = Expr(
+		current data table(dt_ent_stack2);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		ent_tvc2 = dt_ent_stack2 << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( Eval List( ent_list ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment),
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	);
+	
+	);//end Entity calculations
+/***   Lot Level Calculations    ***/
+Current Data Table( dt );
+struc_list = {_Facility[1], _Entity[1], _Lot[1]};
+If( N Items( _Entity ) == 0,
+	Remove From( struc_list, 2 )
+);
+If( N Items( _Facility ) == 0,
+	Remove From( struc_list, 1 )
+);
+struc_name = Char( Eval( struc_list[1] ) );
+For( i = 2, i <= N Items( struc_list ), i++,
+	struc_name = struc_name || "_" || Char( Eval( struc_list[i] ) )
+);
+
+dt_struc = Data Table( dt ) << Summary(
+	Group( Eval List( struc_list ) ),
+	sum(_N[1]),
+	Link to original data table( 1 )
+);
+If(nitems(ent_list)>0, 
+	n_color = ent_list[nitems(ent_list)];
+	dt_struc << color by column(eval(n_color));
+);
+lot_n = column(dt_struc, nitems(struc_list)+2);
+n_lot = N Rows( dt_struc );
+lot_mean = J( n_lot, 1, . );
+lot_sd = J( n_lot, 1, . );
+lot_date = J( n_lot, 1, . );
+
+For( i = 1, i <= n_lot, i++,
+	dt_struc << clear select;
+	dt_struc << select rows( i );
+	lot_rows = dt << get selected rows;
+	wgt_var_temp = wgt_var[lot_rows];
+	ss_temp = ss_all[lot_rows];
+	lot_mean[i] = Sum( ss_temp ) / lot_n[i];
+	ss_pooled = wgt_var_temp + datamat[lot_rows, 1] :* (datamat[lot_rows, 2] - lot_mean[i]) ^ 2;
+	lot_sd[i] = Sqrt( Sum( ss_pooled ) / (lot_n[i] - 1) );
+	If( N Items( _Date ) == 1,
+		date_temp = datamat[lot_rows, 4];
+		lot_date[i] = Mean( date_temp );
+	);
+);
+dt_struc<<clear select;
+lot_mp3s = lot_mean + 3 * lot_sd;
+lot_mm3s = lot_mean - 3 * lot_sd;
+
+dt_struc << set name( "Lot Level Summary" );
+
+lot_n<<set name("N");
+dt_struc << new column("Mean", continuous, set values(lot_mean));
+dt_struc << new column("Std Dev", continuous, set values(lot_sd));
+dt_struc << new column("Mean+3s", continuous, set values(lot_mp3s));
+dt_struc << new column("Mean-3s", continuous, set values(lot_mm3s));
+dt_struc << new column("Date", continuous, set values(lot_date));
+
+
+dt_struc << sort( By( Column( "Date" ) ), order( Ascending ), Replace Table );
+Column( dt_struc, _Lot[1] << get name ) << set property( "Row Order Levels", 1 );
+
+/****   Var Charts by Structure   ****/
+dt_struc_stacked = dt_struc << stack(
+	columns( :Name( "Mean" ), :Name( "Mean-3s" ), :Name( "Mean+3s" ) ),
+	Source Label Column( "Stat" ),
+	Stacked Data Column( "Mean +/- 3sigma" ),
+	Output Table( "Lot Summary Stacked" )
+);
+
+struc_varchart = Expr(
+	current data table(dt_struc_stacked);
+	min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+	max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+	struc_vc = dt_struc_stacked << Variability Chart(
+		Y( :Name( "Mean +/- 3sigma" ) ),
+		X( Eval List( struc_list ) ),
+		Process Variation( 0 ),
+		Connect Cell Means( 1 ),
+		Show Range Bars( 1 ),
+		Show Points( 0 ),
+		Std Dev Chart( 0 ),
+		SendToReport(
+			Dispatch(
+				{"Variability Chart for Mean +/- 3sigma"},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Add Ref Line( pmt, Dotted, "Red", "Target" ),
+				Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+				Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+				Rotated Labels( "Horizontal" )}
+			),
+			Dispatch(
+				{"Variability Chart for Mean +/- 3sigma"},
+				"",
+				NomAxisBox( 2 ),
+				{Rotated Tick Labels( 1 )}
+			)
+		)
+	)
+);
+ 
+Current Data Table( dt_struc );
+n_struc = N Items( struc_list );
+If( N Items( struc_list ) == 1,
+	struc_meanplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "Mean" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "Mean", OutlineBox, {Set Title( "Lot Means" )} ),
+				Dispatch( {"Mean"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"Mean"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End mean plot expression
+	struc_sigmaplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "Std Dev" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "Std Dev", OutlineBox, {Set Title( "Lot Standard Deviations" )} ),
+				Dispatch( {"Std Dev"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"Std Dev"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End std dev plot expression
+	struc_nplot = Expr(
+		dt_struc << Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( :Name( "N" ) ),
+				Quantiles( 0 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Normal Quantile Plot( 1 ),
+				Customize Summary Statistics( Variance( 1 ) )
+			),
+			SendToReport(
+				Dispatch( {}, "N", OutlineBox, {Set Title( "Lot N" )} ),
+				Dispatch( {"N"}, "1", ScaleBox, {Rotated Labels( "Vertical" )} ),
+				Dispatch(
+					{"N"},
+					"5",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				)
+			)
+		)
+	); //End N plot expression
+	struc_varchart2 = Expr( Text Box( "Nothing to Plot" ) );
+, //else
+	struc_list2 = Remove( struc_list, n_struc );
+	struc_meanplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "Mean" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for Mean",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot Means" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end mean plot
+	struc_sigmaplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "Std Dev" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for Std Dev",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot Standard Deviations" )}
+				),
+				Dispatch(
+					{"Variability Chart for Std Dev"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Std Dev"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end sigma plot
+	struc_nplot = Expr(
+		dt_struc << Variability Chart(
+			Y( :Name( "N" ) ),
+			X( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Points( 1 ),
+			Std Dev Chart( 0 ),
+			Show Range Bars( 0 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Variability Chart for N",
+					OutlineBox,
+					{Set Title( "Variability Chart for Lot N" )}
+				),
+				Dispatch(
+					{"Variability Chart for N"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for N"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);//end N plot
+	
+/***    Detailed Summary Plots    ***/
+	struc_varchart2 = Expr(
+		current data table(dt_struc_stacked);
+		min_scale = round(min(lsl, pmt, col min(Column( "Mean +/- 3sigma" )))-increment, dplace_mean);
+		max_scale = round(max(usl, pmt, col max(Column( "Mean +/- 3sigma" )))+increment, dplace_mean);
+		struc_vc2 = dt_struc_stacked << Variability Chart(
+			Y( :Name( "Mean +/- 3sigma" ) ),
+			X( Eval( _Lot )[1] ),
+			By( Eval List( struc_list2 ) ),
+			Process Variation( 0 ),
+			Connect Cell Means( 1 ),
+			Show Range Bars( 1 ),
+			Show Points( 0 ),
+			Std Dev Chart( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"2",
+					ScaleBox,
+					{Min(min_scale), 
+					Max(max_scale),
+					inc(increment),
+					Minor Ticks(0),
+					Add Ref Line( pmt, Dotted, "Red", "Target" ),
+					Add Ref Line( LSL, Dotted, "Red", "LSL" ),
+					Add Ref Line( USL, Dotted, "Red", "USL" ), Show Major Grid( 0 ),
+					Rotated Labels( "Horizontal" )}
+				),
+				Dispatch(
+					{"Variability Chart for Mean +/- 3sigma"},
+					"",
+					NomAxisBox( 2 ),
+					{Rotated Tick Labels( 1 )}
+				)
+			)
+		)
+	);
+); //End IF for Lot Summary plots
+
+
+/***    Hide Data Table Windows    ***/
+hide_dts = Expr(
+	If( !Is Empty( dt_struc_stacked ), dt_struc_stacked << show window( 0 ) );
+	If( !Is Empty( dt_struc ), dt_struc << show window( 0 ) );
+	If( !Is Empty( dt_ent_stack2 ), dt_ent_stack2 << show window( 0 ) );
+	If( !Is Empty( dt_ent_stack1 ), dt_ent_stack1 << show window( 0 ) );
+	If( !Is Empty( dt_ent ), dt_ent << show window( 0 ) );
+	If( !Is Empty( dt_fac_stack2 ), dt_fac_stack2 << show window( 0 ) );
+	If( !Is Empty( dt_fac_stack1 ), dt_fac_stack1 << show window( 0 ) );
+	If( !Is Empty( dt_fac ), dt_fac << show window( 0 ) );
+	If( !Is Empty( dt_tfrm_stack2 ), dt_tfrm_stack2 << show window( 0 ) );
+	If( !Is Empty( dt_tfrm_stack1 ), dt_tfrm_stack1 << show window( 0 ) );
+	If( !Is Empty( dt_tfrm2 ), dt_tfrm2 << show window( 0 ) );
+	If( !Is Empty( dt_tfrm ), dt_tfrm << show window( 0 ) );
+	If( !Is Empty( dt ), dt << show window( 0 ) );
+);
+
+
+/***    Report Table   ***/
+currentdatatable(dt);
+cpk_summary = Expr(
+	::oneclick_Cpk_SS_Window = New Window( "Intel Cpk (Ppk)/Automotive Cpk Based on Summary Statistics",
+		<<OnClose( Eval( close_dts ) ),
+		cpk_summ_box = V List Box(
+			Outline Box( "Overall Cpk Summary",
+				::oneclick_Cpk_SS_Overall_SummaryBox = Table Box(
+					String Col Box( "Parameter ID", {parmid} ),
+					Number Col Box( "Total N", Matrix( n_total ), <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+					Number Col Box( "Total N Runs", Matrix( nlot_total ), <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+					Number Col Box( "Grand Mean", Matrix( g_mean ), <<set format( 8, dplace_mean ) ),
+					Number Col Box( "Intel Total Sigma", Matrix( total_sigma ), <<set format( 8, dplace_sigma ) ),
+					Number Col Box( "Auto Total Sigma", Matrix( total_sigma_auto ), <<set format( 8, dplace_sigma ) ),
+					Number Col Box( "#OOS(est.)", Matrix( oos_n ) , <<set format( 8, 0 ) ),
+					Number Col Box( "%OOS(est.)", Matrix( oos_per ) , <<set format( 8, dplace ) ),
+					Number Col Box( "Intel Cpk", Matrix( cpk_total ), <<set format( 8, dplace ) ),
+					String Col Box( "Intel Cpk Status", {status_total} ),
+					Number Col Box( "Intel Cpl", Matrix( cpl_total ), <<set format( 8, dplace ) ),
+					Number Col Box( "Intel Cpu", Matrix( cpu_total ), <<set format( 8, dplace ) ),
+					Number Col Box( "Intel Cp", Matrix( cp_total ), <<set format( 8, dplace ) ),
+					Number Col Box( "Auto Cpk", Matrix( cpk_total_auto ), <<set format( 8, dplace ) ),
+					String Col Box( "Auto Cpk Status", {status_total_auto} ),
+					Number Col Box( "Auto Cpl", Matrix( cpl_total_auto ), <<set format( 8, dplace ) ),
+					Number Col Box( "Auto Cpu", Matrix( cpu_total_auto ), <<set format( 8, dplace ) ),
+					Number Col Box( "Auto Cp", Matrix( cp_total_auto ), <<set format( 8, dplace ) ),
+					<<table Style( Bordered )
+				),
+				Outline Box( "Spec Limits",
+					Table Box( 
+						String Col Box( "Parameter ID", {parmid} ),
+						Number Col Box( "LSL", Matrix( lsl ) ),
+						Number Col Box( "Target", Matrix( pmt ) ),
+						Number Col Box( "USL", Matrix( usl ) ),
+						<<table Style( Bordered )
+					)
+				)
+			),
+			If( N Items( _TrendBy ) > 0,
+				Outline Box( "Cpk By Timeframe Summary",
+					V List Box(
+						::oneclick_Cpk_SS_by_Timeframe_SummaryBox = Table Box(
+							String Col Box( "Parameter ID", tfrm_parmid ),
+							String Col Box( tfrm_name, tfrm_val ), 
+							Number Col Box( "N", tfrm_n, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "N Runs", tfrm_nlot, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "Mean", tfrm_mean, <<set format( 8, dplace_mean ) ),
+							Number Col Box( "Intel Sigma", tfrm_sd, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "Auto Sigma", tfrm_sd_auto, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "#OOS(est.)", Matrix( oos_n_tfrm ) , <<set format( 8, 0 ) ),
+							Number Col Box( "%OOS(est.)", Matrix( oos_per_tfrm ) , <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpk", cpk_tfrm, <<set format( 8, dplace ) ),
+							String Col Box( "Intel Cpk Status", status_tfrm ),
+							Number Col Box( "Intel Cpl", cpl_tfrm, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpu", cpu_tfrm, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cp", cp_tfrm, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpk", cpk_tfrm_auto, <<set format( 8, dplace ) ),
+							String Col Box( "Auto Cpk Status", status_tfrm_auto ),
+							Number Col Box( "Auto Cpl", cpl_tfrm_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpu", cpu_tfrm_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cp", cp_tfrm_auto, <<set format( 8, dplace ) ),
+							<<table Style( Bordered )
+						),
+						Outline Box( "Spec Limits",
+							Table Box( 
+								String Col Box( "Parameter ID", {parmid} ),
+								Number Col Box( "LSL", Matrix( lsl ) ),
+								Number Col Box( "Target", Matrix( pmt ) ),
+								Number Col Box( "USL", Matrix( usl ) ),
+								<<table Style( Bordered )
+							)
+						),
+						Eval( tfrm_cpk_plot ),
+						H List Box( Eval( tfrm_3svc1 ), Eval( tfrm_3svc2 ) )
+					)
+				)
+			),
+			If( N Items( _Facility ) > 0,
+				Outline Box( "Cpk by Facility Summary",
+					V List Box(
+						::oneclick_Cpk_SS_by_Facility_SummaryBox = Table Box(
+							String Col Box( "Parameter ID", fac_parmid ),
+							String Col Box( fac_name, fac_val ),
+							Number Col Box( "N", fac_n, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "N Runs", fac_nlot, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "Mean", fac_mean, <<set format( 8, dplace_mean ) ),
+							Number Col Box( "Intel Sigma", fac_sd, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "Auto Sigma", fac_sd_auto, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "#OOS(est.)", Matrix( oos_n_fac ) , <<set format( 8, 0 ) ),
+							Number Col Box( "%OOS(est.)", Matrix( oos_per_fac ) , <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpk", cpk_fac, <<set format( 8, dplace ) ),
+							String Col Box( "Intel Cpk Status", status_fac ),
+							Number Col Box( "Intel Cpl", cpl_fac, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpu", cpu_fac, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cp", cp_fac, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpk", cpk_fac_auto, <<set format( 8, dplace ) ),
+							String Col Box( "Auto Cpk Status", status_fac_auto ),
+							Number Col Box( "Auto Cpl", cpl_fac_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpu", cpu_fac_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cp", cp_fac_auto, <<set format( 8, dplace ) ),
+							<<table Style( Bordered )
+						),,
+						Outline Box( "Spec Limits",
+							Table Box( 
+								String Col Box( "Parameter ID", {parmid} ),
+								Number Col Box( "LSL", Matrix( lsl ) ),
+								Number Col Box( "Target", Matrix( pmt ) ),
+								Number Col Box( "USL", Matrix( usl ) ),
+								<<table Style( Bordered )
+							)
+						),
+						Outline Box( "Intel Cpk Plot",
+							H List Box( Eval( fac_cpk_plot1 ), Eval( fac_3svc1 ) )
+						),
+						Outline Box( "Auto Cpk Plot",
+							H List Box( Eval( fac_cpk_plot2 ), Eval( fac_3svc2 ) )
+						)
+					)
+				)
+			),
+			If( N Items( _Entity ) > 0,
+				Outline Box( "Cpk by Entity Summary",
+					V List Box(
+						::oneclick_Cpk_SS_by_Entity_SummaryBox = Table Box(
+							String Col Box( "Parameter ID", ent_parmid ),
+							If( N Items( _Facility ) > 0,
+								String Col Box( fac_name, fac_val2 )
+							)
+							,
+							String Col Box( ent_name, ent_val ),
+							Number Col Box( "N", ent_n, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "N Runs", ent_nlot, <<set format( 8, 0, "Fixed Dec", "Use thousands separator" ) ),
+							Number Col Box( "Mean", ent_mean, <<set format( 8, dplace_mean ) ),
+							Number Col Box( "Intel Sigma", ent_sd, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "Auto Sigma", ent_sd_auto, <<set format( 8, dplace_sigma ) ),
+							Number Col Box( "#OOS(est.)", Matrix( oos_n_ent ) , <<set format( 8, 0 ) ),
+							Number Col Box( "%OOS(est.)", Matrix( oos_per_ent ) , <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpk", cpk_ent, <<set format( 8, dplace ) ),
+							String Col Box( "Intel Cpk Status", status_ent ),
+							Number Col Box( "Intel Cpl", cpl_ent, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cpu", cpu_ent, <<set format( 8, dplace ) ),
+							Number Col Box( "Intel Cp", cp_ent, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpk", cpk_ent_auto, <<set format( 8, dplace ) ),
+							String Col Box( "Auto Cpk Status", status_ent_auto ),
+							Number Col Box( "Auto Cpl", cpl_ent_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cpu", cpu_ent_auto, <<set format( 8, dplace ) ),
+							Number Col Box( "Auto Cp", cp_ent_auto, <<set format( 8, dplace ) ),
+							<<table Style( Bordered )
+						),
+						Outline Box( "Spec Limits",
+							Table Box( 
+								String Col Box( "Parameter ID", {parmid} ),
+								Number Col Box( "LSL", Matrix( lsl ) ),
+								Number Col Box( "Target", Matrix( pmt ) ),
+								Number Col Box( "USL", Matrix( usl ) ),
+								<<table Style( Bordered )
+							)
+						),
+						Outline Box( "Intel Cpk Plot",
+							H List Box( Eval( ent_cpk_plot1 ), Eval( ent_3svc1 ) )
+						),
+						Outline Box( "Auto Cpk Plot",
+							H List Box( Eval( ent_cpk_plot2 ), Eval( ent_3svc2 ) )
+						)
+					)
+				)
+			),
+			Outline Box( "Summary Plots",
+				Tab Box(
+					"Overall Plots",
+					V List Box(
+						Eval( struc_varchart ),
+						H List Box(
+							Eval( struc_meanplot ),
+							Eval( struc_sigmaplot ),
+							Eval( struc_nplot )
+						)
+					),
+					"Detailed Summary Plots",
+					(dsp_ob = Outline Box( "Detailed Summary Plots", Eval( struc_varchart2 )))
+				)
+			),
+			AutoCP_Status_Guidelines,
+			footerbox
+		)
+	)
+);
+
+
+/***    Close Windows Expression    ***/
+close_dts = Expr(
+	If( !Is Empty( dt_struc_stacked ), Close( dt_struc_stacked, nosave ) );
+	If( !Is Empty( dt_struc ), Close( dt_struc, nosave ) );
+	If( !Is Empty( dt_ent_stack2 ), Close( dt_ent_stack2, nosave ) );
+	If( !Is Empty( dt_ent_stack1 ), Close( dt_ent_stack1, nosave ) );
+	If( !Is Empty( dt_ent ), Close( dt_ent, nosave ) );
+	If( !Is Empty( dt_fac_stack2 ), Close( dt_fac_stack2, nosave ) );
+	If( !Is Empty( dt_fac_stack1 ), Close( dt_fac_stack1, nosave ) );
+	If( !Is Empty( dt_fac ), Close( dt_fac, nosave ) );
+	If( !Is Empty( dt_tfrm_stack2 ), Close( dt_tfrm_stack2, nosave ) );
+	If( !Is Empty( dt_tfrm_stack1 ), Close( dt_tfrm_stack1, nosave ) );
+	If( !Is Empty( dt_tfrm2 ), Close( dt_tfrm2, nosave ) );
+	If( !Is Empty( dt_tfrm ), Close( dt_tfrm, nosave ) );
+	If( !Is Empty( dt ), Close( dt, nosave ) )
+);
+
+
+Wait( 0.1 );
+Eval( hide_dts );
+Eval( cpk_summary );
+dsp_ob<<Close(1);
+
+); //End Expr

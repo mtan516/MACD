@@ -1,0 +1,617 @@
+/*******************************************************************************************
+  
+  1 Sample Comparison:
+  Author: Karl Pazdernik, Xin Guan
+  Revision: 2
+  Date: 4/21/2021
+  JMP Version: 12 and beyond
+  
+SOS Revision History
+	Rev 2: Add clarifying note to perform TE analysis when the decision result is NA.
+	Rev 1: Added alpha as input. Changed initialization of variables to global variables.
+*******************************************************************************************/
+
+
+/************************SCRIPT INITIALIZATION*********************************/
+////////////////////////////////////////////////////////////////////////////////
+// 1. Clear all global variables
+// 2. Call sosglbls and sosfunc Function Libraries.
+//////////////////////////////////////////////////////////////////////////////////
+
+Clear Globals();
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+/*****************DIALOG EXPRESSIONS***************/
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: Target_Values(sufs)
+//Type: Dialog Function
+//Description:
+// 1. This expression produces an Dialog box for user to define target values for testing
+// 2. Variables
+//		sufs		: response variable name (char)
+//		tgts		: target values for hypothesis tests (numeric list)
+////////////////////////////////////////////////////////////////////////////////
+Target_Values = Function( {sufs},
+	TValDiag = Dialog(
+		Title( "Target value for " || sufs ),
+		HList( "Use Target Value of ", Targets = EditNumber() ),
+		HList( cb = Check Box( "Match all Responses to a single Target.", 0 ) ),
+		HList( Button( "OK" ), Button( "Cancel" ) )
+	); //EndDiag
+	
+	button = TValDiag["Button"];
+	same_tgt = TValDiag["cb"];
+	tgts[i] = TValDiag["Targets"];
+	If( button == 1,
+		If( Is Missing( tgts[i] ),
+			Missing_Target
+		)
+	);
+	
+	
+	button; // Return the value of button in case you want to remove that response.
+);
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: Missing_Target
+//Type: Dialog Expression
+//Description:
+// 1. This expression produces an error message if no target is supplied
+// 2. Will re-run expression "Target_Values" until target is supplied or the 
+//		particular response variable is canceled.
+////////////////////////////////////////////////////////////////////////////////
+Missing_Target = Expr(
+	Dialog( "You need to supply a target to test against.", HList( Button( "OK" ) ) );
+	
+	Target_Values( suffix[i] );
+);
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+/************************FUNCTION DEFINITIONS**********************************/
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateOverlay1(x_,y_,col_mark,tgt_,by_)
+//Type: Function
+//Description:
+// 1. Generates overlay plot
+// 2. Arguments:
+//	x_ 				: optional x-axis data (col)
+//	y_ 				: y-axis data (col)
+//	col_mark 		: optional color marker (col)
+//	tgt_	 		: target used to add grid line (num)
+//	by_		 		: optional by variable (col)
+////////////////////////////////////////////////////////////////////////////////
+::GenerateOverlay1 = Function( {x_, y_, col_mark, tgt_, by_},
+	If( N Items( By_var ) > 0,
+		Overlay_Box1 = Overlay Plot(
+			X( Eval( x_ ) ),
+			Y( y_ ),
+			Sort X( 1 ),
+			Separate Axes( 1 ),
+			Connect Thru Missing( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Overlay Plot Graph",
+					FrameBox,
+					{Frame Size( 740, 200 ), Row Legend(
+						Eval( by_ ),
+						Color( 1 ),
+						Color Theme( "JMP Default" ),
+						Marker( 1 ),
+						Marker Theme( "Standard" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				),
+				Dispatch(
+					{},
+					"106",
+					ScaleBox,
+					{Add Ref Line( Eval( tgt_ ), Solid, "Black", "Target", 2 ), Show Major Grid( 1 ), Show Minor Grid( 1 )}
+				)
+			)
+		),
+		Overlay_Box1 = Overlay Plot(
+			X( Eval( x_ ) ),
+			Y( y_ ),
+			Sort X( 1 ),
+			Separate Axes( 1 ),
+			Connect Thru Missing( 1 ),
+			SendToReport(
+				Dispatch(
+					{},
+					"Overlay Plot Graph",
+					FrameBox,
+					{Frame Size( 740, 200 ), Row Legend(
+						Eval( col_mark ),
+						Color( 1 ),
+						Color Theme( "JMP Default" ),
+						Marker( 1 ),
+						Marker Theme( "Standard" ),
+						Continuous Scale( 0 ),
+						Reverse Scale( 0 ),
+						Excluded Rows( 0 )
+					)}
+				),
+				Dispatch(
+					{},
+					"106",
+					ScaleBox,
+					{Add Ref Line( Eval( tgt_ ), Solid, "Black", "Target", 2 ), Show Major Grid( 1 ), Show Minor Grid( 1 )}
+				)
+			)
+		)
+	)
+);	
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateAnalysis1(y_,tgt_)
+//Type: Function
+//Description:
+// 1. Generates one sample analysis
+// 2. Arguments:
+//	y_ 			: y-axis data (col)
+//	tgt_		: hypothesized mean value (numeric)
+////////////////////////////////////////////////////////////////////////////////
+::GenerateAnalysis1 = Function( {y_, tgt_}, 
+	
+	
+
+	Distribution_Box = V List Box(
+		dbox = Distribution(
+			Stack( 1 ),
+			Continuous Distribution(
+				Column( y_ ),
+				Quantiles( 1 ),
+				Summary Statistics( 1 ),
+				Horizontal Layout( 1 ),
+				Vertical( 0 ),
+				Histogram( 1 ),
+				Outlier Box Plot( 1 ),
+				Normal Quantile Plot( 0 ),
+				Test Mean( Eval( tgt_ ), Wilcoxon Signed Rank( 0 ) ),
+				Customize Summary Statistics( Set Alpha Level( alpha ) )
+			),
+			SendToReport( Dispatch( {}, "1", ScaleBox, {Add Ref Line( Eval( tgt_ ), Solid, "Black", "Target", 2 ), Rotated Labels( "Angled" )} ) )
+		)
+	);
+	
+	
+	Insert Into( pvals[i], Report( dbox )[Outline Box("Test Mean?")][Number Col Box( 3 )] << Get( 1 ) );
+	If( jmpv > 9,
+		mom_lbl = "Summary Statistics",
+		mom_lbl = "Moments"
+	);
+	Insert Into( means[i], Report( dbox )[Outline Box(mom_lbl)][Number Col Box( 1 )] << Get( 1 ) );
+	Insert Into( sds[i], Report( dbox )[Outline Box(mom_lbl)][Number Col Box( 1 )] << Get( 2 ) );
+	Insert Into( lci[i], Report( dbox )[Outline Box(mom_lbl)][Number Col Box( 1 )] << Get( 5 ) );
+	Insert Into( uci[i], Report( dbox )[Outline Box(mom_lbl)][Number Col Box( 1 )] << Get( 4 ) );
+	If( N Items( By_var ) > 0,
+		Report( dbox )[Outline Box( "Distributions" )] << Set Title( "Distributions - " || bylevels[j] )
+	);
+	
+	
+	Distribution_Box;
+);
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: add_te_1
+//Type: Expression
+//Description:
+// 1. This expression adds the TE calculation to the Summary output window.
+////////////////////////////////////////////////////////////////////////////////
+::add_te_1 = Expr(
+
+	If( Contains( t_sum_1 << Get Names, "LCL" ) > 0,
+		t_sum_1[Number Col Box( "LCL" )] << Delete;
+		t_sum_1[Number Col Box( "CL" )] << Delete;
+		t_sum_1[Number Col Box( "UCL" )] << Delete;
+		t_sum_1[Number Col Box( "AD" )] << Delete;
+		t_sum_1[String Col Box( "TE Test" )] << Delete;
+		t_sum_1[String Col Box( "Warning" )] << Delete;
+		Summary_Box << Set Menu Item State( 1, 0 );
+	,
+		lcl1 = J( m * n, 1, . );
+		cl1 = J( m * n, 1, . );
+		ucl1 = J( m * n, 1, . );
+		AD1 = J( m * n, 1, . );
+		TE1 = Repeat( {""}, m * n );
+		warn1 = Repeat( {""}, m * n );
+		
+		t_sum_1 << Append( lcl_box1 = Number Col Edit Box( "LCL", lcl1 ) );
+		t_sum_1 << Append( cl_box1 = Number Col Edit Box( "CL", cl1 ) );
+		t_sum_1 << Append( ucl_box1 = Number Col Edit Box( "UCL", ucl1 ) );
+		t_sum_1 << Append( ad_box1 = Number Col Edit Box( "AD", AD1 ) );
+		t_sum_1 << Append( te_box1 = String Col Box( "TE Test", TE1 ) );
+		t_sum_1 << Append( warn_box1 = String Col Box( "Warning", warn1 ) );
+		Summary_Box << Set Menu Item State( 1, 1 );
+	);
+	
+); //EndExpr
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: update_table_1
+//Type: Expression
+//Description:
+// 1. This expression updates the table after AD or limits are provided.
+////////////////////////////////////////////////////////////////////////////////
+::update_table_1 = Expr(
+
+	tmp_tgts = Matrix( Flatten2DList( summary_tgts ) );
+	tmp_lci = Matrix( Flatten2DList( lci ) );
+	tmp_uci = Matrix( Flatten2DList( uci ) );
+	
+	
+	// Get user inputs //
+	lcl1 = lcl_box1 << get as matrix;
+	cl1 = cl_box1 << get as matrix;
+	ucl1 = ucl_box1 << get as matrix;
+	AD1 = ad_box1 << get as matrix;
+	
+	
+	// Compute AD based on limits //
+	ad_tmp1 = Round( (cl1 - lcl1) / 2 || (ucl1 - cl1) / 2 || (ucl1 - lcl1) / 4, 14 );
+	AD1_calc = Transpose( V Min( Transpose( ad_tmp1 ) ) );
+	nonlim_loc1 = Loc( Is Missing( AD1_calc ) );
+	For( k = 1, k <= N Rows( nonlim_loc1 ), k++,
+		AD1_calc[nonlim_loc1[k]] = AD1[nonlim_loc1[k]]
+	);
+	ad_box1 << Set Values( AD1_calc );
+	
+	
+	
+	
+	// Add warning comments //
+	For( k = 1, k <= m * n, k++,
+		If(
+			AD1_calc[k] < 0, warn1[k] = "Negative AD",
+			!Is Missing( cl1[k] ) & (cl1[k] != tmp_tgts[k]), warn1[k] = "CL unequal to Target",
+			!Is Missing( lcl1[k] ) & (lcl1[k] >= tmp_tgts[k]), warn1[k] = "Limits too high",
+			!Is Missing( ucl1[k] ) & (ucl1[k] <= tmp_tgts[k]), warn1[k] = "Limits too low",
+			!Is Missing( lcl1[k] ) & !Is Missing( cl1[k] ) & !Is Missing( ucl1[k] ) & Round( cl1[k] - lcl1[k], 14 ) != Round( ucl1[k] - cl1[k], 14 ),
+				warn1[k] = "Non-symmetric limits",
+			warn1[k] = ""
+		)
+	);
+	warn_box1 << Set Values( warn1 );
+	
+
+	// Compute TE //
+	ad1_lo = Matrix( Substitute( tmp_tgts, ., 0 ) ) - AD1_calc;
+	ad1_hi = Matrix( Substitute( tmp_tgts, ., 0 ) ) + AD1_calc;
+	TE1 = As List( tmp_lci > ad1_lo & tmp_uci < ad1_hi );
+	Substitute Into( TE1, ., "", 0, "not TE", 1, "TE" );
+	te_box1 << Set Values( TE1 );
+	
+	
+); //EndExpr
+///////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//Name: close_sdt
+//Type: Expression
+//Description:
+// 1. This expression closes all remaining tables upon closure of the output window  
+///////////////////////////////////////////////////////////////////////////////////
+::close_sdt = Expr( Try( Close( sdt, nosave ) ) );
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+/***********************************PERFORM ANALYSIS**********************************/
+
+// Initialize variables //
+::alpha = 0.05;
+::suffix = {};
+::resp = {};
+::tgts = {};
+::means = {};
+::sds = {};
+::pvals = {};
+::lci = {};
+::uci = {};
+::decision = {};
+::summary_by = {};
+::summary_tgts = {};
+::jmpv = Num( Word( 1, JMP Version(), "." ) );
+::same_tgt = 0;
+::na=.; //initialize na comments
+
+// Open data table if none open //
+If( N Table() == 0,
+	dt = Open(),
+	dt = Current Data Table()
+);
+
+// Create copy of data table and obtain column names //
+dt_name = dt << GetName;
+dt << ClearColumnSelection;
+sdt = dt << Subset( Rows( dt << GetRowsWhere( !Excluded() ) ), AllColumns );
+sdt << SetName( dt_name || "_" || "Copy" );
+Current Data Table( sdt );
+Wait( 0 );
+
+
+
+
+//////////////////////////////////////////////////////
+// Initial dialog box where columns are categorized //
+Result = Column Dialog(
+	Title( "One Sample Comparison" ),
+	Response = ColList( "Response Variables", MinCol( 1 ), DataType( Numeric ) ),
+	Run_ID = ColList( "Run Order", MaxCol( 1 ) ),
+	Color_Mark = ColList( "Color Marker", MaxCol( 1 ) ),
+	By_var = ColList( "By" ),
+	H List( "Alpha level:   ", alpha_input = Edit Number( alpha ) )
+);
+button = Result["Button"];
+Remove From( Result );
+Parms = Eval List( Result );
+m = N Items( Response );
+alpha = alpha_input;
+
+
+// Error Check alpha rate //
+If( alpha <= 0 | alpha >= 1,
+	Dialog( "Alpha probability not in range 0 to 1.", HList( Button( "OK" ) ) );
+	button = -1;
+);
+
+
+
+If( button == 1, 
+//////////////////////////////////////////////////////////////////////////
+	// MAIN LOOP
+	// Description:
+	// 1. This where calculations are performed for each response variable
+	// 2. Output is organized into appropriate boxes
+	/////////////////////////////////////////////////////////////////////
+	
+	nw = New Window( "One Sample Comparison", <<OnClose( Eval( close_sdt ) ), output = Tab Box() );
+	
+	
+	// Create concatenated By variable //
+	If( N Items( By_var ) > 0,
+		byname = (By_var[1] << Get Name);
+		By_var[1] << data type( character );
+		For( j = 2, j <= N Items( By_var ), j++,
+			By_var[j] << data type( character );
+			If( j > 1, byname = byname || " / " || (By_var[j] << Get Name) );
+		);
+		If( N Items( By_var ) > 1,
+			bycol = sdt << New Column( byname, character, formula( Concat Items( Eval( By_var ) ) ), EvalFormula ),
+			bycol = Column(sdt, byname)
+		);
+		Summarize( bylevels = By( As Column( bycol ) ) );
+		n = N Items( bylevels );
+	,
+		n = 1;
+		bycol = {};
+		bylevels = "";
+	);
+	
+	
+	
+	For( i = 1, i <= m, i++, 
+		// Initialize extra layer of lists //
+		suffix[i] = Response[i] << Get Name;
+		resp[i] = {};
+		means[i] = {};
+		sds[i] = {};
+		pvals[i] = {};
+		lci[i] = {};
+		uci[i] = {};
+		decision[i] = {};
+		summary_tgts[i] = {};
+		summary_by[i] = {};
+		Insert Into( summary_by[i], bylevels );
+		
+		
+		// Collect target values //
+		If( same_tgt,
+			tgts[i] = tgts[i - 1],
+			button = Target_Values( suffix[i] )
+		);
+		
+		
+		If( button != -1, 
+		
+		// Perform analysis on response variable //
+			ind_report = V List Box();
+			For( j = 1, j <= n, j++,
+				If( N Items( By_var ) > 0,
+					sdt << Select Where( As Column( bycol ) == bylevels[j] );
+					sdt << Invert Row Selection;
+					sdt << Hide and Exclude;
+					ind_report << Append( GenerateAnalysis1( Response[i], tgts[i] ) );
+					sdt << Hide and Exclude;
+					sdt << Clear Select;
+				,
+					ind_report << Append( GenerateAnalysis1( Response[i], tgts[i] ) )
+				);
+				Insert Into( resp[i], suffix[i] );
+				Insert Into( summary_tgts[i], tgts[i] );
+				
+				If(
+					Is Missing( pvals[i][j] ), decision[i][j] = "NA*",
+					pvals[i][j] > alpha, decision[i][j] = "SE",
+					decision[i][j] = "SW"
+				);
+				//Xin: add note for NA result
+				If (
+					IsMissing(pvals[i][j]) & IsMissing(na),
+					na_log=textbox("*: Statistical comparison cannot be performed because of 0 standard deviation. Please do TE analysis") ; 
+					na_log <<set width(800);
+					na=1;	
+					
+				);
+			);
+			
+			
+			ind_overlay = V List Box( GenerateOverlay1( Run_ID, Response[i], Color_Mark, tgts[i], bycol ) );
+			ind_summary = Outline Box( "Summary",
+
+				Table Box(
+					String Col Box( "Parameter", resp[i] ),
+					If( N Items( By_var ) > 0,
+						String Col Box( byname, bylevels )
+					),
+					Number Col Box( "Target", summary_tgts[i] ),
+					Number Col Box( "Mean", means[i], <<SetFormat( 5, 10 ) ),
+					Number Col Box( "Std Dev", sds[i], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "p-value", pvals[i], <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 8 ) ),
+					String Col Box( "Decision", decision[i] ),
+					Number Col Box( Char(100*(1-alpha)) || "% LCI", lci[i], <<SetFormat( 6, 10 ) ),
+					Number Col Box( Char(100*(1-alpha)) || "% UCI", uci[i], <<SetFormat( 6, 10 ) ),
+					<<TableStyle( "Bordered" )
+				),
+
+			);
+			
+			
+			// Organize in output window //
+			output << Insert( suffix[i], V List Box( ind_summary, ind_overlay, ind_report ) );
+			
+		);
+	);
+
+
+
+
+
+////////////////////////////////////////////////////////////////
+	// SUMMARY DISPLAY BOX
+	// 1. A summary is added to the beginning of the output window
+	// 2. If any responses were canceled, their output is removed
+	////////////////////////////////////////////////////////////////
+	missing_tgts = Is Missing( tgts );
+	locs = As List( Loc( missing_tgts, 1 ) );
+
+	If( Contains( missing_tgts, 0 ) > 0, 
+	
+	// Remove missing output from summary window //
+		If( Contains( missing_tgts, 1 ) > 0,
+			Response = Remove( Response, locs );
+			suffix = Remove( suffix, locs );
+			Remove From( summary_by, locs );
+			tgts = Remove( tgts, locs );
+			means = Remove( means, locs );
+			sds = Remove( sds, locs );
+			pvals = Remove( pvals, locs );
+			decision = Remove( decision, locs );
+			lci = Remove( lci, locs );
+			uci = Remove( uci, locs );
+			m = N Items( Response );
+		);
+	
+	
+	// Create summary display box //
+		Summary_Box = Outline Box( "One Sample Comparison Summary",
+			t_sum_1 = Table Box(
+				String Col Box( "Parameter", Flatten2DList( resp ) ),
+				If( N Items( By_var ) > 0,
+					String Col Box( byname, Flatten2DList( summary_by ) )
+				),
+				Number Col Box( "Target", Flatten2DList( summary_tgts ) ),
+				Number Col Box( "Mean", Flatten2DList( means ), <<SetFormat( 5, 10 ) ),
+				Number Col Box( "Std Dev", Flatten2DList( sds ), <<SetFormat( 6, 10 ) ),
+				Number Col Box( "p-value", Flatten2DList( pvals ), <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 8 ) ),
+				String Col Box( "Decision", Flatten2DList( decision ) ),
+				Number Col Box( Char(100*(1-alpha)) || "% LCI", Flatten2DList( lci ), <<SetFormat( 6, 10 ) ),
+				Number Col Box( Char(100*(1-alpha)) || "% UCI", Flatten2DList( uci ), <<SetFormat( 6, 10 ) ),
+				<<TableStyle( "Bordered" )
+			)
+		);
+	
+	// Add display box to beginning of output window //
+		output << Add( 1, "Summary", Vlistbox(Summary_Box, 	If(na==1, na_log))); //add na comments
+		If( m > 1,
+			If( (Length( Char( suffix ) ) - 4 * m) > 130,
+				output << Set Style( combo )
+			), 
+			//output << Set Style( outline );
+			output[2][Outline Box( "Summary" )] << Delete
+		);
+		
+
+	
+	
+	// Add TE calculations //
+		If( jmpv >= 11,
+			Summary_Box << Set Menu Script( {"Technical Equivalence", Eval( add_te_1 )} );
+			t_sum_1 << Set Cell Changed Function( update_table_1 );
+		);
+	
+	
+	// Show final output window //
+		nw << Append( FooterBox );
+		nw << Bring Window to Front;
+	
+	,
+		Eval( close_sdt );
+		nw << Close Window();
+	);
+	
+,
+	Eval( close_sdt );
+);
+
+////////////////////////////////////////////////////////////////
+/***************************END SCRIPT*************************/

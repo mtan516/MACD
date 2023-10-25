@@ -1,0 +1,1003 @@
+/***********************************************************************************
+P-Bar Calculator script: single paramter
+
+Date: 15 May 2020
+Author: Sherstin Mortensen and Paul Wenz
+Rev: 6
+	Rev History: 
+	Rev 6: Fixed bug in the WW Trend chart for JMP14. Moved the Try statement deleting the "Facility-Entity" column before the summary statement.
+	Rev 5: 	1. Added the p-bar & k Status output based on the PNORM CLCR and commented out old "Delta to BIC". 
+			2. Added ability to enter online limits and compute p-bar & k status. 
+			3. Reformatted output. Minimized iterations report and put Lot p (%) and Percent_Norm charts horizontal.
+			4. Change "pbar" to "user defined pbar" on graph to match other PCS scripts.
+	Rev 4: Delete column formula in "Year-Week" column because of errors in WW trend charts.
+	Rev 3:  1. Commented out line 364 - not needed/caused error in JMP11. 
+	        2. Added line 735 to identify current data table before summarize operation. Needed for JMP11 
+			3. Subset data table to work only on non-excluded rows.
+			4. Added lines 265-267 & 307-311 as error trap for case when all entities have zero defects.
+	Rev 2: Removed the ALL - ALL iteration and replaced it with the BIC p-bar.
+
+Inputs: Data table with facility, entity, Lot X and Lot N columns
+Output: Report window with iterations for setting entity and overall p-bars, 
+		final p-bar table, chi-square matching output, and slider box to evaluate the OOC impact of k and p-bar values.
+		
+
+*************************************************************************************/
+	
+Clear Globals();
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+If( JMPVerNum == 1,
+	JMPVerNum = 10
+);
+If( N Table() == 0,
+	::dt = Open();
+	Current Data Table( dt );
+,
+	::dt = Current Data Table()
+);
+dt << Clear Select << Clear Column Selection;
+
+
+/*****	Functions	*****/
+/***	Chi^2 calculation
+		Inputs: row vector with defects or goods, row vector with total n
+		Outputs:  Chi^2 value, p, df
+***/
+chi2_fcn = Function( {def_mat, n_mat},
+	{default local},
+	ngood = n_mat - def_mat;
+	expb = n_mat * (Sum( def_mat ) / Sum( n_mat ));
+	expg = n_mat * (Sum( ngood ) / Sum( n_mat ));
+	obs_expbad = def_mat - expb;
+	obs_expgood = ngood - expg;
+	chisq_bad = (obs_expbad) ^ 2 :/ expb;
+	chisq_good = (obs_expgood) ^ 2 :/ expg;
+	chisq = Sum( chisq_bad ) + Sum( chisq_good );
+	df = N Rows( def_mat ) - 1;
+	chi_p = 1 - ChiSquare Distribution( chisq, df );
+	chi_res = (Matrix( {chisq, chi_p, df} ))`;
+);
+
+/***	BIC calculation
+		Note, could just iteratively call chi2_fcn
+		Inputs: row vector with defects or goods, row vector with total n
+		Output:  rows from matrix that are BIC
+***/
+bic_fcn = Function( {def_mat, n_mat},
+	{default local},
+	def_mat2 = def_mat[1];
+	n_mat2 = n_mat[1];
+	If( N Rows( def_mat ) > 1,
+		For( i = 2, i <= N Rows( def_mat ), i++,
+			def_mat2 = def_mat2 |/ def_mat[i];
+			n_mat2 = n_mat2 |/ n_mat[i];
+			chi_res = chi2_fcn( def_mat2, n_mat2 );
+			If( chi_res[1, 2] < 0.05,
+				bic_rows = (Index( 1, i - 1 ))`;
+				i = N Rows( def_mat );
+			);
+		);
+		bic_rows;
+	, //else
+		bic_rows = [1]
+	);
+);
+/*****	End Functions  *****/	
+
+//Initialize variables 
+::Main = .;
+::num_units = .;
+::num_fails = .;
+::N_Units_Col = .;
+::N_Fails_Col = .;
+::pbar = 0.5; //need to update this
+::k = 3; //need to update this
+::p_k_Sigma = 1 - Normal Distribution( k );
+::CLCR = .;
+
+/**********************Main Dialog Box*****************************/
+diag_result = Column Dialog(
+	Title( "Input" ),
+	
+	facility = ColList( "Facility", Max Col( 1 ), MinCol( 1 ), DataType( character ), Columns( :Facility ) ),
+	entity = ColList( "Entity", Max Col( 1 ), MinCol( 1 ), DataType( character ), Columns( :Entity ) ),
+	num_fails = ColList( "Number of Defects (Required)",
+		Max Col( 1 ),
+		MinCol( 1 ),
+		DataType( Numeric ),
+		Columns( :Name( "Lot X (# Defects)" ) )
+	),
+	num_units = ColList( "Sample Size (Required)",
+		Max Col( 1 ),
+		MinCol( 1 ),
+		DataType( Numeric ),
+		Columns( :Name( "Lot N (Sample Size)" ) )
+	),
+	run_id = ColList( "Order By (Required)", Max Col( 1 ), MinCol( 1 ), Columns( :Name( "Date/Time" ) ) ), 
+	VList(add_online=CheckBox("Enter Online Limits", 0)),//end vlist,
+);
+
+::Facility_Col = diag_result["facility"];
+::Entity_Col = diag_result["entity"];
+::N_Units_Col = diag_result["num_units"];
+::N_Fails_Col = diag_result["num_fails"];
+::Run_Id_Col = diag_result["run_id"];
+::Add_On_Limits = diag_result["add_online"];
+button1 = diag_result["Button"];
+::run_col_type = Column( dt, Run_Id_Col ) << Get Modeling Type;
+
+
+/**********************Limits Dialog Box*****************************/
+If( Add_On_Limits == 1,
+	limit_diag = Dialog(
+		"Enter the online limits",
+		HList(
+			Lineup( 2, "Online p_bar(%)", online_pbar = Edit Number(), "Online k", online_k = Edit Number(), )
+		),
+		Lineup(1, Button("OK"), Button("Cancel"))
+	)
+);
+
+If(  Add_On_Limits == 1, ::online_pbar = limit_diag["online_pbar"], ::online_pbar = 0.0001);
+If( Add_On_Limits == 1, ::online_k = limit_diag["online_k"], ::online_k = 3);
+
+dt<<Select Excluded<<Invert Row Selection;	
+If( button1 == 1,
+	::data_table = dt << Subset(
+		columns( Facility_Col[1], Entity_Col[1], N_Units_Col[1], N_Fails_Col[1], Run_Id_Col[1] ),
+		Output Table( Char( dt << GetName ) || "_" || "(Copy)" )
+	);
+
+// Sort table and create lot p
+	data_table << Sort( By( Facility_Col[1], Entity_Col[1] ), Order( Ascending, Ascending, Ascending ), Replace Table );
+	data_table << New Column( "Lot p (%)",
+		numeric,
+		continuous,
+		formula( 100 * As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) ),
+		eval formula
+	);
+	data_table << New Column( "Facility-Entity",
+		character,
+		formula( As Column( Eval( Facility_Col ) ) || "-" || As Column( Eval( Entity_Col ) ) ),
+		eval formula
+	);
+
+// Identify all the unique facilities and entities.
+	tmp = data_table << Summary( Group( Facility_Col[1], Entity_Col[1] ), statistics column name format( "column" ) );
+	entity_sets = Column( tmp, Entity_Col[1] ) << GetValues;
+	facility_sets = Column( tmp, Facility_Col[1] ) << GetValues;
+	tmp << New Column( "ID", numeric, formula( Row() ) );
+	If( N Items( entity_sets ) == 1,
+		multiple_entity_flag = 0,
+		multiple_entity_flag = 1
+	);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//	Main processing section
+	//	Create pbar iteration table
+	//	Create final pbar results table
+	//	Create clean datatable
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Make Iteration Report
+/*Start of for loop that creates subsets for each measurement_set/facility/entity combination and feeds that into the interation loop*/
+	For( j = 1, j <= N Items( entity_sets ), j++,
+		row_vector = data_table << GetRowsWhere( Eval( Facility_Col[1] ) == facility_sets[j] & Eval( Entity_Col[1] ) == entity_sets[j] );
+		temp_dt = data_table << Subset( Selected Rows( 0 ), Rows( row_vector ), Output Table( Char( j ) ) );//end subset
+		::N_OOC_New = 100;
+		::N_OOC_Total = 0;
+		::Iteration = 0;
+		::pbar = .;
+		::N_Lots = N Rows( temp_dt );
+		/*iterates the p-bar calculation until no new OOC's for each measurement_set/facility/entity combination*/
+		While( N_OOC_New != 0,
+			Iteration = Iteration + 1;
+			N_Units_Vals = Column( temp_dt, N_Units_Col[1] ) << GetValues;
+			N_Fails_Vals = Column( temp_dt, N_Fails_Col[1] ) << GetValues;
+			pbar = (Sum( N_Fails_Vals ) / Sum( N_Units_Vals )) * 100;
+			::Limit_Matrix = J( N Row( N_Units_Vals ), 2, 0 );
+			For( i = 1, i <= N Row( N_Units_Vals ), i++,
+				While( Binomial Distribution( pbar / 100, N_Units_Vals[i], Limit_Matrix[i, 1] ) < 1 - p_k_Sigma, Limit_Matrix[i, 1]++ ); //UCL (end while)
+				If( N_Fails_Vals[i] > Limit_Matrix[i, 1],
+					Limit_Matrix[i, 2] = 1,
+					Limit_Matrix[i, 2] = 0
+				);//compare UCL & number fails	
+			);//end for
+			N_OOC_New = Sum( Limit_Matrix[0, 2] );
+			N_OOC_Total = N_OOC_Total + N_OOC_New;
+			If( Iteration == 1 & j == 1,
+				temp = Matrix( {j/*j=entity*/, Iteration, pbar, N_OOC_Total, N_Lots} ),
+				temp = temp || Matrix( {j, Iteration, pbar, N_OOC_Total, N_Lots} )
+			);//end if
+			OOC_row_vector = Loc( Matrix( Limit_Matrix[0, 2] ) );//Finds all the OOC rows in the Limit_Matrix
+			temp_dt << Delete Rows( OOC_row_vector );
+		//Show(Iteration, pbar, N_OOC_New, N_OOC_Total);
+		);//end while
+		If( j == 1,
+			clean_dt = temp_dt << Subset( Output Table( "clean_dt" ) ),
+			clean_dt << Concatenate( temp_dt, Append to first table )
+		);
+		Close( temp_dt, NoSave );
+	);//end entity for loop
+		
+	//Put the iteration report into a table and give the columns names.
+	dt_summary = As Table( Transpose( temp ) );
+	Column( dt_summary, 1 ) << set name( "ID" );
+	Column( dt_summary, 2 ) << set name( "Iteration" );
+	Column( dt_summary, 3 ) << set name( "p-bar (%)" );
+	Column( dt_summary, 4 ) << set name( "Cum # OOC" );
+	Column( dt_summary, 5 ) << set name( "# Lots" );
+
+	iteration_dt = tmp << Join(
+		With( dt_summary ),
+		Select( Facility_Col[1], Entity_Col[1] ),
+		SelectWith( :Iteration, :Name( "p-bar (%)" ), :Name( "Cum # OOC" ), :Name( "# Lots" ) ),
+		By Matching Columns( :ID = :ID ),
+		Drop multiples( 0, 0 ),
+		Name( "Include non-matches" )(1, 1),
+		Output Table( "Iteration Report" )
+	);
+	iteration_dt << New Column( "Cum % OOC", numeric, formula( :Name( "Cum # OOC" ) / :Name( "# Lots" ) * 100 ) );
+	Column( iteration_dt, "p-bar (%)" ) << Format( "Fixed Dec", 8, 4 );
+	Column( iteration_dt, "Cum % OOC" ) << Format( "Fixed Dec", 8, 2 );
+	Close( tmp, NoSave );
+	Close( dt_summary, NoSave );
+	
+	
+
+	// Create Final p-bar results table
+	final_pbar_temp = iteration_dt << Summary(
+		Group( Facility_Col[1], Entity_Col[1] ),
+		Max( :Iteration ),
+		statistics column name format( "column" ),
+		Link to original data table( 0 ),
+		output table name( "p-bar table temp" )
+	);
+	final_pbar_temp << Delete Columns( "N Rows" );
+
+	pbar_dt = iteration_dt << Join(
+		With( final_pbar_temp ),
+		Merge Same Name Columns,
+		By Matching Columns( Facility_Col[1] = Facility_Col[1], Entity_Col[1] = Entity_Col[1], :Iteration = :Iteration ),
+		Drop multiples( 0, 0 ),
+		Name( "Include non-matches" )(0, 0),
+		output table name( "p-bar table" )
+	);
+	pbar_dt << Delete Columns( "Match Flag" );
+	pbar_dt << Select Where( Eval( Facility_Col[1] ) == "ALL" );
+	pbar_dt << Move Rows( AtEnd );
+	pbar_dt << Clear Select;
+	Column( pbar_dt, "Iteration" ) << SetName( "# Iterations" );
+	Column( pbar_dt, "Cum # OOC" ) << SetName( "# OOC" );
+	Column( pbar_dt, "Cum % OOC" ) << SetName( "% OOC" );
+	Close( final_pbar_temp, nosave );
+		
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Make Entity matching report
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	//Since now the data table is "clean" do the matching between sites/Entities
+	OA_result = [];
+	OA_decision = {};
+	parmID_list = {};
+	rollup_list = {};
+	bic_def_res = [];
+	bic_n_res = [];
+	bic_p_res = [];
+
+
+	dt_clean_sum = clean_dt << Summary(
+		Group( Eval( Facility_Col ), Eval( Entity_Col ) ),
+		Sum( Eval( N_Fails_Col ) ),
+		Sum( Eval( N_Units_Col ) ),
+		statistics column name format( "column" )
+	);
+	p_name = "p-bar (%)";
+	dt_clean_sum << New Column( p_name, numeric, formula( 100 * As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) ) );
+
+	dt_clean_sum() << Sort( By( Column( dt_clean_sum, p_name ) ), Order( Ascending ), replace table( 1 ) );
+	/*check to see if all entities have zero defects*/
+	Summarize(def_test = Max("p-bar (%)"));
+	if(def_test == 0, bic_rows = dt_clean_sum << Get Rows Where(:Name("p-bar (%)") == 0));	
+	
+	dt_clean_sum << Select All Rows;
+	parm_rows = dt_clean_sum << get selected rows;
+	dt_clean_sum << Clear Select;
+	n_def = Column( dt_clean_sum, N_Fails_Col )[parm_rows];
+	n_tot = Column( dt_clean_sum, N_Units_Col )[parm_rows];
+
+
+	OA_chi2 = chi2_fcn( n_def, n_tot );
+	OA_result = OA_result |/ OA_Chi2;
+
+	If(
+		OA_Chi2[1, 3] == 0,
+			Insert Into( OA_decision, "Insufficient Data" );
+			bic_rows = [1];,
+		OA_Chi2[1, 2] >= 0.05,
+			Insert Into( OA_decision, "Matched" );
+			bic_rows = (1 :: N Rows( parm_rows ))`;, //Check
+		OA_Chi2[1, 2] < 0.05,
+			Insert Into( OA_decision, "Not Matched" );
+			bic_rows = bic_fcn( n_def, n_tot );
+	);
+	
+
+	bic_def = Sum( n_def[bic_rows] );
+	bic_n = Sum( n_tot[bic_rows] );
+	bic_p = 100 * bic_def / bic_n;
+	bic_def_res = bic_def_res |/ bic_def;
+	bic_n_res = bic_n_res |/ bic_n;
+	bic_p_res = bic_p_res |/ bic_p;
+	
+	Current Data Table( dt_clean_sum );
+	BIC_name = "Comparison to BIC";
+	dt_clean_sum << New Column( BIC_name, character );
+	Column( dt_clean_sum, BIC_name )[parm_rows[bic_rows]] = "BIC";
+	Summarize( BIC_list = By( Eval( Facility_Col[1] ), Eval( Entity_Col[1] ), :Name( "Comparison to BIC" ) ), pbar_by_entity = Mean( "p-bar (%)" ) );
+
+
+	If(
+		//if4
+			sum(n_def) == 0,
+		//then4
+			interpretation = "Entities are Matched";
+			mycolor = 5,
+		//if1
+		multiple_entity_flag & OA_Chi2[1, 2] >= 0.05, 
+		//then1
+			interpretation = "Entities are Matched";
+			mycolor = 4;, 
+		//if2
+		multiple_entity_flag & OA_Chi2[1, 2] < 0.05, 
+		//then2
+			interpretation = "Entities are NOT Matched";
+			mycolor = 3;, 
+		//if3	
+		multiple_entity_flag & OA_Chi2[1, 3] == 0, 
+		//then3		 
+			interpretation = "Insufficient Data";
+			mycolor = 5;, 
+		//else
+		interpretation = "Error";
+		mycolor = 7;,
+	);//end if
+	chi_box = Outline Box( "Entity Matching Test Results",
+		H List Box(
+			Table Box( Chi_p_box = Number Col Box( "Chi-Square p-value", {OA_Chi2[1, 2]} ) ),
+			tbb = Text Box( "     " ),
+			tb = Text Box( interpretation )
+		)
+	);
+	tb << SetFontSize( 15 ) << FontColor( mycolor );
+	Chi_p_box << Set Format( "PValue" );
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Make WW Trends
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	If( run_col_type == "Continuous",
+		If( Col Maximum( Column( data_table, Run_Id_Col ) ) > 2713996800,
+			data_table << New Column( "Week", numeric, continuous, formula( Week Of Year( As Column( Eval( Run_Id_Col ) ) ) ), eval formula );
+			data_table << New Column( "Year", numeric, continuous, formula( Year( As Column( Eval( Run_Id_Col ) ) ) ), eval formula );
+			data_table << New Column( "Year-Week",
+				character,
+				formula( If( Length( Char( :Week ) ) == 1, Char( :Year ) || "-0" || Char( :Week ), Char( :Year ) || "-" || Char( :Week ) ) ),
+				eval formula
+			);
+			Column(data_table, "Year-Week") << Delete Formula;
+		
+			try ( Column( data_table, "Facility-Entity" ) << Delete Formula ) ;
+
+			dt_WW = data_table << Summary(
+				Group( :Name( "Year-Week" ), :Name( "Facility-Entity" ) ),
+				Sum( N_Units_Col[1] ),
+				Sum( N_Fails_Col[1] ),
+				statistics column name format( "column" ),
+				Link to original data table( 0 ),
+				Output Table( "Pbar by Work Week Source Table" )
+			);
+			//Column( dt_WW, "Year-Week" ) << Delete Formula; /*not needed in JMP11*/
+			try ( Column( dt_WW, "Facility-Entity" ) << Delete Formula ) ;
+			Wait( 0.2 );
+		
+			dt_WW << New Column( "Lot p (%)",
+				numeric,
+				continuous,
+				formula( 100 * As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) ),
+				eval formula
+			);
+			dt_WW << show window( 0 );
+
+			WW_box = V List Box(
+				ww_oneway = dt_WW << Oneway(
+					Y( :Name( "Lot p (%)" ) ),
+					X( :Name( "Year-Week" ) ),
+					Matching Column( :Name( "Facility-Entity" ) ),
+					Quantiles( 0 ),
+					Means( 0 ),
+					Means and Std Dev( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					X Axis Proportional( 0 ),
+					Grand Mean( 1 ),
+					Points Jittered( 0 ),
+					Matching Lines( 1 ),
+					Matching Dotted Lines( 0 ),
+					Mean CI Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					Connect Means( 1 ),
+					Points Spread( 0 ),
+					Mean of Means( 0 ),
+					Histograms( 0 ),
+					SendToReport(
+						Dispatch( {}, "", NomAxisBox, {Rotated Tick Labels( 1 )} ),
+						Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+						Dispatch(
+							{},
+							"Oneway Plot",
+							FrameBox,
+							{Frame Size( 760, 400 ), Marker Size( 3 ), Grid Line Order( 3 ), Reference Line Order( 4 ),
+							Row Legend(
+								Name( "Facility-Entity" ),
+								Color( 1 ),
+								Color Theme( "JMP Default" ),
+								Marker( 1 ),
+								Marker Theme( "Solid" ),
+								Continuous Scale( 0 ),
+								Reverse Scale( 0 ),
+								Excluded Rows( 0 )
+							)}
+						)
+					)
+				)
+			);
+			Report( ww_oneway )[Outline Box( 1 )] << Set Title( "Lot p (%) vs Year-Week by Facility-Entity" );
+		, 
+		// else continous but not date format
+			WW_box = Text Box( "Work week trend charts are only made when run ID is a date column" )
+		)
+	, 
+	// else nominal
+		WW_box = Text Box( "Work week trend charts are only made when run ID is a date column" )
+	);
+	
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Make Lot P and Percent Norm Charts
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//Defining the max_pbar for slider and starting values of pbar and k for each Parameter
+	pbar = bic_p;
+	Current Data Table( pbar_dt );
+	Summarize( max_pbar = Max( :Name( "p-bar (%)" ) ) );
+	If( max_pbar == 0,
+		k = 2.5,
+		k = 3
+	);
+	If( max_pbar == 0,
+		max_pbar = 0.01,
+		max_pbar = max_pbar * 1.2
+	);
+	If( pbar == 0,
+		pbar = 0.0001,
+		pbar = bic_p
+	);
+	suggested_pbar = pbar;
+
+	N_Units_Vals = Column( data_table, N_Units_Col[1] ) << GetValues;
+	N_Fails_Vals = Column( data_table, N_Fails_Col[1] ) << GetValues;
+
+//Adds percent norm, ooc indicator column, and colors to the data table.
+	data_table << New Column( "Percent Norm",
+		numeric,
+		formula(
+			(As Column( Eval( N_Fails_Col ) ) / As Column( Eval( N_Units_Col ) ) - (Eval( k ) - 1.5) / As Column( Eval( N_Units_Col ) ) -
+			Eval( pbar ) / 100) / Root( ((Eval( pbar ) / 100) * (1 - Eval( pbar ) / 100)) / As Column( Eval( N_Units_Col ) ) )
+		),
+		EvalFormula
+	);
+	data_table << New Column( "OOC indicator", numeric, formula( If( :Name( "Percent Norm" ) > Eval( k ), 100, 0 ) ), eval formula );
+	data_table << New Column( "OOC Legend",
+		character,
+		formula( Match( :OOC indicator, 0, "In Control", 100, "Out of Control", Empty() ) ),
+		eval formula
+	);
+
+	data_table << Color by Column(
+		OOC indicator,
+		Color( 1 ),
+		Color Theme( "Blue to Green to Red" ),
+		Marker( 1 ),
+		Marker Theme( "Standard" ),
+		Continuous Scale( 0 ),
+		Reverse Scale( 0 ),
+		Excluded Rows( 0 )
+	);
+
+// Make plots of p and pnorm vs entity.  Oneway in JMP 9, varchart in JMP 10
+	If( JMPVerNum <= 9, 
+		// oneway p-norm vs entity
+		PNorm_box = H List Box(
+			pnorm_oneway = data_table << Oneway(
+				Y( :Name( "Percent Norm" ) ),
+				X( :Name( "Facility-Entity" ) ),
+				Quantiles( 0 ),
+				Means( 0 ),
+				Means and Std Dev( 0 ),
+				Grand Mean( 0 ),
+				Mean Lines( 0 ),
+				Box Plots( 0 ),
+				Points Jittered( 1 ),
+				X Axis Proportional( 0 ),
+				Mean CI Lines( 0 ),
+				Mean Diamonds( 0 ),
+				Mean Error Bars( 0 ),
+				Std Dev Lines( 0 ),
+				Connect Means( 0 ),
+				Points Spread( 0 ),
+				Mean of Means( 0 ),
+				Histograms( 0 ),
+				Automatic Recalc( 1 ),
+				SendToReport(
+					Dispatch( {}, "1", ScaleBox, {Add Ref Line( 0, Dashed, {128, 128, 128} ), Show Major Grid( 1 )} ),
+					Dispatch(
+						{},
+						"Oneway Plot",
+						FrameBox,
+						{Row Legend(
+							OOC Legend,
+							Color( 1 ),
+							Color Theme( "Blue to Green to Red" ),
+							Marker( 1 ),
+							Marker Theme( "Standard" ),
+							Continuous Scale( 0 ),
+							Reverse Scale( 0 ),
+							Excluded Rows( 0 )
+						)}
+					)
+				)
+			)
+		);
+		Report( pnorm_oneway )[Outline Box( 1 )] << Set Title( "Percent Norm vs Facility-Entity" );
+
+		// Oneway of percent 
+		p_box = V List Box(
+			p_oneway = data_table << Oneway(
+				Y( :Name( "Lot p (%)" ) ),
+				X( :Name( "Facility-Entity" ) ),
+				Quantiles( 0 ),
+				Means( 0 ),
+				Means and Std Dev( 0 ),
+				Grand Mean( 0 ),
+				Mean Lines( 1 ),
+				Box Plots( 0 ),
+				Points Jittered( 1 ),
+				X Axis Proportional( 0 ),
+				Mean CI Lines( 0 ),
+				Mean Diamonds( 0 ),
+				Mean Error Bars( 0 ),
+				Std Dev Lines( 0 ),
+				Connect Means( 0 ),
+				Points Spread( 0 ),
+				Mean of Means( 0 ),
+				Histograms( 0 ),
+				Automatic Recalc( 1 ),
+				SendToReport(
+					Dispatch(
+						{},
+						"1",
+						ScaleBox,
+						{Add Ref Line( suggested_pbar, Dashed, {128, 128, 128} /*, "Suggested p-bar" */ ), Show Major Grid( 1 )}
+					),
+					Dispatch(
+						{},
+						"Oneway Plot",
+						FrameBox,
+						{Row Legend(
+							OOC Legend,
+							Color( 1 ),
+							Color Theme( "Blue to Green to Red" ),
+							Marker( 1 ),
+							Marker Theme( "Standard" ),
+							Continuous Scale( 0 ),
+							Reverse Scale( 0 ),
+							Excluded Rows( 0 )
+						)}
+					)
+				)
+			)
+		);
+		Report( p_oneway )[Outline Box( 1 )] << Set Title( "Lot p (%) vs Facility-Entity" );
+
+	, // else JMP 10
+		PNorm_box = H List Box(
+			pnorm_var = data_table << Variability Chart(
+				Y( :Percent Norm ),
+				X( Eval( Facility_Col ), Eval( Entity_Col ) ),
+				Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+				Process Variation( 0 ),
+				Show Range Bars( 0 ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				Show Box Plots( 0 ),
+				Automatic Recalc( 1 ),
+				SendToReport(
+					Dispatch(
+						{"Variability Chart for Percent Norm"},
+						"2",
+						ScaleBox,
+						{Add Ref Line( 0, Dashed, {128, 128, 128} ), Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+					),
+					Dispatch(
+						{"Variability Chart for Percent Norm"},
+						"Variability Chart",
+						FrameBox,
+						{Row Legend(
+							OOC Legend,
+							Color( 1 ),
+							Color Theme( "Blue to Green to Red" ),
+							Marker( 1 ),
+							Marker Theme( "Standard" ),
+							Continuous Scale( 0 ),
+							Reverse Scale( 0 ),
+							Excluded Rows( 0 )
+						)}
+					)
+				)
+			)
+		);
+		Report( pnorm_var )[Outline Box( 2 )] << Set Title( "Percent Norm vs Facility, Entity" );
+	
+		p_box = V List Box(
+			p_var = data_table << Variability Chart(
+				Y( :Name( "Lot p (%)" ) ),
+				X( Eval( Facility_Col ), Eval( Entity_Col ) ),
+				Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+				Process Variation( 0 ),
+				Show Range Bars( 0 ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				Show Box Plots( 0 ),
+				SendToReport(
+					Dispatch(
+						{"Variability Chart for Lot p (%)"},
+						"2",
+						ScaleBox,
+						{Add Ref Line( suggested_pbar, Dashed, {128, 128, 128} ), Show Major Grid( 1 ), Rotated Labels( "Horizontal" )}
+					),
+					Dispatch(
+						{"Variability Chart for Lot p (%)"},
+						"Variability Chart",
+						FrameBox,
+						{Row Legend(
+							OOC Legend,
+							Color( 1 ),
+							Color Theme( "Blue to Green to Red" ),
+							Marker( 1 ),
+							Marker Theme( "Standard" ),
+							Continuous Scale( 0 ),
+							Reverse Scale( 0 ),
+							Excluded Rows( 0 )
+						)}
+					)
+				)
+			)
+		);
+		Report( p_var )[Outline Box( 2 )] << Set Title( "Lot p (%) vs Facility, Entity" );
+	); // end if
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Make Trend charts by Facility and Entity
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	If( run_col_type == "Continuous", 
+		// Make trend charts for continuous x
+		trend_chart_box = V List Box(
+			trend_biv = data_table << Bivariate(
+				Y( :Name( "Lot p (%)" ) ),
+				X( Eval( Run_Id_Col ) ),
+				Fit Each Value( {Line Color( {213, 72, 87} )} ),
+				By( Facility_Col[1], Entity_Col[1] ),
+				SendToReport(
+					Dispatch( {}, "2", ScaleBox, {Show Major Grid( 1 )} ),
+					Dispatch( {}, "Bivar Plot", FrameBox, {Frame Size( 760, 200 )} )
+				)
+			)
+		);
+		// customize title
+		If( multiple_entity_flag,
+			For( i = 1, i <= N Items( entity_sets ), i++,
+				oldtitle = Report( trend_biv[i] )[Outline Box( 1 )] << Get Title;
+				newtitle = Munger( oldtitle, 1, "Bivariate Fit of Lot p (%) By", "Lot p (%) vs " );
+				Report( trend_biv[i] )[Outline Box( 1 )] << Set Title( newtitle );
+			)
+		, // else one entity
+			oldtitle = Report( trend_biv )[Outline Box( 1 )] << Get Title;
+			newtitle = Munger( oldtitle, 1, "Bivariate Fit of Lot p (%) By", "Lot p (%) vs " );
+			Report( trend_biv )[Outline Box( 1 )] << Set Title( newtitle );
+		);
+	, 
+		// Else make trend charts for nominal or ordinal x
+		trend_chart_box = V List Box(
+			trend_oneway = data _table << Oneway(
+				Y( :Name( "Lot p (%)" ) ),
+				X( Eval( Run_Id_Col ) ),
+				Box Plots( 0 ),
+				Quantiles( 0 ),
+				Means( 0 ),
+				Means and Std Dev( 0 ),
+				Mean Lines( 0 ),
+				Connect Means( 1 ),
+				X Axis Proportional( 0 ),
+				Points Jittered( 0 ),
+				Grand Mean( 0 ),
+				Means and Std Dev( 0 ),
+				X Axis Proportional( 0 ),
+				Mean CI Lines( 0 ),
+				Mean Diamonds( 0 ),
+				Mean Error Bars( 0 ),
+				Std Dev Lines( 0 ),
+				Points Spread( 0 ),
+				Mean of Means( 0 ),
+				Histograms( 0 ),
+				By( Facility_Col[1], Entity_Col[1] ),
+				SendToReport(
+					Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+					Dispatch( {}, "Oneway Plot", FrameBox, {Frame Size( 760, 200 )} )
+				)
+			)
+		);
+		// customize title
+		If( multiple_entity_flag,
+			For( i = 1, i <= N Items( entity_sets ), i++,
+				oldtitle = Report( trend_oneway[i] )[Outline Box( 1 )] << Get Title;
+				newtitle = Munger( oldtitle, 1, "Oneway Analysis of Lot p (%) By ", "Lot p (%) vs " );
+				Report( trend_oneway[i] )[Outline Box( 1 )] << Set Title( newtitle );
+			)
+		, // else one entity
+			oldtitle = Report( trend_oneway )[Outline Box( 1 )] << Get Title;
+			newtitle = Munger( oldtitle, 1, "Oneway Analysis of Lot p (%) By ", "Lot p (%) vs " );
+			Report( trend_oneway )[Outline Box( 1 )] << Set Title( newtitle );
+		);
+	);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Add Slider Bar
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+	Current Data Table(data_table);
+	Summarize( OOC = Mean( "OOC indicator" ) );
+	Summarize(Mean_N = Mean(Eval(N_Units_Col[1])));
+	Summarize(
+		ent_list = By( Eval( Facility_Col[1] ), Eval( Entity_Col[1] ) ),
+		N_by_entity = Count( "OOC indicator" ),
+		OOC_by_entity = Mean( "OOC indicator" )
+	);
+	
+	k_copy = k;
+	pbar_copy = pbar;
+	suggested_k = k;
+	suggested_ooc = ooc;
+	suggested_ooc_by_entity = OOC_by_entity;
+	delta_to_BIC = pbar - suggested_pbar;
+	Mean_N = Ceiling(Mean_N);
+	//Calculate the control limit change ratio for calculating control limit health
+	UCLonline = (pbar/100) + (k-1.5)/Mean_N + k*sqrt((pbar/100)*(1-(pbar/100))/Mean_N);
+	UCLoffline = (suggested_pbar/100) + (k-1.5)/Mean_N + k*sqrt((suggested_pbar/100)*(1-(suggested_pbar/100))/Mean_N);
+	DEFonline = Ceiling(UCLonline*Mean_N);
+	DEFoffline = Ceiling(UCLoffline*Mean_N);
+	CLCR = (DEFonline - DEFoffline)/sqrt(Mean_N*(suggested_pbar/100)*(1-(suggested_pbar/100)));
+	CLCRstatus ={};
+	If(
+			-1.5 <= CLCR <= 1.5, CLCRstatus[1] = "",
+			CLCR < -1.5, CLCRstatus[1] = "Flag: p_bar too low",
+			CLCR > 1.5, CLCRstatus[1] = "Flag: p_bar too high"
+		);
+	CLCRbox2 = CLCRstatus[1];
+	Kstatus ={};
+	If(
+			1.5 <= k <= 4.5, Kstatus[1] = "",
+			k < 1.5, Kstatus[1] = "Flag: k too low",
+			k > 4.5, Kstatus[1] = "Flag: k too high"
+		);
+	kStatusbox = Kstatus[1];
+	
+	RealUCLonline = (online_pbar/100) + (online_k-1.5)/Mean_N + online_k*sqrt((online_pbar/100)*(1-(online_pbar/100))/Mean_N);
+	RealUCLoffline = (suggested_pbar/100) + (online_k-1.5)/Mean_N + online_k*sqrt((suggested_pbar/100)*(1-(suggested_pbar/100))/Mean_N);
+	RealDEFonline = Ceiling(RealUCLonline*Mean_N);
+	RealDEFoffline = Ceiling(RealUCLoffline*Mean_N);
+	OnlineCLCR = (RealDEFonline - RealDEFoffline)/sqrt(Mean_N*(suggested_pbar/100)*(1-(suggested_pbar/100)));
+	OnlineCLCRstatus = "";
+	If(
+			-1.5 <= OnlineCLCR <= 1.5, OnlineCLCRstatus = "",
+			OnlineCLCR < -1.5, OnlineCLCRstatus = "Flag: p_bar too low",
+			OnlineCLCR > 1.5, OnlineCLCRstatus = "Flag: p_bar too high",
+			Add_On_Limits == 0 | IsMissing(online_pbar) | IsMissing(online_k), OnlineCLCRstatus = ""
+		);
+	OnlineKstatus ="";
+	If(
+			1.5 <= online_k <= 4.5, OnlineKstatus = "",
+			online_k < 1.5, OnlineKstatus = "Flag: k too low",
+			online_k > 4.5, OnlineKstatus = "Flag: k too high",
+			Add_On_Limits == 0 | IsMissing(online_pbar) | IsMissing(online_k), OnlineKstatus = ""
+		);
+
+
+	
+	
+	/*expression used in the slider boxes*/
+	update = Expr(
+		k_copy = k;
+		pbar_copy = pbar;
+		delta_to_BIC = pbar - suggested_pbar;
+		k = Round( 2 * k, 0 ) / 2;
+		UCLonline = (pbar/100) + (k-1.5)/Mean_N + k*sqrt((pbar/100)*(1-(pbar/100))/Mean_N);
+		UCLoffline = (suggested_pbar/100) + (k-1.5)/Mean_N + k*sqrt((suggested_pbar/100)*(1-(suggested_pbar/100))/Mean_N);
+		DEFonline = Ceiling(UCLonline*Mean_N);
+		DEFoffline = Ceiling(UCLoffline*Mean_N);
+		CLCR = (DEFonline - DEFoffline)/sqrt(Mean_N*(suggested_pbar/100)*(1-(suggested_pbar/100)));
+		If(
+			-1.5 <= CLCR <= 1.5, CLCRstatus[1] = "",
+			CLCR < -1.5, CLCRstatus[1] = "Flag: p-bar too low",
+			CLCR > 1.5, CLCRstatus[1] = "Flag: p-bar too high"
+		);
+		If(
+			1.5 <= k <= 4.5, Kstatus[1] = "",
+			k < 1.5, Kstatus[1] = "Flag: k too low",
+			k > 4.5, Kstatus[1] = "Flag: k too high"
+		);
+		Column( data_table, "Percent Norm" ) << EvalFormula;
+		Column( data_table, "OOC indicator" ) << EvalFormula;
+		Column( data_table, "Lot p (%)" ) << Eval Formula;
+		Current Data Table( data_table );
+		Summarize( OOC = Mean( "OOC indicator" ) );
+		Summarize(
+			ent_list = By( Eval( Facility_Col[1] ), Eval( Entity_Col[1] ) ),
+			OOC_by_entity = Mean( "OOC indicator" ),
+			OOC_sum_by_Entity = Sum( "OOC indicator" )
+		);
+		kbox << Set Values( Matrix( k ) );
+		pbox << Set Values( Matrix( pbar ) );
+		oocbox << Set Values( Matrix( ooc ) );
+		entity_oocbox << Set Values( Matrix( OOC_by_entity ) );
+		//deltabox << Set Values( Matrix( delta_to_BIC ) );
+		//CLCRbox << Set Values( Matrix( CLCR ) );
+		CLCRbox2 << Set Text(CLCRstatus[1]);
+		kStatusbox << Set Text(Kstatus[1])
+	);
+
+	PNorm_box[framebox( 1 )] << add graphics script(
+		H Line( k );
+		If( k != k_copy | pbar != pbar_copy,
+			update
+		);
+	);
+	PNorm_box[framebox( 1 )] << add graphics script( Text( {0.1, k + 0.1}, "k" ) );
+	P_box[framebox( 1 )] << add graphics script(
+		H Line( pbar );
+		If( pbar != pbar_copy,
+			update
+		);
+	);
+	P_box[framebox( 1 )] << add graphics script( Text( Counterclockwise, {0.3, suggested_pbar}, "suggested pbar" ) );
+	P_box[framebox( 1 )] << add graphics script( Text( Counterclockwise, {N Items( entity_sets ) - 0.08, pbar}, "user defined pbar" ) );
+
+
+/////////////////////////////// expression to close hidden data tables //////////////////////////////
+	unhide_close_dts = Expr(
+		If( !Is Empty( data_table ),
+			Close( data_table, NoSave )
+		);
+		If( !Is Empty( dt_WW ),
+			Close( dt_WW, nosave )
+		);
+	);
+
+/////////////////////////////// Custom Outline Boxes //////////////////////////////
+
+	Sugg_ent_box = Outline Box( "% OOC by Facility, Entity",
+		Table Box(
+			String Col Box( "Facility", ent_list[1] ),
+			String Col Box( "Entity", ent_list[2] ),
+			pbar_by_entity_box = Number Col Box( "p-bar (%)", pbar_by_entity ),
+			Number Col Box( "# Lots", N_by_entity ),
+			entity_oocbox_s = Number Col Box( "Suggested % OOC", suggested_ooc_by_entity ),
+			String Col Box( "BIC Results", BIC_list[3] )
+		)
+	);
+	entity_oocbox_s << Set Format( "Fixed Dec", 8, 2 );
+	pbar_by_entity_box << Set Format( "Fixed Dec", 8, 4 );
+
+	Sugg_box = Outline Box( "Overall",
+		Table Box(
+			kbox_s = Number Col Box( "Suggested k", {suggested_k} ),
+			pbox_s = Number Col Box( "Suggested p-bar (%)", {suggested_pbar} ),
+			oocbox_s = Number Col Box( "Suggested % OOC", {suggested_ooc} )
+		)
+	);
+	oocbox_s << Set Format( "Fixed Dec", 8, 2 );
+	pbox_s << Set Format( "Fixed Dec", 8, 4 );
+		
+	User_ent_box = Outline Box( "% OOC by Facility, Entity",
+		Table Box(
+			String Col Box( "Facility", ent_list[1] ),
+			String Col Box( "Entity", ent_list[2] ),
+			Number Col Box( "# Lots", N_by_entity ),
+			entity_oocbox = Number Col Box( "User defined % OOC", ooc_by_entity )
+		)
+	);
+	entity_oocbox << Set Format( "Fixed Dec", 8, 2 );
+		
+	User_box = Outline Box( "Overall",
+		HList Box(
+			Table Box(
+				kbox = Number Col Box( "User defined k", {k} ),
+				pbox = Number Col Box( "User defined p-bar (%)", {pbar} ),
+				oocbox = Number Col Box( "User defined % OOC", {ooc} ),
+				/*deltabox = Number Col Box( "Delta to BIC", {delta_to_BIC} ),
+				CLCRbox = Number Col Box("CLCR Number", {CLCR}), */<<TableStyle("Plain")
+			),
+			TextBox(" "),
+			VListBox(TextBox(" "),TextBox("p-bar Status", <<setfont style("bold")),CLCRbox2 = TextBox("")),
+			TextBox("  "),
+			VListBox(TextBox(" "),TextBox("k Status", <<SetFont Style("bold")), kStatusbox = TextBox(""))
+		),
+		H List Box( Text Box( "p-bar (%) = " ), Slider Box( 0.0001, max_pbar, pbar, update ), Global Box( pbar ) ),
+		H List Box( Text Box( "k = " ), Slider Box( 2.5, 4.5, k, update ), Global Box( k ) )
+	);
+	
+	Online_box = Outline Box( "Online Limits",
+		HList Box(
+			Table Box(
+				kbox_online = Number Col Box( "Online k", {online_k} ),
+				pbox_online = Number Col Box( "Online p-bar (%)", {online_pbar} ),
+				oocbox_online = Number Col Box( "Online % OOC", {ooc} ),
+				<<TableStyle("Plain")
+			),
+			TextBox(" "),
+			VListBox(TextBox(" "),TextBox("p-bar Status", <<setfont style("bold")), TextBox(OnlineCLCRstatus)),
+			TextBox("  "),
+			VListBox(TextBox(" "), TextBox("k Status", <<setfont style("bold")), TextBox(OnlineKstatus)),
+		),
+	);
+	oocbox << Set Format( "Fixed Dec", 8, 2 );
+	pbox << Set Format( "Fixed Dec", 8, 4 );
+	//deltabox << Set Format( "Fixed Dec", 8, 4 );
+
+///////////////////////////////////// Create final window /////////////////////////////////////////
+New Window( "p-bar Calculator",
+	<<OnClose( Eval( unhide_close_dts ) ),
+	Tab Box(
+		"p-bar Determination",
+		V List Box(
+			Outline Box( "p-bar Iteration Report", iteration_dt << Get As Report, << Close),
+			Outline Box( "Final p-bar Results", pbar_dt << Get As Report, << Close ),
+			Outline Box( "Lot p (%) and Percent Norm Plots",
+				H List Box( p_box, PNorm_box),
+				H List Box(
+					Outline Box( "Suggested Values", H List Box( Sugg_box, If Box( multiple_entity_flag, Sugg_ent_box ) ) ), 
+					If Box( multiple_entity_flag, chi_box )),
+				Outline Box( "User Defined Values", H List Box( User_box, If Box( multiple_entity_flag, User_ent_box ) ) ),
+				If Box(Add_On_Limits, Online_box ),
+				
+			),
+			FooterBox
+		),
+		"Trend Charts",
+		trend_chart_box,
+		"Overlay Trend Chart by Workweek",
+		WW_box
+	)
+);
+
+// Cleanup files
+	Data Table( "Pbar by Work Week Source Table" ) << show window( 0 );
+	data_table << show window( 0 );
+	Close( pbar_dt, NoSave );
+	Close( iteration_dt, NoSave );
+	Close( clean_dt, NoSave );
+); // end if

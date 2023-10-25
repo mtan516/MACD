@@ -1,0 +1,29 @@
+/********************************************************************
+ *Capability Analyis (on Summary Stats)
+ *Orginator: John Xu
+ *JMP Version: 9.0+
+ *Date: 09/10/2013
+********************************************************************/
+
+Clear Globals();
+//Global variable assignments
+
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\sos capability functions.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\1Click_sosfunc.jsl" );
+
+//Interactive_mode=0: No user interactive inputs in Diag is required 
+:: Interactive_mode = 0;   
+//file_open = 0: open data files from specific locations; file_open=1: point to existing open tables
+file_open=0; 
+
+/************ Below are the only two lines needed to be edited ********/
+//read in variable assignments from the control file; if file_open=1, two file variables should point to two open tables
+::VariableAssgmtTblName = "$ADDIN_HOME(com.intel.sos)\1Click Utilities\UserInputTbl_Cpk_Smy_Stats.jmp";
+::InputDataTableName = "$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\HDMT SOT Delta Exercise.jmp";  
+/*********************** End editable portion *************************/
+
+//Do the Cpk Calculations
+
+Eval( Cpk_SummaryStats_1Click );

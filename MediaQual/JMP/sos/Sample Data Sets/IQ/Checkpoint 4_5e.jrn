@@ -1,0 +1,433 @@
+﻿/* JMP 11.2.1   01 */
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("SW/SB Commonality Analysis"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Checkpoint 4.5e centered by Lot #), X(:Process, :Carrier Row), Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(1), AIAG Labels(0), SendToReport(Dispatch({"Variability Chart for Checkpoint 4.5e centered by Lot #"}, "2", ScaleBox, {Add Ref Line(0, Dashed, "Blue", "", 2), Show Major Grid(1), Show Minor Grid(1)}), Dispatch({"Variability Chart for Checkpoint 4.5e centered by Lot #"}, "Variability Chart", FrameBox, {Frame Size(810, 200)}), Dispatch({"Variability Chart for Checkpoint 4.5e centered by Lot #"}, "", NomAxisBox, {Rotated Tick Labels(1)})))),Context({Y("Checkpoint 4.5e centered by Lot #")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Checkpoint 4.5e centered by Lot #"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(4),typeOptions()),length(810),baselength(810),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(-8),scaleWidth(16),widthMajor(2),
+nbin(8),nminor(0),timeCode(0),ndec(0),
+MinInit(-8),MaxInit(8),LinearInit,MajorInit(2),MinorInit(0),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(2),width(2),color(5),),scaleTypeOptions(),),length(200),baselength(200),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Checkpoint 4.5e centered by Lot #",default font id(9),wrapWidth(200),justification(1),left,))),
+AxisBox(side(R),size(30,200),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(810,200),border(12303),flags(0),markerSize(-1),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(2, -8, 8)}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 2, 3.70074341541719e-17), H Line(2, 4, -7.40148683083438e-17)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(5)),),settable(46),script({Line({0.5, -0.230247435567844}, {1.5, 0.230247435567844}), Line({2.5, -0.0722137212616831}, {3.5, 0.072213721261683})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, -0.230247435567844), H Line(1.425, 1.575, 0.230247435567844), H Line(2.425, 2.575, -0.0722137212616831), H Line(3.425, 3.575, 0.072213721261683)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, -4.96049780168795, 6.25597238973926), H Line(0.35, 0.65, -4.96049780168795), H Line(0.35, 0.65, 6.25597238973926), V Line(1.5, -2.27563062714382, 3.30473693169031), H Line(1.35, 1.65, -2.27563062714382), H Line(1.35, 1.65, 3.30473693169031), V Line(2.5, -6.07006930377673, 6.70944265657595), H Line(2.35, 2.65, -6.07006930377673), H Line(2.35, 2.65, 6.70944265657595), V Line(3.5, -5.88477700672698, 5.07590446066402), H Line(3.35, 3.65, -5.88477700672698), H Line(3.35, 3.65, 5.07590446066402)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(96),nv(1),MarkerItem(
+x(0.501625143434191,0.482970792894836,0.428371539486467,1.50072600645229,1.41763850338376,1.48086958152333,0.42639335009102,0.495678630842584,0.49999614019605,1.55565958016137
+,1.64673466193179,1.43480982960984,0.357983223333794,0.509670343775423,0.513546067524891,1.4576621568161,1.46045338745671,1.36272245984904,0.503129902429991,0.256136963774314
+,0.500825652623312,1.50728747907337,1.40948513385773,1.74127414974889,0.49575428638644,0.576691743679936,0.355836782842294,1.50138680763179,1.53010932232682,1.28304066864828
+,0.508003301569764,0.477962664144097,0.500137498096261,1.32021638100571,1.47416659990748,1.47977658888352,0.294557542116485,0.563589760939043,0.293056044721994,1.49999968759844
+,1.70689041154646,1.50005530054247,0.324984848041296,0.500217775371833,0.418981909458134,1.52604923328372,1.49911021563782,1.61129297305986,2.52355125766203,2.39810929272631
+,2.54310866605244,3.50058683733699,3.49999726116938,3.70906300021587,2.47712013218616,2.41301187358963,2.49061623348126,3.34725078184987,3.53788217837171,3.49830527777251
+,2.50159001100041,2.64890664891924,2.48069298204595,3.49030831269162,3.41297193771225,3.72512465132632,2.49996559608118,2.33973347374854,2.50170960140482,3.55772926252695
+,3.34813018402437,3.48995052415618,2.51454587750693,2.44576813896491,2.61410086987629,3.38742715589871,3.45160729824528,3.50306674893694,2.48225568930864,2.43729326238891
+,2.35202867019066,3.30336900437586,3.49663556516934,3.56633006899665,2.3059076628843,2.30046053874957,2.51302420095927,3.50076176313623,3.57137022840499,3.46763029130161
+,2.50063825504579,2.67810431470548,2.46147260852046,3.57330336938095,3.47106160437967,3.59860854357476),
+y(-3.03969866727247,2.72442030132864,-0.645062513371857,2.939788281356,-0.480593318152719,-1.08972611747745,-3.12504015785451,-1.37230563444233,1.04378584795284,-0.0553289438799891
+,0.0227598718612628,2.67824101076033,1.19960199209486,-2.33986589229272,0.0870451301147155,1.0656392478988,-0.75611375255079,-1.01722782954631,-0.128053721285157,2.42832229526074
+,6.25597238973926,-0.713161611259919,1.49654960345145,2.36058782143982,-2.53821793662843,-1.81394275187898,-2.95992778317657,-0.37552978167331,2.58848465853121,-1.23724728690478
+,2.03112315070706,0.833453061353617,-0.357887290497996,-0.793384255529459,3.30473693169031,-2.01684771008832,-4.96049780168795,-1.23802192871041,0.177119653473578,-0.00757410251795829
+,-0.852933061721865,0.984695971148735,1.24257984091676,1.7363223538712,-0.767162391342139,-1.8456437070666,1.60139716100362,-2.27563062714382,-0.0938651166205893,0.20073740442118
+,-0.876762378818064,-0.584641128640192,0.159559883074107,-1.11047781842256,-0.962256614629755,-0.0957109349967564,0.380077115453914,0.343556931424753,-0.623708383703168,0.363585687986278
+,-0.375095893116004,2.02813645467951,-0.598594876299399,-1.52280595908981,-0.213542756774882,0.0626379921516033,0.863511319778609,-0.353769311467396,0.0443733045412528,1.902131135626
+,0.268887678150077,1.67367359154491,-4.68218991346298,-4.872735899904,-6.07006930377673,5.07590446066402,3.79785644031526,3.96686913432242,3.04515575973243,3.83591068868622
+,4.49053268334024,-4.61032803079825,-3.16045994311998,-4.38325519169044,-3.4497477815986,-4.79340261181348,-4.3187144439569,4.73862575247779,4.26465097549475,3.36213378963227
+,3.72855974596193,6.70944265657595,4.48334863700901,-4.28188934517168,-1.8710585784459,-5.88477700672698),),states(rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687)
+,rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943)
+,rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943)
+,rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687)
+,rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Plus,-4222943),rs(0,Plus,-4222943)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(810,23),sizeID(1,5),num labels(4),labels("1","2","1","2",),value(1,1,1,1),total(4),horizontal,right,rotatedTicks(1),dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Carrier Row",))))),
+NomAxisBox(size(810,23),sizeID(1,6),num labels(2),labels("ATTD (POR)",VF,),value(2,2),total(4),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Process",))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(4),typeOptions()),length(300),baselength(300),))))))))))),
+OutlineBox(
+open(1),title("Variance Components Analysis"),sub(
+ListBox(horizontal,near,sub(
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Std Dev), X(:Component, :Process), Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")), Show Range Bars(0), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(0), AIAG Labels(0), Show Box Plot Whisker Bars(0), SendToReport(Dispatch({"Variability Chart for Std Dev"}, "Variability Chart", FrameBox, {Marker Size(4), DispatchSeg(CustomStreamSeg(8), {Line Color("Black")}), Row Legend(Process, Color(0), Color Theme(""), Marker(1), Marker Theme("Standard"), Continuous Scale(0), Reverse Scale(0), Excluded Rows(0))}), Dispatch({"Variability Chart for Std Dev"}, "", NomAxisBox(2), {Rotated Tick Labels(1)})))),Context({Y("Std Dev")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Std Dev"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(8),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(-0.5),scaleWidth(4),widthMajor(0.5),
+nbin(8),nminor(0),timeCode(0),ndec(4),ndecimals(3),
+MinInit(-0.5),MaxInit(3.5),LinearInit,MajorInit(0.5),MinorInit(0),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(1),width(2),color(81),),scaleTypeOptions(),),length(180),baselength(180),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Std Dev",default font id(9),wrapWidth(180),justification(1),left,))),
+AxisBox(side(R),size(47,180),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,180),border(12303),flags(0),markerSize(4),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(2, -0.5, 3.5), V Line(4, -0.5, 3.5), V Line(6, -0.5, 3.5)}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 2, 0), H Line(2, 4, 1.7085025483932), H Line(4, 6, 1.49408183387241), H Line(6, 8, 2.66736807062035)}),),CustomStreamSeg(description("Connected Means"),properties(),settable(46),script({Line({0.5, 0}, {1.5, 0}), Line({2.5, 0.261523949543196}, {3.5, 3.15548114724321}), Line({4.5, 2.01600213181463}, {5.5, 0.97216153593018}), Line({6.5, 2.03289433362037}, {7.5, 3.30184180762032})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 0), H Line(1.425, 1.575, 0), H Line(2.425, 2.575, 0.261523949543196), H Line(3.425, 3.575, 3.15548114724321), H Line(4.425, 4.575, 2.01600213181463), H Line(5.425, 5.575, 0.97216153593018), H Line(6.425, 6.575, 2.03289433362037), H Line(7.425, 7.575, 3.30184180762032)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(8),nv(1),MarkerItem(x(0.55,2.55,4.55,6.55,1.55,3.55,5.55,7.55),y(0,0.261523949543196,2.01600213181463,2.03289433362037,0,3.15548114724321,0.97216153593018,3.30184180762032),),states(rs(0,Circle,3),rs(0,Circle,4),rs(0,Circle,5),rs(0,Circle,0),rs(0,Plus,3),rs(0,Plus,4),rs(0,Plus,5),rs(0,Plus,0)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,73),sizeID(1,5),num labels(8),labels("ATTD (POR)",VF,"ATTD (POR)",VF,"ATTD (POR)",VF,"ATTD (POR)",VF,),value(1,1,1,1,1,1,1,1),total(8),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Process",))))),
+NomAxisBox(size(300,76),sizeID(1,6),num labels(4),labels("Carrier Row","Lot #*Carrier Row",Residual,Total,),value(2,2,2,2),total(8),horizontal,right,rotatedTicks(1),dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Component",))))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(2),markers(rs(0,Circle,0),rs(0,Plus,0)),allowStyles(false),sub(
+StringColBox(n(2),title("Process"),
+ strings("ATTD (POR)","VF"),markers(rs(0,Circle,0),rs(0,Plus,0)),titleWrap(true),))))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(8),typeOptions()),length(300),baselength(300),))))))))))),
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("% of Total Variance"),helpKey("Chart Platform"),rerun(Chart(X(:Process, :Component), Y(:Name("% of Total")), Stack Bars(1), Bar Chart(1), Automatic Recalc(0), SendToReport(Dispatch({}, "Chart", OutlineBox, {Set Title("% of Total Variance")}), Dispatch({}, "102", ScaleBox, {Min(0), Max(1), Inc(0.2), Minor Ticks(1), Show Major Grid(1), Show Minor Grid(1), Rotated Labels("Vertical")}), Dispatch({}, "", LegendBox, {Set Title("Component"), Orientation("Vertical")})))),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+ScaleBox(id(102),axis(scaleType(0),scaleOrig(0),scaleWidth(1),widthMajor(0.2),
+nbin(10),nminor(1),timeCode(0),ndec(90),ndecimals(2),ndecSpec(89),ndecimalsDeci(2),
+MinInit(0),MaxInit(1),LinearInit,MajorInit(0.2),MinorInit(1),NObsInit(6),axisName("% of Total"),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,labelsRotated,),scaleTypeOptions(),),length(207),baselength(207),sub(
+ScaleBox(id(3),length(46),baselength(46),sub(
+ScaleBox(id(2),scale(type(0),origin(0),width(1),typeOptions()),length(68),baselength(68),sub(
+ScaleBox(id(1),length(207),baselength(207),sub(
+ScaleBox(id(4),length(207),baselength(207),sub(
+ScaleBox(id(6),length(26),baselength(26),sub(
+ListBox(vertical,near,sub(
+PictureBox(sub(
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+BorderBox(sides(0),options(0),xmin(0),ymin(0),sub(
+ListBox(vertical,near,sub(
+BorderBox(top(8),left(8),bottom(8),right(8),sides(0),options(0),xmin(0),ymin(0),sub(
+ListBox(horizontal,near,sub(
+AxisBox(side(R),size(46,207),locked(false),scales(3,4,0,102),sub(
+TextEditBox("% of Total",default font id(9),wrapWidth(207),justification(1),left,))),
+ListBox(vertical,near,sub(
+BorderBox(sides(12303),options(0),xmin(0),ymin(0),sub(
+FrameBox(size(207,207),border(0),flags(0),markerSize(-1),ndisallow(1),disallow("Background Map"),help name("Chart Graph/Chart"),scales(1,4,0,102),seg(
+,SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),CustomStreamSeg(description("Chart"),properties(),settable(32),script({Fill Color(-13977687), Rect(0.106280193236715, 0, 0.381642512077295, 0, 1), Fill Color(0), Fill Color(-3780931), Rect(0.106280193236715, 0.016549821805687, 0.381642512077295, 0, 1), Fill Color(0), Fill Color(-4222943), Rect(0.106280193236715, 1, 0.381642512077295, 0.016549821805687, 1), Fill Color(0), Fill Color(-13977687), Rect(0.603864734299517, 0, 0.884057971014493, 0, 1), Fill Color(0), Fill Color(-3780931), Rect(0.603864734299517, 0.913310930066181, 0.884057971014493, 0, 1), Fill Color(0), Fill Color(-4222943), Rect(0.603864734299517, 1, 0.884057971014493, 0.913310930066181, 1), Fill Color(0), Marker Size(1)}),),CustomStreamSeg(description("Labels"),properties(),settable(480),script({}),),CustomStreamSeg(description("Group Dividers"),properties(line(color(81)),),settable(510),script({Line({0.497584541062802, 0}, {0.497584541062802, 1}), Marker Size(1)}),))))),
+CatAxisBox(Title("Component within Process"),flags(4),CatAxis(Options(197),Group(N(2),Classification(labelLength(11),NClasses(2),Labels("ATTD (POR)","VF"))),Level(N(3),Classification(labelLength(18),NClasses(3),Labels("Carrier Row","Lot #*Carrier Row","Residual"))),Gap(4),)size(207,68),sizeID(1,2),))))))))))))))))))))))))))))))))))))))))),
+PictureBox(sub(
+HelpBox(helpKey("Chart Level Legend"),sub(
+dragHolder(size(227,55),
+graphics layer(gdisplaybox(from(0,0),to(227,55),sub(
+LegendBox(name("Component"),Flags(2),vertical(true),Legend type(1),N Legends(3),Legend item(type(16),width(20),properties(line(color(-13977687)),fill color(-13977687),),states(rs(0,Dot,-13977687)),label("Carrier Row"),),Legend item(type(16),width(20),properties(line(color(-3780931)),fill color(-3780931),),states(rs(0,Dot,-3780931)),label("Lot #*Carrier Row"),),Legend item(type(16),width(20),properties(line(color(-4222943)),fill color(-4222943),),states(rs(0,Dot,-4222943)),label("Residual"),),size(227,55),)))
+)))))),
+ListBox(vertical,near,))))))),
+OutlineBox(
+open(0),title("Variance Components Table"),sub(
+TableBox(tableStyle(23),tableStyleSet(31),sub(
+StringColBox(n(8),title("Process"),
+ strings("ATTD (POR)","ATTD (POR)","ATTD (POR)","ATTD (POR)","VF","VF","VF","VF"),titleWrap(true),),
+StringColBox(n(8),title("Component"),
+ strings("Carrier Row","Lot #*Carrier Row","Residual","Total","Carrier Row","Lot #*Carrier Row","Residual","Total"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(8),title("% of Total"),width(6),decimal(2),newdecimal(2),numbers(0,1.6549821805687,98.3450178194313,.,0,91.3310930066181,8.66890699338192,.),),
+NumberColBox(titleWrap(true),n(8),title("Variance"),width(6),decimal(3),newdecimal(3),numbers(0,0.0683947761846719,4.06426459548115,4.13265937166582,0,9.9570612706073,0.945098051942127,10.9021593225494),),
+NumberColBox(titleWrap(true),n(8),title("Std Dev"),width(6),decimal(3),newdecimal(3),numbers(0,0.261523949543196,2.01600213181463,2.03289433362037,0,3.15548114724321,0.97216153593018,3.30184180762032),))))))))),
+ListBox(vertical,near,sub(
+OutlineBox(
+open(0),title("Carrier Row"),sub(
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Test Results"),sub(
+TableBox(tableStyle(1),tableStyleSet(63),sub(
+StringColBox(n(3),title("Test"),
+ strings("Carrier Row main effect for ATTD?","Carrier Row main effect for VF?","Interaction between Process and Carrier Row?"),titleWrap(true),),
+NumberColBox(condFormat("PValue"),titleWrap(true),n(3),title("p-value"),width(8),decimal(97),newdecimal(-1),numbers(0.438068650613196,0.88793506627596,0.788764788081868),),
+StringColBox(n(3),title("Result"),
+ strings("NO","NO","NO"),titleWrap(true),))))),
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("LS Means Plot"),helpKey("FitLS LSM Plot"),sub(
+PictureBox(sub(
+BorderBox(top(5),left(5),bottom(5),right(5),sides(0),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(1),axis(scaleType(0),scaleOrig(0),scaleWidth(2),widthMajor(0),
+nbin(100),nminor(0),timeCode(0),ndec(0),
+MinInit(0),MaxInit(2),LinearInit,MajorInit(0),MinorInit(0),NObsInit(0),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),scaleTypeOptions(),),length(183),baselength(183),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(-8),scaleWidth(16),widthMajor(2),
+nbin(8),nminor(0),timeCode(0),ndec(0),ndecSpec(99),
+MinInit(-8),MaxInit(8),LinearInit,MajorInit(2),MinorInit(0),NObsInit(96),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(2),color(0),),scaleTypeOptions(),),length(103),baselength(103),sub(
+ListBox(horizontal,near,sub(
+AxisBox(side(R),size(30,103),locked(false),scales(0,2,0,2),sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextBox("Checkpoint",left,))),
+CenterBox(vert,boxcentering(0,1),sub(
+TextBox("4.5e LS Means",left,))))),
+ListBox(vertical,near,sub(
+BorderBox(sides(12303),options(0),xmin(0),ymin(0),sub(
+FrameBox(size(183,103),border(0),flags(0),markerSize(2),ndisallow(1),disallow("Background Map"),help name("FitLS LSM Plot"),scales(1,2,1,2),seg(
+,SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),LineSeg(properties(color(-13977687)),n(2),x(0.5,1.5),y(-0.356577675975931,0.103917195159756),log curve(false),smooth(false),selectable(false),),MarkerSeg(properties(color(-13977687), marker(Circle)),n(2),nv(1),MarkerItem(x(0.5,1.5),y(-0.356577675975931,0.103917195159756),),),LineSeg(properties(color(-4222943)),n(2),x(0.5,1.5),y(-0.0489369352947109,0.0954905072286549),log curve(false),smooth(false),selectable(false),),MarkerSeg(properties(color(-4222943), marker(Plus)),n(2),nv(1),MarkerItem(x(0.5,1.5),y(-0.0489369352947109,0.0954905072286549),),))))),
+NomAxisBox(size(183,23),sizeID(1,0),num labels(2),labels("1","2",),horizontal,right,),
+CenterBox(horiz,boxcentering(1,0),sub(
+TextBox("Carrier Row",))))),
+PictureBox(AllowStreamText,sub(
+BorderBox(top(2),left(12),bottom(2),right(6),sides(143),options(0),xmin(0),ymin(0),sub(
+TableBox(sub(
+StringColBox(n(2),
+ strings("ATTD (POR)","VF"),titleWrap(true),),
+PlotColBox(n(2),width(16),cumLine(false),center(false),dot(false),marks(false),barcolor(2147483647),barSelColor(2147483647),scale(0,1),
+colors(-13977687,-4222943),markers(Circle,Plus),titleWrap(true),))))))))))))))))))))))))),
+OutlineBox(
+open(0),title("Lot #*Carrier Row"),sub(
+OutlineBox(
+open(1),title("Mean Run Trends"),sub(
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Oneway Analysis of Mean(Checkpoint 4.5e) By Lot # Process=ATTD (POR)"),helpKey("Oneway Report"),rerun(Oneway(Y(:Name("Mean(Checkpoint 4.5e)")), X(:Lot #), Matching Column(:Carrier Row), Box Plots(0), Mean Lines(0), X Axis Proportional(0), Points Jittered(0), Matching Lines(1), Grand Mean(0), SendToReport(Dispatch({}, "1", ScaleBox, {Min(-6), Max(6), Inc(2), Minor Ticks(0), Add Ref Line(0, Dashed, "Black", "", 1), Show Major Grid(1), Show Minor Grid(1)}), Dispatch({}, "Oneway Plot", FrameBox, {Marker Size(5), Row Legend(Carrier Row, Color(1), Color Theme("JMP Default"), Marker(1), Marker Theme("Standard"), Continuous Scale(0), Reverse Scale(0), Excluded Rows(0))})), Where(:Process == "ATTD (POR)"))),Context({Y("Mean(Checkpoint 4.5e)"), X("Lot #"), Process("ATTD (POR)")}),sub(
+PictureBox(sub(
+BorderBox(top(8),left(5),bottom(6),right(6),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),scale(type(0),origin(0),width(8),typeOptions()),length(320),baselength(320),sub(
+ScaleBox(id(1),axis(scaleType(0),scaleOrig(-6),scaleWidth(12),widthMajor(2),
+nbin(6),nminor(0),timeCode(0),ndec(0),ndecSpec(99),
+MinInit(-6),MaxInit(6),LinearInit,MajorInit(2),MinorInit(0),NObsInit(16),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(2),color(0),),scaleTypeOptions(),),length(180),baselength(180),sub(
+ListBox(horizontal,near,sub(
+AxisBox(side(R),size(43,180),locked(false),scales(0,1,0,1),sub(
+TextEditBox("Mean(Checkpoint 4.5e)",default font id(9),wrapWidth(180),justification(1),left,))),
+ListBox(vertical,near,sub(
+FrameBox(size(320,180),border(12303),flags(0),markerSize(5),ndisallow(1),disallow("Background Map"),help name("Oneway Plot"),scales(2,1,2,1),seg(
+,IfSeg(description("Matching Lines"),sub(
+LineSeg(properties(color(-13977687), marker(Square)),n(8),x(0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5),y(-0.446443866846651,-1.27751688852275,-0.477403163769137,2.72575008083019,-2.56369306430275,0.70923273344614,-2.13346359938302,0.610916360740518),log curve(false),smooth(false),selectable(false),),LineSeg(properties(color(-4222943), marker(Square)),n(8),x(0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5),y(0.330159374833856,0.755560405839113,-0.362231018474187,0.921661697469031,0.198905622909621,0.0385047482827557,-0.0849339714384504,-0.966289298143688),log curve(false),smooth(false),selectable(false),))),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(16),nv(1),MarkerItem(
+x(0.5,0.5,1.5,1.5,2.5,2.5,3.5,3.5,4.5,4.5
+,5.5,5.5,6.5,6.5,7.5,7.5),
+y(-0.446443866846651,0.330159374833856,-1.27751688852275,0.755560405839113,-0.477403163769137,-0.362231018474187,2.72575008083019,0.921661697469031,-2.56369306430275,0.198905622909621
+,0.70923273344614,0.0385047482827557,-2.13346359938302,-0.0849339714384504,0.610916360740518,-0.966289298143688),),states(rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943)),))),
+NomAxisBox(size(320,22),sizeID(2,0),num labels(8),labels("1","2","3","4","5","6","7","8",),total(16),horizontal,right,),
+CenterBox(horiz,sizeID(2,0),boxcentering(1,0),sub(
+TextEditBox("Lot #",default font id(9),wrapWidth(320),justification(1),))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(2),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),allowStyles(false),sub(
+StringColBox(n(2),title("Carrier Row"),
+ strings("1","2"),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),titleWrap(true),))))))))))))))))))),
+LineUpBox(nCol(2),spacing(4),hspacing(4),vspacing(4),))),
+OutlineBox(
+open(1),title("Oneway Analysis of Mean(Checkpoint 4.5e) By Lot # Process=VF"),helpKey("Oneway Report"),rerun(Oneway(Y(:Name("Mean(Checkpoint 4.5e)")), X(:Lot #), Matching Column(:Carrier Row), Box Plots(0), Mean Lines(0), X Axis Proportional(0), Points Jittered(0), Matching Lines(1), Grand Mean(0), SendToReport(Dispatch({}, "1", ScaleBox, {Add Ref Line(0, Dashed, "Black", "", 1), Show Major Grid(1), Show Minor Grid(1)}), Dispatch({}, "Oneway Plot", FrameBox, {Marker Size(5), Row Legend(Carrier Row, Color(1), Color Theme("JMP Default"), Marker(1), Marker Theme("Standard"), Continuous Scale(0), Reverse Scale(0), Excluded Rows(0))})), Where(:Process == "VF"))),Context({Y("Mean(Checkpoint 4.5e)"), X("Lot #"), Process("VF")}),sub(
+PictureBox(sub(
+BorderBox(top(8),left(5),bottom(6),right(6),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),scale(type(0),origin(0),width(8),typeOptions()),length(320),baselength(320),sub(
+ScaleBox(id(1),axis(scaleType(0),scaleOrig(-6),scaleWidth(12),widthMajor(2),
+nbin(6),nminor(0),timeCode(0),ndec(0),ndecSpec(99),
+MinInit(-6),MaxInit(6),LinearInit,MajorInit(2),MinorInit(0),NObsInit(16),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(2),color(0),),scaleTypeOptions(),),length(180),baselength(180),sub(
+ListBox(horizontal,near,sub(
+AxisBox(side(R),size(43,180),locked(false),scales(0,1,0,1),sub(
+TextEditBox("Mean(Checkpoint 4.5e)",default font id(9),wrapWidth(180),justification(1),left,))),
+ListBox(vertical,near,sub(
+FrameBox(size(320,180),border(12303),flags(0),markerSize(5),ndisallow(1),disallow("Background Map"),help name("Oneway Plot"),scales(2,1,2,1),seg(
+,IfSeg(description("Matching Lines"),sub(
+LineSeg(properties(color(-13977687), marker(Square)),n(8),x(0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5),y(-0.233353244372186,-0.20268669209056,0.374758681055008,0.207981890251127,-5.1850549197476,3.8138098298866,-4.16401149315602,4.99706046581594),log curve(false),smooth(false),selectable(false),),LineSeg(properties(color(-4222943), marker(Square)),n(8),x(0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5),y(-0.488576235362578,0.051088197869593,-0.534626788604058,1.30484092107397,4.30348679773421,-4.02807093590258,4.14508029183524,-3.98929819081455),log curve(false),smooth(false),selectable(false),))),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(16),nv(1),MarkerItem(
+x(0.5,0.5,1.5,1.5,2.5,2.5,3.5,3.5,4.5,4.5
+,5.5,5.5,6.5,6.5,7.5,7.5),
+y(-0.233353244372186,-0.488576235362578,-0.20268669209056,0.051088197869593,0.374758681055008,-0.534626788604058,0.207981890251127,1.30484092107397,-5.1850549197476,4.30348679773421
+,3.8138098298866,-4.02807093590258,-4.16401149315602,4.14508029183524,4.99706046581594,-3.98929819081455),),states(rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943)),))),
+NomAxisBox(size(320,22),sizeID(2,0),num labels(8),labels("1","2","3","4","5","6","7","8",),total(16),horizontal,right,),
+CenterBox(horiz,sizeID(2,0),boxcentering(1,0),sub(
+TextEditBox("Lot #",default font id(9),wrapWidth(320),justification(1),))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(2),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),allowStyles(false),sub(
+StringColBox(n(2),title("Carrier Row"),
+ strings("1","2"),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),titleWrap(true),))))))))))))))))))),
+LineUpBox(nCol(2),spacing(4),hspacing(4),vspacing(4),))))))))),
+OutlineBox(
+open(0),title("Residual"),sub(
+OutlineBox(
+open(1),title("Std Dev Trends"),sub(
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Name("Std Dev(Checkpoint 4.5e)")), X(:Process, :Lot #), Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(0), AIAG Labels(0), Show Box Plot Whisker Bars(0), SendToReport(Dispatch({"Variability Chart for Std Dev(Checkpoint 4.5e)"}, "Variability Chart", FrameBox, {Marker Size(4), DispatchSeg(CustomStreamSeg(8), {Line Color("Black"), Line Width(2)}), Row Legend(Carrier Row, Color(1), Color Theme("JMP Default"), Marker(1), Marker Theme("Standard"), Continuous Scale(0), Reverse Scale(0), Excluded Rows(0))})))),Context({Y("Std Dev(Checkpoint 4.5e)")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Std Dev(Checkpoint 4.5e)"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(16),typeOptions()),length(320),baselength(320),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(0),scaleWidth(3.5),widthMajor(0.5),
+nbin(7),nminor(0),timeCode(0),ndec(0),
+MinInit(0),MaxInit(3.5),LinearInit,MajorInit(0.5),MinorInit(0),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(1),width(2),color(81),),scaleTypeOptions(),),length(180),baselength(180),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Std Dev(Checkpoint 4.5e)",default font id(9),wrapWidth(180),justification(1),left,))),
+AxisBox(side(R),size(30,180),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(320,180),border(12303),flags(0),markerSize(4),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(8, 0, 3.5)}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 8, 1.87831259751864), H Line(8, 16, 0.884330622011745)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(0), width(2)),),settable(46),script({Line({0.5, 2.53391245109894}, {1.5, 1.82468287485266}), Line({1.5, 1.82468287485266}, {2.5, 1.47232626714474}), Line({2.5, 1.47232626714474}, {3.5, 2.39912434779717}), Line({3.5, 2.39912434779717}, {4.5, 1.29321988706167}), Line({4.5, 1.29321988706167}, {5.5, 1.99085062044169}), Line({5.5, 1.99085062044169}, {6.5, 1.78677499902105}), Line({6.5, 1.78677499902105}, {7.5, 1.72560933273116}), Line({8.5, 0.597512381245708}, {9.5, 0.622450822366896}), Line({9.5, 0.622450822366896}, {10.5, 1.15164116353893}), Line({10.5, 1.15164116353893}, {11.5, 0.75253323626757}), Line({11.5, 0.75253323626757}, {12.5, 0.723298720430925}), Line({12.5, 0.723298720430925}, {13.5, 0.751798352157882}), Line({13.5, 0.751798352157882}, {14.5, 0.690338149885051}), Line({14.5, 0.690338149885051}, {15.5, 1.785072150201})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 2.53391245109894), H Line(1.425, 1.575, 1.82468287485266), H Line(2.425, 2.575, 1.47232626714474), H Line(3.425, 3.575, 2.39912434779717), H Line(4.425, 4.575, 1.29321988706167), H Line(5.425, 5.575, 1.99085062044169), H Line(6.425, 6.575, 1.78677499902105), H Line(7.425, 7.575, 1.72560933273116), H Line(8.425, 8.575, 0.597512381245708), H Line(9.425, 9.575, 0.622450822366896), H Line(10.425, 10.575, 1.15164116353893), H Line(11.425, 11.575, 0.75253323626757), H Line(12.425, 12.575, 0.723298720430925), H Line(13.425, 13.575, 0.751798352157882), H Line(14.425, 14.575, 0.690338149885051), H Line(15.425, 15.575, 1.785072150201)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, 2.17205890588773, 2.89576599631016), H Line(0.35, 0.65, 2.17205890588773), H Line(0.35, 0.65, 2.89576599631016), V Line(1.5, 1.55617493870413, 2.09319081100119), H Line(1.35, 1.65, 1.55617493870413), H Line(1.35, 1.65, 2.09319081100119), V Line(2.5, 1.13470259085491, 1.80994994343458), H Line(2.35, 2.65, 1.13470259085491), H Line(2.35, 2.65, 1.80994994343458), V Line(3.5, 1.58520878065465, 3.21303991493969), H Line(3.35, 3.65, 1.58520878065465), H Line(3.35, 3.65, 3.21303991493969), V Line(4.5, 0.579611282078718, 2.00682849204463), H Line(4.35, 4.65, 0.579611282078718), H Line(4.35, 4.65, 2.00682849204463), V Line(5.5, 1.194506618167, 2.78719462271639), H Line(5.35, 5.65, 1.194506618167), H Line(5.35, 5.65, 2.78719462271639), V Line(6.5, 0.919792742184324, 2.65375725585777), H Line(6.35, 6.65, 0.919792742184324), H Line(6.35, 6.65, 2.65375725585777), V Line(7.5, 1.32603930175161, 2.12517936371071), H Line(7.35, 7.65, 1.32603930175161), H Line(7.35, 7.65, 2.12517936371071), V Line(8.5, 0.556884870124439, 0.638139892366977), H Line(8.35, 8.65, 0.556884870124439), H Line(8.35, 8.65, 0.638139892366977), V Line(9.5, 0.564321557998635, 0.680580086735157), H Line(9.35, 9.65, 0.564321557998635), H Line(9.35, 9.65, 0.680580086735157), V Line(10.5, 0.84696305129381, 1.45631927578404), H Line(10.35, 10.65, 0.84696305129381), H Line(10.35, 10.65, 1.45631927578404), V Line(11.5, 0.620655133158487, 0.884411339376652), H Line(11.35, 11.65, 0.620655133158487), H Line(11.35, 11.65, 0.884411339376652), V Line(12.5, 0.694253962673431, 0.752343478188418), H Line(12.35, 12.65, 0.694253962673431), H Line(12.35, 12.65, 0.752343478188418), V Line(13.5, 0.723756147336878, 0.779840556978886), H Line(13.35, 13.65, 0.723756147336878), H Line(13.35, 13.65, 0.779840556978886), V Line(14.5, 0.681400545415218, 0.699275754354885), H Line(14.35, 14.65, 0.681400545415218), H Line(14.35, 14.65, 0.699275754354885), V Line(15.5, 1.5497776066687, 2.0203666937333), H Line(15.35, 15.65, 1.5497776066687), H Line(15.35, 15.65, 2.0203666937333)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(32),nv(1),MarkerItem(
+x(0.55,0.55,1.55,1.55,2.55,2.55,3.55,3.55,4.55,4.55
+,5.55,5.55,6.55,6.55,7.55,7.55,8.55,8.55,9.55,9.55
+,10.55,10.55,11.55,11.55,12.55,12.55,13.55,13.55,14.55,14.55
+,15.55,15.55),
+y(2.89576599631016,2.17205890588773,2.09319081100119,1.55617493870413,1.80994994343458,1.13470259085491,3.21303991493969,1.58520878065465,0.579611282078718,2.00682849204463
+,1.194506618167,2.78719462271639,2.65375725585777,0.919792742184324,1.32603930175161,2.12517936371071,0.556884870124439,0.638139892366977,0.680580086735157,0.564321557998635
+,1.45631927578404,0.84696305129381,0.620655133158487,0.884411339376652,0.752343478188418,0.694253962673431,0.723756147336878,0.779840556978886,0.681400545415218,0.699275754354885
+,1.5497776066687,2.0203666937333),),states(rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943)
+,rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943),rs(0,Circle,-13977687),rs(0,Plus,-4222943)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(320,23),sizeID(1,5),num labels(16),labels("1","2","3","4","5","6","7","8","1","2","3","4","5","6","7","8",),
+value(1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1),total(16),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Lot #",))))),
+NomAxisBox(size(320,23),sizeID(1,6),num labels(2),labels("ATTD (POR)",VF,),value(8,8),total(16),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Process",))))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(2),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),allowStyles(false),sub(
+StringColBox(n(2),title("Carrier Row"),
+ strings("1","2"),markers(rs(0,Circle,-13977687),rs(0,Plus,-4222943)),titleWrap(true),))))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(16),typeOptions()),length(320),baselength(320),))))))))),
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Name("Std Dev(Checkpoint 4.5e)")), X(:Process, :Carrier Row), Analysis Type(Name("Choose best analysis (EMS REML Bayesian)")), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(0), AIAG Labels(0), Show Box Plot Whisker Bars(0), SendToReport(Dispatch({"Variability Chart for Std Dev(Checkpoint 4.5e)"}, "Variability Chart", FrameBox, {Marker Size(4), DispatchSeg(CustomStreamSeg(8), {Line Color("Black"), Line Width(2)}), Row Legend(Lot #, Color(1), Color Theme("JMP Default"), Marker(1), Marker Theme("Standard"), Continuous Scale(0), Reverse Scale(0), Excluded Rows(0))})))),Context({Y("Std Dev(Checkpoint 4.5e)")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Std Dev(Checkpoint 4.5e)"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(4),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(0.5),scaleWidth(2.75),widthMajor(0.5),
+nbin(11),nminor(1),timeCode(0),ndec(0),
+MinInit(0.5),MaxInit(3.25),LinearInit,MajorInit(0.5),MinorInit(1),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showMinorGrid,showLabels,),ref lines(n(1),value(0),style(1),width(2),color(81),),scaleTypeOptions(),),length(180),baselength(180),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Std Dev(Checkpoint 4.5e)",default font id(9),wrapWidth(180),justification(1),left,))),
+AxisBox(side(R),size(30,180),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,180),border(12303),flags(0),markerSize(4),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(2, 0.5, 3.25)}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 2, 1.87831259751864), H Line(2, 4, 0.884330622011745)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(0), width(2)),),settable(46),script({Line({0.5, 1.97073264044259}, {1.5, 1.78589255459468}), Line({2.5, 0.877714642926417}, {3.5, 0.890946601097072})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 1.97073264044259), H Line(1.425, 1.575, 1.78589255459468), H Line(2.425, 2.575, 0.877714642926417), H Line(3.425, 3.575, 0.890946601097072)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, 0.579611282078718, 3.21303991493969), H Line(0.35, 0.65, 0.579611282078718), H Line(0.35, 0.65, 3.21303991493969), V Line(1.5, 0.919792742184324, 2.78719462271639), H Line(1.35, 1.65, 0.919792742184324), H Line(1.35, 1.65, 2.78719462271639), V Line(2.5, 0.556884870124439, 1.5497776066687), H Line(2.35, 2.65, 0.556884870124439), H Line(2.35, 2.65, 1.5497776066687), V Line(3.5, 0.564321557998635, 2.0203666937333), H Line(3.35, 3.65, 0.564321557998635), H Line(3.35, 3.65, 2.0203666937333)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(32),nv(1),MarkerItem(
+x(0.55,1.55,0.55,1.55,0.55,1.55,0.55,1.55,0.55,1.55
+,0.55,1.55,0.55,1.55,0.55,1.55,2.55,3.55,2.55,3.55
+,2.55,3.55,2.55,3.55,2.55,3.55,2.55,3.55,2.55,3.55
+,2.55,3.55),
+y(2.89576599631016,2.17205890588773,2.09319081100119,1.55617493870413,1.80994994343458,1.13470259085491,3.21303991493969,1.58520878065465,0.579611282078718,2.00682849204463
+,1.194506618167,2.78719462271639,2.65375725585777,0.919792742184324,1.32603930175161,2.12517936371071,0.556884870124439,0.638139892366977,0.680580086735157,0.564321557998635
+,1.45631927578404,0.84696305129381,0.620655133158487,0.884411339376652,0.752343478188418,0.694253962673431,0.723756147336878,0.779840556978886,0.681400545415218,0.699275754354885
+,1.5497776066687,2.0203666937333),),states(rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Triangle,-2211217),rs(0,Y,-10562780),rs(0,Y,-10562780),rs(0,Down Triangle,-13156647),rs(0,Down Triangle,-13156647),rs(0,Z,-2078390),rs(0,Z,-2078390),rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Plus,-3780931)
+,rs(0,Diamond,-4222943),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Triangle,-2211217),rs(0,Y,-10562780),rs(0,Y,-10562780),rs(0,Down Triangle,-13156647),rs(0,Down Triangle,-13156647),rs(0,Z,-2078390),rs(0,Z,-2078390)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,23),sizeID(1,5),num labels(4),labels("1","2","1","2",),value(1,1,1,1),total(4),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Carrier Row",))))),
+NomAxisBox(size(300,23),sizeID(1,6),num labels(2),labels("ATTD (POR)",VF,),value(2,2),total(4),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(sub(
+TextBox("Process",))))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(8),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Y,-10562780),rs(0,Down Triangle,-13156647),rs(0,Z,-2078390)),allowStyles(false),sub(
+StringColBox(n(8),title("Lot #"),
+ strings("1","2","3","4","5","6","7","8"),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Y,-10562780),rs(0,Down Triangle,-13156647),rs(0,Z,-2078390)),titleWrap(true),))))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(4),typeOptions()),length(300),baselength(300),))))))))))))),
+TableBox(tableStyle(8),tableStyleSet(12),sub(
+StringColBox(n(1),title("Message Log"),
+ strings("If none of the plots up to this point identify a commonality, please try a different set of noise factors."),titleWrap(true),)))))))))))))
+/* preview image PNG (v=1,x=300,y=300,b=16101,c=96,d=126,e=42,f=92,g=59,h=34,i=39,j=47,k=44,m=0F9B03FB4BD4D88427BCA0E1CAC6A039)
+=v}uA%:{<d&52G3ALL(Ol5?XTV:|_h!!!849gY3&!!!#Q=wLI4kK=3<!!-=)<#fB$!!$Abz!YXr!!!67>>vs>!!&+I!!)vNhz_)n!0h%N>[BW$Mb<{{JALYkOP=B8PrQ3h+9v!T>Nez$EY..(o9VG&@>gPjU|mm3BcEg>nrjPvA]MtsGPS%eD+LtF%#4g+2}NJRdI6r+A#XN@dPYAecEML%_E7W6QGwkdYF1UteCGJYo#hxEj^iAq9XM?!jqg&l9rP=8CL(ezHCay.HGirykS)ELCt4DZz|ra2!#>(s!!!!!RtP(2!!!!)1tlwL!!!we
+!!!!!<z]u.sVD0+YllK<0iFB5h[YCfC2gttE^amAka)YJsH#7X82ec^TZ:?E7xRzC%dkO_]@0[PT}wMdh8.4tD_bTQ]Ik})NCKjQopw5!Jh>?BXF5$ryoM}HL6R+Rs7|mX:+=zqFSZfxuV4f%?1sY%e^s0(3sA[Ve#:2{oCrqFto%Z>!!-?Rfe9E=S!-HaKBtK2H<2i]TGj{)qEd:.P5fiA:%5%K2l-wqrYB>GiAJ!}9QV=!!!!!!=%S^rrd54F!!%do-}w{C5y)A!6ltGe!!!!!OI#y<@6v=#pCphH@0&x3&EM29i]8xbND{]4H5:[u
+7h|1?68$0Bk>)t9@VY&I@282e+(Xu.o8ZT%j)q%@RA%UXfbFQ?Ib#ATJ{S&ko]ARX:PRrn2d#M#-HyHT!!!!!fCoU1nbxquwWhO+M{BItYLC_}n}#oq]w+[tdgHU9Yme.v+(WOl3I]{nJ!0M|{9lMT.7p>)A6su-WmLIpD=lm(u&036wWZbn99qzZ!=AJ]!!!!!3PJ&NF-@{!s6WYNwQwp.iqNqrrX@j_o&.[uv0lKSH8?mVzZAq^_]kw)]<=>qa-}v4aT9IporgRre<L3RoUKKnw%PV)2W0|{zx7{&t+@gy$-P?<!!!!!kiOq4uF3z-
+jN(mb?AnnAmXVIx_sh]XxVbD&LMgL#J#D41I_W4yrqn+-y4l%Jf&oJzGhy&e^qlm{9u&:KoM]p.boocxL+C+=w]b%R(a6cbSHAlXdqGntr.yl}IAT$XUs>c:L>7_y{=b)C-}Up=euWdTw{g0Dc!7.C7{f+i!!!wehzN-DsGDm)vkx(j.r+[>x:(w(.}^]2h&T7ry@[iht3DS-1l$n]5$yPLaKjYa3W}ooivPHlz9]>^GbnxzOrUXBir9ry{2BXjtPwqW(X=:SBI>=c-p=KuzF2)futjJ-@CJH1v0MMmM9r|M=nFlh!!!.p8>ik@myonq
+H9L.>Rlql>h4}6jhX!V5uq8s>%j%%&_KB1M&rwM9CuuFbb>lUupX>&Uvu!5NfX{ZSZ9ORQ]oj=Nh{W$6_eYZ.LAL8#xEZN%=xlczzlP0%I>bS}zQKo((Wld)iE3h6k>vyTfc(_GfNZDv!S[nn!!!!!G.wm.(Du^C6Z.2UvwztDvp@q%TBjZe=!FiWLFOoKpl)Uz%@1b>mUT}6MQ=c9Z8CDrD:P7{s?gbgw{q[_]qVdJZf]O=vLrlEWL_[pT-QK%I#Q6YHTLX#1Sy]0M0@!jH{}[)]IP4>(?Jl^tgmNptIKCq@GrHufR.]:!!+Ia7}qxa
+[2PF{:h9&V&Z4&?agd!DL-(s.yf+k?^PsA^tpEL5Al6N-y5%%aQo1E_(_Xu{W:6}nz9[LTC{HWheldB}]}do&wf0]!n.bEtv}.D[zgtP6_m(HQkdUiGe#?e+is.bUJBxSkT]hYS!!!9bKVSVY4P69[ELxb25putWUo!rD)V)9!p!p+MDNky%m{V03W?>4wc1BN4y]iz_n^Lk@bE<ufl6yL_VyF)$tpiE9p=$veIbm6#_n#bqqomeXtJQs+{7pZ3d+A_RzSkKeuxG3@M8.6TkF7|I$-P@@!!!!!@[a>ab2+NK(Z)9yA5FAm#Ccgg]!uB?
+hsC&UXzF5UJ<zBlxdzo_z.P!:(f|Yrj+F+[.vb1:o}K%z-1n+Nm$}GnHG:<aYRsM^:A]8nfdE!npweDZ$SnD9]h)|:x%]SCO_ND8#&:^^!!!!!i9qZ8Hg.:7xt@gCX(z.Tj)s-5S&Y_c@BMxXT+?<):e.pc3.m@?vtc%iO&TqGRr}[kegPZF@#iC-n4]Q)fclK|regRjk%<7C8-rY#p:1x=py%8>vwTWw5-_PqGShB[+G<Rqta#HfNR_xVOgY-%!!4nCJ}esB9sy)PXe7=vt^E2+pB]Q:!=AJ!!!!!!6lw]QD6?Ks8s!ZQI_f$$1M7[#
+!!!&wY>dN3K?@prFEvF#Lm@YHpXl.h&6{Kb!!!!!Z)aQn]J9Si%kASM5>uj&e^^5lyXnMsx7X3}MB#@H&p-g7JeEg2f7L[zd<TaGDyX@Dr:[qjj7u_)X%i>0a6ONLB=QL@i&wQ-qdyo?5y<MScpIVXgjZ.2s7X+b0fC2uN$Yn{7S^n-!!!Nw[U^CK&6}H]!!!!!?[aye!!!.pP1nWR!#HSW!!!!!1vBTOL:?qrpj|H<!(XPs!!!!!SiV0@:g%upkRn0>][!Q71jN[=#O&yxj<7@ay2n02Z3Kpj!}<paW)C@8!!!!+V-eSH^PsML!#HSc
+P1nWR6OUx{RtVNY!!!!)M(j@|81Q>Q5Cc^RfF4e&wA<lu-Ar397IHS4h@+Ab:A!nA)5:HmdIbwt^RXSne5.hX8]m1Rv.g>aa{0kotkOtTXN8QNbVz$R!S[nM!!!!!yGt-L(<E46y.?j?&w0QfyuP]79&-tJ4:.?q=A]aVuLolLuy0Ip!!4nCJ}esBM4:7pma@tc<3ZRgv&EE_guF.W@5sPpFs2LSnwyq^.$r0|1!V=T!!!!An}L)u4PNx&PYlk>hH|3jxG(MBS]8eJtWQP&gv5e0#HFE.kM!Ymd{}.ZKD2+Zz]PX$ujNKYng(fhNE&Jr
+7=eEoa>6xRv)a}ee<rOcpt^LOxxOBO@cD|FYLt?yH{8J--Hxz.!!!!!UsOjZMkP1Cw&#e39P$R>Yqo!=.8JtrLtJjNi]Fh_TqsKlyXi_awFdqGynfz{@7HMe3hh[1b4f>>2[)[.Xl>|%$-P8j!!!!!6r8tYpHZ2=oRt+PJde^mBv!o&ljmlz)k(@)bhkB$L8[<Pt3rvVe1xucrU5[x9=54|5^5KHV6bp$ShRRy2[8{lBr_{kWcm1(kK6nEDbQ+ujSB.Q<}IN!!!!![be:#ku@gG&$tG7tvy3chQoRq=cvh3LtlT=%fN_zqBIsH8i&rx4
+c(rxEGXgj8a$U3b]z1bkf]@lISNY>tmIZ|!x_at<Q8fE9(eU#0!!!$Nk>am+J:(YGKQl0kD(sOk?OdbF^pJre8yqCDS[B#F_sXZWEkoj@GG3wOM3dL?nAiY@l6h)%6lsjM!!!!![[1{diM#Ako5j_w4wr}ASoO]}Y[d=jb2S4)ci0r0j(gFZy..bmT#@$Ma)tQWn%>b]4IKW@orH!RL$A@q!!#qJT^?&bHZ06H6fgdTzueZf[a?}yV{l^4Lw+XV1c=3M+yGpj(DpG%Wl9BZVqtPtLT&h]kan}tw!XwCYLwwz9_0sb7QXehHW-y46lta?
+!!!!![[1{dvP1g{g(aS=HoqUeeI|TAuH%RW<vVBIz8x$PJeRx3ICnxo<mg=?G3$DaymkKR2ZuoI8X1ri+49XKkXZFFKhr[ExEs34ks9Tu-Hy14!!!!!(ga7-80QBkT-sj@^oVglhU4lg1>TA=!!!&wY>dN39MX[1)s:fyObJT$soi[gJwbT9!!#qJT^?&barK$a_83bJOH$Zqu4eh$$-PB=!!!!!HWmI7lpxCG%kAQ{5>uj&e^^5lyXnMsx7X3}MB#@H&p-g7JeEg2f7L[zd<TaGDyX@Dr:[qjj7u_)X%i>0a6ONLB=QL@i&wQ-qdyo?
+5y<MScpIVXgjZ.2s7X+b0fC2uN$Yn{7S^n-!!!Nw[U^CK&6|#4!!!!!S5e3&!!!9b!!!!!!$l&2!!!!!6C]To[aYyKMeUgJ!13|i!!!!!TUB{SK3D}Ip(UKv][!Q71jN[=#O&yxj<7@ay2n02Z3Kpj!}<paW)C@8!!!!+V-eSH^PsML!#HScP1nWR6OUx{RtVNY!!!!)BkVvZ.(h^K+apniEc+E$y?yNz&3L!<-dd=+qkr9D03!I_S9L=vopa$yB<l=Ip9Fy@YMf1iMVF1oEA2u=xb9HNp|Vjhap3{tpofvUO!]53OP(F8LYsUyOzH#a
+l3(xr:Q03$7_x$2Y<M@tR.o|){8k_]lm+@AIaPAUo__?N!!!weeh>%9l9Cxin[szwkX5nvz^qJ4@0)W7cWPiKMdk#5jUi!7Mr8w2wGMlWzgl9vw{B7c&4OTpyQEkLcIMBR:2:L{ee%qmzyG5BaIHV?zdnYZ>)Rj?=!$y+Nzo8_!!D]fZK#ztM48l0fz#wnvyq)4umj7g_E4T?c1x(Vj6nv9SvZ(%eINQyig5Mir>_>.r9.:K5f%Tp]lGKE3egP++^%)Kp(lCxx@KfmS)l9|J:bW6!!!An@O#uc[8pif6XGAM>=UY0f5<:6c[KcbQt.mq
+tS>vnB10=}f5Wi&-b<$Q]d+zAv-+O1Txa-?IOZS^l}Qyv_r%i[y(Q64Mk365z=y+eZ>O6Hz9^0Xzv:W%2V>QByj)0(ZFQK8IPQFBJ.JIq9uQMO<6<}nn1abZ_sT[1n%5V$9iiKq:D)UeclqBhv#!I1HILZch{]Y9s7rFYd1[BW5:26.O6SF6XOTb3Yd9C>z)3[RBn$$(9}Y=#?:)>g9KD+YFUBKQ_|#6%rjwiBaiWk1!!!!)t<8yI)qx2OD4TIf2V]+kT|qp!DM4o67[BlzSUT#|KZCBQ_5OjW9OHI#_%p(ufal4:Y&_0tiq.51VaPdP
+q[8:pj0ZnVHD=T4xaM$UXk@+6OldE9_02^0Z4Ps6tag&0eI#EsxbN2hM+5GWV?y=L(SOkbyPni1(!27_hTW^NOCMvi3{Eh+kSl[zIaPQBX+a:R5|_mdT07O%o.=JxITc4c=+WJgk6[j@!!%lRJ}esB[.L|lOy4Pk-n9Le:u#PlpfNWu.b]@Rn@50ps5GA0u]JI+U0+D[HpvZf]ujocbL.aT3o!GjZ=:[oL4DR4NOU-3B7L#}m%0(bfRqlan>DR%EWbuypcG5+jtp<]Y=S+yoQ<pm&Btb{k3SlV7}bjSTvvyaxd{VyJu]|hSef3F)KDqG
+R&7YF[0|A(z)25NOG4!pC+nT)JeP4u2jY:Fd$c)v68XSK+yi52F_#%zKX.B!oqq96r{|YkMOLzNbe=[v!!!(gFJJrImynOW!vw9OhNoeAN]egU[3<]DHE:CBOylT9exqml&eS?gtPx}<XSUA9cGN|Y[V6s[EenWto(+Y9zK>ud(g#u.f8uTDz8k#asRte)&BdK<n8LSDm{p3iaIAfgzjg7ky{!QHtZD0yyuV7^o.8yU:>}lL+2kC(b5pCa9+}G$>f9]9_%5dM=^)sB6#7(nH+MVES25+84LM%8bxctznsQCF!!!!XPnLirDG4sjDTVQe
+>rmuQr26bNsjz]pxFeUQl6N[K1Mi@[zg3MyGimhRa9)mQZ7qXRM$wb^nAkr&wr7{IBn#H$u34PU0KA]woEt!Yzu{H=ZI5)ZC77Fivd8Ht1DQE<uEFM%[&IVp:Ciz9zuA[xAq.hd7q92+tQw71iev?kE$X-H&6}i$!!!!!99VI(0=WHK%))<1K8<cuI&WpanJKBOoU}faL8]4-t3auvc98H6v|3W}zgR$7a[n-bt^h<XWq$zvP&i#j?5]6+sB.shtuwT?E7CFecwTXAD?3XMoO}Q6[ag=+:3@3KAp.J8u4EYTY>M[te+jxioCJ-IY9zO}
+kPTT8FmGcSBQA=ioJtI.!!!]]<d$3@J&Z3lA$)ZsS}9cmym-6ZfN1?vXe9x-]ln6<>jDF5o6y={FJdG]J5QobwAyK#[VEJby}:?0^hnDn9>h%QKL4[VsDVpT:5mC}ZY977dwuJrB2BUvuPgYmMUz:LxbvdABuX>Gpvv7ybysyO.8Oa#N}tjOmk+@bw=-a9R2)r(rgm{Yptbl$l0ZfEfd[lX>ucsOor&T{cDmN}L#|A=o.S)W<y)h25$#XK!!!&wd>]KPBSJ!qHz}y[K+R+o-MqnJJb34CfQxb}3]T%e7DS3+X15tPdW1pTt714zI^3ti
+zYrdOe3>jg]JofB7<}}H:L<5eDWvvGri<:[Z+EtefA#>kBnrDDNp2uK_#+:opy!r:MbWugumE9hOgLCLJ$Iv5uxE!!6L>jHl7?%4tNO=$(b7_KKR|q>cY<.Brvb>X-27?q!(X.n!!!!!=E@@[J-k&9KZ8p#SW-2ZD{Ipj4H<HobgnE2o^OvebA1?|>Tx_J6SCtv5ptSb!!i=4!!!!!Bm}x!JWX_KG>|ooC{Dpu!!!$RA>B488xV..e-EQj6{H&]^rM5.!!!!#B79{JT0Xv$qNh!xhYydnC1fQ(E<{t)8=cdSY>FvMR0cc8TZ:mR7q2BR
+4q3v9WUxb8v][[-Ks+b5O{UhQa6ONyXtR4C-qoSek1CQaGv.kppmrkWd]Ebpkk{NZD_MxMsrucXPw+}}!!!!A]06Rk!#HU0!!!!!Ru!j}!!!!)1tlwL!!!we!!!!!!136W!!!!![.BJ<!!!!#S.S&F!!!9b!!!!!!$l&2!!!!!HYgtW!!!!!1$G=D!!!&w:WIki+r@ftfYA#Wlma^$u&Q9W!!!![wh0{td4p@ptne6bk.D.Mzsas=T%&HR!!!Y{P1nWR&ijv2_[AFAA)pag!(YN>!!!!!l6dWs4)kwcnJ[5M!2:k(!!!!!0z^KF<@lo+
+bysrQCWUKh8Q7W-Wlaevzi2GX^Z5E?]q&+Jf1og>hTWeIx(Ag_SGlHS-ztBiO^.R%t%Eatmj05ho%Oi$p!Z5o-(_@&lL%E}<Q-uvhPws?Df<(C_}6UCAdt}TzMjj=KUjeBjnqW@oc7z)M)=H-sTI|k0fvmpFq$x{W=<TfGXp)vC(x]aJ4Kkix&Cs2!!&2<p}Kh^$GGzPb2S$YR0U&HWb(Z(5ldx>!!!!%gopfmbtVsooqe(7mOdpz!S[iM!!!!!(OnecS2<SC!!!!)L8rumUSmLvZ)^mBQrA<)!=AFJ!!!!!Rsfwq-Hzbt!!!!!(IP>v
+<ypFI!!!!%-K=e{RC&(.NaZ8gG8Za+CX^t<!139c!!!!!7szsIi]vD2Lk@dBnaXWZIB.OB!!D]f!!!!!Do95N0y^Cf!!!!AlJ1gf-XT@b!!+Ic!!!!!0x6Axx)j)^i#-)m!!d=9!!!!!9L4q)J$v9HpK.1vT<rIB!S[x(!!!!!GzXk6Iq)rH$:m<TJC(H(!!!wefe9E=_]3sk!(X.h!!!!!Z(NMx[.gi7!!!!#TDyw}s2XSd!!+Ib!!!!!1A]nR!S_y5!!!!!RjG4{[.gi7!!!!#&81EP=-tDFN)z}kNVtYN?f3k-CUu98.uXyz!!!!#
+=ciA^(SfCY:Q:upOIz1J930LdAhe=&4oDa=0f{gl!!!!3>nFc5<VS[S+aF#oi=Y]KNETKQ9f)%=o&x.U5Vt!%uL)eS!!!!eyx:BI)z!I3Ao2bI6kI4fN7YW0Rh38unaXX%l6e$K>(L<S+W5C}DC^<^qweK-jZNne!!!#b2Fk)zbyHOx^}%&HuHn@FzX>mmoGjn_u4T+(.K7g|U:v#Bwu%%.8@NBs!!GC9!!!!!B^BUQ3yVIWvkwHLYcu4ce$|fzvw&$2w}>bZTtltr1%r9mnd4?xOvbP&!!!!)=FL7]>YI6XS{Qc{o.yK$8?V.FTiij!
+4[RnK5F?h.OZW%^nG1d2dh^sqzV.oKw?o(}snA%9w|9}&vYyliLReBRf5LY$Dkx-=aE-FOS7F8}YCM|)^S}s[Tp7q5i590dqdyo?5rIl7cpIVX92(8@u->C?k26#rzACUa46hE#FkNIk7oh<vFcBCMYT6|FCO$4@H7-bAYRvdycm?Cl!!!!#2M|E<6xm?|L67uan)7ZzSWOn2b6]lyDb[N@eT#bZLSFm8qZ}#M76F^{!!!fcHK4$9ZfBC5?jbB-u^Oph!!!8|jtFgJd4afTv.IuzXeWRNv0O8St@8xe!!D]_P1nWR-a.3[tQaO9&M(=U
+e38.l_1A$K[.uI|$-PPv!!!!!T=bAYMSdK#e7_pH+[:OK1saq1!!!&ww5B?[If30%>!wwlAJ<j8Bm}Rj!$l&^!!!!!I1?8XwU2Cm.8FV$7Evwe.yPfJ[.Lms$-PPv!!!!!r9JT[nCT3g4BV13f[v@sRv3bb[.ZJL!!!!#^[qFZ[.gg}$-PPv!!!!!$1neMBn!2u!$l&^!!!!!I)3o#x)j)C4P%b[l=z]sBn!1p!$l&^!!!!!n>r>yW+Zcaf{Rk4ul=X-<uR?Nl6[k9!!!!!NSU8<hC-{h&#J]Rnd+(0&PZR(oa0k0(xowW!!!$Ny9Oen
+T!F#Ha$sB033EOq<yCy0&6{|o!!!!!$N{WzyWhG&bqD!M-I>uzxdE%C!!!!(Xs|.L1&LLnHYmt[!!!!!I90G3HYpf<!S[s9!!!!!!TMb[ma9HP!!d=I!!!!!m2Apy@QK@C!!!we6eXR[Fw0-?S.:$l!!!#9O.gqv-VUzePdNdu96sTVS.:$l!!!#9O.gqvUwvnRR<xL&xRqtV&)e%&e)dpv>xcr9!!3TO!!!!!7CwJJ:Nv{8bmD^cyV|<3[[&wLnMaZy3nuz.<xScB!!!!%tnTe|_N9FrTn^Q}+kL?aS2FCkCWCCk(vFQMwiYR[!!4nC
+:WIki&C&XAzs_R5H[2hY-pd.Ab@!8+GZShu)GfF^h08Iyw@>=?snA%9w|9}&vYyliLReBRf5LY$Dkx-=aE-FOS7F8}YCM|)^S}s[Tp7q5i590dqdyo?5rIl7cpIVX92(8@u->C?k26#rzACUa46hE#FkNIk7oh<vFcBCMYT6|FCO$4@H7-bAYRvdycm?Cl!!!!#n$.#BCb&R[%n1Yp.TIw|DbMC<DSdQv_Hyaq!!!.ps+!L8C@VL8Ffi[4Fe-t^0x}O$HYmt[!!!!!I90G3)!m9N6lpaV!!!!!$49iTM4GlbS=6TlNdyOB?>ERW(Nbh?
+!!!!3aL:LsH$(8(x3|!DnMah!n}cwln$>$2Wc<h%1$A<y!!!!AEYphgG@^?uO{0v-SiZv@oOGGSY}qYn!!#qJHK4$9=)?#vchHF0ARO>ItNx<r!!D]dP1nWR&=#fs4PNvnbqoZ.@QK@-!!!we6eXR[Fw0-?S.:$l!!!#9O.gqv%8UZ|0J_ID=&[Ru!!!![f6cQNiZ>Z@R)N!((]jyJ<yWcs!!!!%Ibf2Olf7^f6Qz5+JmYcL3O1@w!!^1u!!!!!@hDnclLwlYyBqT|VTcE6y.3XAD%sIf!!+Ifp}Kh^I)3?RD!$1M1fW.IHgCXM9iquL
+9r[.}x25E.084jP6aRok!!!!!I>WReSe:(R%b1oa+zE8tzmyl>X1z1okGx?hTS!1vbTmO1y>s9hv(D8$!!(((P1nWRS#5k2yZx0oR.LaIC{Mx5fZgu&)40M#R!Mg0+2N}.TtsZck2KK!s:Sr4!!yyP!!!!!T}sB=kvXv%<]4HUH_I:b2LFU4NhLMGsp9RKw$A6HlLo]HEj:Bibpzgc!!!!J^R{9sJ&iG|oCuhh9dD<j_]!#gtMfNs0#$J[OxEOgHfJ4VEqD#BV_!Fl!!!%E?hV3v[8q}tP@W16<xjXWFk%V219#JtnmQyorvBeH(SxhK
+t+eO7@bJJj-A3Ua!!!!!-WHG5_3&KOe:>1lfXf@5AA%[&edQ]V9{200fdCwNwrr[N_=D%%!!ZB>!!!!!8#>ZTVE1l<e:r6C)8mVWxTM==kcNnQpV=Fe!!4nB:WIki&C&XAf9J3aS4Mth5VsFV^|D&&4[IG0oiu:x?limqp@t]![%WZ#eotc6zAQ9PZ&HqhEf+20p=hQh!!!!!l{NZL&9z5eZX7GsuZqUmb[I0A?Ey!|!y0{go.37A?1F>L7C.nF1fW.Ifadk2GGIb|=4(uHUPI+8!!!!)lhpitLgO(i4PDBp]]VoEDSbr{O1.DZMiX6d
+c$Nj[!3#H4!!!!!o|_wgl8]^X+D@LLU!GSC1?vLNu^4Z5qPw$a+zkHK6$yjVLwU1ud)j19uBex<f(B7hfNEZQyDHKH8ee#mw|D>fMmF?fdu<xIEYFhca$l2<C5)tq1&D#sFrh^T]INCyy^#QUr-UJ_Lp!LTjnr1Xoc7z)Yf2?-9%14aL-}IG0%]|Kau[xOM>Xr#]7iF$EBL($GY9jKC(x]aDEZK]O@t7^!1eJ|!!!!!OmHz)M$p=+IqWx!SC0-9Z_T&5?5lFRC{ch@8>:dt@aDZ.kbFCTt7[R}TUOY0v(%vr?gRiO!!!!!-FB(@p^+57
+>BSKCd-2#5tNxB@KTd6Hhd<tW>a7rWO3A&}b.dLqY{gk|!!!!%Zxjzes1n8zC&j{[7AEzcK@uv&T}w].FcFPGzF]}6jt=yJ2lVM_z[6}U58v3A!#O}L!!!!!d.)x_tt2xk51pWkaNRYnp^7ahl6q&_Pj8I?vx0fSW5=m6vh&%OvYG%r7b.T$QhD}X!!!9X&52G3.@>X865$Vdo.iQqtNx405}q-w?-PUW!#u<)!!!!!C<N^WRuf1xp#.<?>}WOyaQE^WKuro+it6D=OFVAl8@{^Y1=G6G#KItL!!!!!l6bg=>&Fw$9d|[ZNIw.oW6>2@
+Z)0]ONWY5&RS=7^J8KQsNx?>+F}cuz-ERy#!!!!!#)=Ab%{A928.[&pnb#Ny7|[S6h:iH?7md9s2>xCLTu(Lh>.A40E-2V8iI8ng!!OGV!!!!!I^KQKtZn)|+tQF[HZ6Xfzsc@5u+RhzGF0ql%k[(j4an]Boch1704GhoLRO9T3Pv#FR&jOV=uu8p!%v|d!!!!!9L4}0:nL71&9%L6[B{ocTu_uTO7jXyYtqpmo1oc5NFUuwwXJZJ4an]RkNI__u+zgbcpdx]:W@YNO6Q}p!!!}7J}esB)#PxroK@5N>j<z[=ten|f^9O)NIzm0Kv^Z&
+.)apSK@}PfS)eTVt5tSu06FsPw&f@oFp5XN!!!}7J}esBL-^%Yl<:FK:_?(YS!$iT?3c56OFVJn?fQ6gHbY)4:>8Y#{3DPs?9qELnlwOyrbli#eZ0z.x@1dP_h)pOo.Cl&#0OLD!!!!!#(Cr].NVI3CO0l04pA9_E=RCm8icI.w>86g-20CnMH>z!H9mEnxD^lHd.J+xcRP@:1Q|-=Oej}r!!!!%WG|yLi+(40Ao#n|6dZK>H|)G$ji1hfu6PU2!Vga_!!!!!yxD!?5VsYB1VyB<s6]J|x&8hHs5]%[l6eAi^r:.Y]>JjDISX]S{6lC6
+hy{t(h$aW|!!#|IZK#zt[2.hkJ&MQElhjchyol=b=yliX$J-S^Yiy(?dt8A4:L@l<ptI3:!!!!!t%Frc)Q6lAHT?hoc2Nu22H7HpO$Z4FO)[kp901)L!!!!pda(x(%rULtE[iYzNBSj8uVOVer.m_CGb{AJymh)E!#HT5!!!!!7%)vRi&RPeH!kG#p+>_JpdKKm9+|g1lLwlXN}NPkxDw?Q!$l(F!!!!!_#qQo3sL<u_]!P5Ng0oj5ljfEfL4?<jCp3D1s^J>!!!&ww5B?[UAkrw#|T.K:U#5>T-spEC77FsHYfbg1fW.IHgCXMGEquy
+=4(uHkK%<G9>INU#>N)v!!!!!Mqve#?&++@9Lz)rLEe-vU-lg^cKy&KXmN8j:(Yip9G?YqJ(w!&5#}SvyNy:FOogri!!!!!nd_IJzkVQs?WXa>r[n&6P#u9nt-x4>>(L_.+W5C}DC^<^qweK-jZNne$xvs{S|qwtJ(v}$#>O:H!!!!!M4r9[UE($Z[1{Ff?Bh(8H|&:Y._I-}MQP{.i_{?vxaq?9^eSDT{2q$>DW&xjmqAJ-!!8!_!!!!!i$lxdsGICSzr:+dGvw}=fc7^+reg5UtK+bbT4bk%mV8K5W^(kg:Ud_>i=|Gnr6?i4Pid.i
+OlknPOs#UlwIG@{Y:b$csVnn0Ms@q48l{ZtJp=UK@dhVAr9L8aq]zs]Jsu0LU>GOMNLye0)Wd5r:2V#9x(Dn::>Rx8vY@mq4Y5K[cGr5-_U%40WpqyktRn39X%i>siq]adSUR!%9gwUAmxueFE_L8%P1S%e+XCU]WfWujC9}^kJv9wco|ezXkl5oE<Mo[chd(sx?>S2fm-S&+0}f4OdAE_6Gv!220i3BO4Z$E<DS&Q_KUTNjOV{E1!?iG^!!!!!!SaDR#|_[)GId%hrsEm2(WUc7L60F%byGBux:#tRo@?N5VQN%$BH2uCD|}qxzo8a]
+s)8N[pqGrHZh=oh{49bLp#@L4W4SMx]LncnB<Bspyh+Q@McRICqkxusOVp-BU>m]PyKS[f:D6VBkc>fnY|!G^z@m:7knZQBzi&c=sOLzTTk.j0=MO_|F#.&%dk1vmsUr-2iuG%Co.=_7.s]O&U)N!u2<p(}(^_q]4H=1LCeocFnr3fE!#HS^P1nWR(hg9g]9e]e&6a-NrQyHuoArvI](j&l0z2UtcG($@3{dc33__N:EcyTTx25EYfK-.Q0)RozJ$i:Y:&#@wz.LXn{34yAW1T3jNDBO[U=o]{l](BmuLGqMqxk}b=mr^HL6yJJJyU[M
+NMFl2x(=.lC<&thEeYHgz2PAAi57dp.s2^}ze(h0O1@Mb6o1j)c^p_zT&ds.d1#+Mn[IaG)oRu]qe@_r^PPoWMU+)WvXbYfFWGLKN#(+<hYee}J#9CF2E|dh!!!&unVonr)z!o@0z1<%mU!ZznMaZ>ykguo.[[EJ%mI1pJ$NV>XPBA7zvOJ(iw%G1ya5QnBn2p:4ZGBmKK3^FKK4i:m0Np0zlTUuaE.H{yx%eGp{4puzwhOp2qBX.puDvAz2Nzt8A)1y=Wt%F-ww&gk4cJ^89Y_B7UDPytZCd#&Sutg!!!!!UmqzzHZoivH[17qGjOI0
+0uz.5$GG|fb$H:N{6mHGzd#:EPk:(NwJZr1{$_}i:JnFe_wI%lxo9qVM6>j#SW.S(Bg@>7d(JEt9is!(!!#4Cfe9E=9sC@|BT:W@1)[_iN)tM&NVtYN?f3k-CUu98mRCyih_h6>LQzoKWmHI&T^7_aHhO8FUwPhO!11H=!!!!!0Dm3-RuQ}v:QBh8OIz1J930LdAhe=&ekyny0i7VP5Im[SY}A>%oUNh|0=ZB#xoA#d!.YcS!!!!!HYgrAuFsxjyY5-=@c$nP)ww)nkZZHh?N1%#8rVwBQr.+m[4roT]SxNk#&).V!!!!!gBV^gEmo{)
+oWLm(xKc4DsG7a?_^}dqzTvzv9%eu7q{:[<c{tzs(uDNQchCWWWG(_J$+^tY!!!!!yxqxsHL2=(g@g5_zsas@(T$464.-6{X{[CIVP5oKZ4|n!xaqQ9e4y2gH]133!!!!!wtKF}Se:)43-1d{[>:3Xf})^6X{W{7V!EI751MLGoaN[R:l2S.2-Uf?WR<sD!!!9bjtFgJX0=wavq{XCNndw[ku|zfx>FV8(SvEW!!!!3aL:LsKh{d_>HvR5CVcmby3$})l6Y.A#hc)0H(BDmjs|?#c]jQ-w4AJs3lEWcZAN43uSerB!!!!!tpb18Mz<w1
+t_qlh#&2kJQJqp5=!PU[?J<iNFZqydkbKe0e:t=QZG{[K:7OW7E0UgHZ7XR[OV-os&8e5N!!!!!OCW]J<ypFc+%3c=oBB2&_|-j6xH[XJ<WRubZAZzl$57Xcp+DJ3!!!1Nwh0{tX0=wZr[aIPxyRGZr5X^QW#=6_?>7HcGB|^zy|e$O!EOUt!!!!!joop?+kL@3lttIgM-7W9ThT6VuW)$PwVI>4N#3-6HfJAdRDKV?u#0kk!!!!-4$^LP?V]{.BO2gxRu$v7bGX1D+z01:2F7B?_NS@!Q_UTi!!!!&@%Sea(SfCY_eCZVo.55BV51@S
+d241CjEx[pT&FHHxE4B8!(kQT!!!!!3V|p{x)u#[F4rY+e}UeIN?9SqV51@Z)yA_nJh?6_@Vd(Tv1AXsU6E^7!!c|H!!!!!1<{x[wL0XSFr3eG6n(1o)zv|+0>iz1c3j{PdhXg(WRTGlEf+20!UMr&!!!!!Y+3.7$51&F5Bh2knFxW12%Op49q$L}_]!g>i|+[[fUk5U7R{}%qff!O]T9cIXEN7WsvJsQ&8cXT!!!!!]tGye[P1iBmUo}ng:8seequa+e9y_._]#&>dmx[&Od4V>-eoCiLRO9X!!!Ts-}w{C)GTn.KYnM&(aDy4-mUxa
+dR#e?=esS)I%U+bnm!nDg_]_H?:.coyAjVe.RQ+o!!!!#l^MTqil3i:r4jyh)p030CNg(fZAb]_lHtH]rj|:k[[$.kThU=X:t)tl!!!3Lm1ZOQC{G$b72ml5J+zKS-ivzr9acntOe++Mz}b|Wp|kMgOSm_Zs>q[Vknc#PlL#$O_u@:bhZ$ullksj5y5eeQKs1LyerFqn)1-$|-.)e85qS#Rn1c#A-qvF5_q1.?Gv(:XpmrkWu^Zdko#J:AY#$m}yD)qKRnljedGkM04>s84w$8693tygGe!8j?oBW3}tZ4:)#-cGq!!!!!<yzL@#&2g[
+qcfRNbO[One9o)v3oet#>.ZBlhkyFc?]9e-aQE^Xch[0|X0tMFyh.p]XL}HNlE52CvgT!u!$iOr!!!!!bxcbf74dSvNd8Kv<zOcW@c|)_O$mv)d]_df6Z3LgqcAA5pH)g{owcG103!gZxZMAyrOO{C!(Up(!!!!!u6J#Sku|zk)%yevoyEt>X0gChr58EKN772L!!!!!<wovE7J|bKe{a^2FQx[_SK>F3w3nwUvpQisqw69#zcKCmZuyR1bBE@0y|e>_!EOUt!!!!!r8[R$#|9C$]5W0G+U!Ww<ytuM%a:%v9dzW2vxnoFyj6gGZ-3wx
+V>t5gZ-@pW#%hXt!!!!!Y)eIcGAz4W]2]_:Ne5)7BrC{IC481rvw@djw}>bZ{&4nc2lTT[NW1NQknxa^!!!!!6k&G{<^|l^uup(O.f8.7]+TXH7]ZZJxktmMIR%rUUjRohpA&aSL<Ziy!!!!!K0_]$)1v:XspgEOw$A6HAA#&tDQ|C4z]2.^{6TbjoKk%8!1-f$!!!!!07)mh8_6Dli&[Tg4CU{RbB?1{lsaHlLobbwWSv0CVbbugQ{R[X!!!!JDAWBct}ZZAaEtlBHYez.wnxONtF%B?2#Prc2j>v0$FYFy4j=C&O[Eg2qgJ^omjrFG
+xW@O_.vRzm43ZMx!!!(]=n^SpIC17nLX-CoFya(|u+w{lwC&G0Q!V1fvd^{7D1Z@4n-F_:olyJZMPKvQ!#YUt!!!!!fNMicF0iS6LDheEmynjJcSAxwM$O@J5r1o5(1}WUp[V13Ffb^oL60hApJ_kL!!!!#]=kr4cW8+Y0#ct_[7.5sT$q:UbEULV$aE]I$RFqBuvZ_h5rCo-fGnS?MJ^yV!!!!!t5osA?seonX^aDUKP{iHbCo5>j4t<6hn#H:%O3LLpJ&L1@D2x2!!!T!sV|YgTKXT$V0E?IatxE[jEx[pT&FHHuk[O0kNZf]+#f%C
+eUPKnYc@r@!!#(!kqC&M[0ovgx1N>(zhP0!ThUdUb2S#JpPWGvZ0H1(p|}$gEbPw3Cx#-|abM4r5+LpdnZt91!!Ht3!!!!!H[0l2uFsxjg2SJcvRv}j!!!!4@%AW^S7jcgfSKfc)$&Nt!!!!3a&Xm>b&6C3J+s:ud8P_2SD0M}[.ZJL!!!!#x&+KQ!t|oypD?OsXQmSubxhCY!=AL.!!!!!eX)IN:nL2?W94=SF0i3PIfx37ib!Hke-S2r(xowW!!!$Ny9Oen<x!nBHYotz#&:xP!!!!!:dwS9NelS%<s)[#W&<c2[.)va!!!!#^[qFZ
+pelo]9.v5ULlCAv<yESe!!!!%A{(Z6naP&#]|DONd&ET@T4iWa^1qn=yDI::TE)$]3{o)e+yi52SNyr%i#Tm(qhF_y5zzrqV=eT+7-6Aam)n%pyajKgr-S[&Lp<E|GvM_.oc9fwYf2JBTRk^2X+?kBQwgr}Dbke<MOznCliN4+54#sYbKoo=_4q?<_nddpf@xyS!!#y<J}esBYcs8GHkkSQfFW(w-!kton-I[O+GL!krNtou!!!IL6eXR[PInql[<]H(Tr?X01w.95A2SDOUw=4DPgTrT1$A<y!!!!AEYphgG@^?uUFB:fuC444qXk&^
+%.CqL!!#qJHK4$9!U(.4-W}k|2at1XRs3L_!!!!)nEL?yrg5x5]W6E8M6.LUAy=Zp!#.b>!!!!!ZPd^FNL2-c!!+IbZK#zt2&@6?&KJt6oT{Xd=)BlWl6[k9!!!!!NSU8<oKqX_<LbaQx)j)^mq<tNNaH$GVRbHV!!!9bjtFgJ@hCt?wb@gUHy5(Ul6s]y:)zt:GMXFmOYdKXWI%4c>.^[T!!!.ps+!L8+g)4YtMlQ[))$fuwnxOJtF%B?yhI6uZ7Xl{OV-osRD+]W!#HS{!!!!!IHy(8TafkuE#eM-NO9uzZAZzS$57Xcp+DJ3vr6uW
+!!!JyHK4$9hp:6Oe5w$Ni1kGVnp=&adfl#v{.u$CNJFmU!!+IaZK#zt-S%E:J&X=DFoFY^u&.euW.U&z:)}mbIQ7I@O!HxJ!!!!)M^:c)rHyz$fYA#Xh{0k8HhDxES7s^X2OKIjDcufZu%c2oJnYQi:-<JS!!003!!!!!T}sMJnP2tR]$yUsc#it[=}jFiRqS5zTUNzHbe@EvY_3$J-(WP9.Yw&?!S1cw!!!!!9f?zNFa^>U_[AA.m|%+uTu_x-_FszQWVO5oa>):IYS3jVCL72P!!!.lT^?&bsGYcM+_U}}H]pVXl9=<G!!!!!>&>U!
+byt6jfAqtg0Do{R6lq_g!!!!!lG-8tDp9fe!!!wefe9E=IC.[E!!D]g!!!!!oBITyhvB-tyIth.zR{SvJ0G@uoQLm5q:jUk)[vjQ!!!$NT^?&bby%5NZFYVAPaH(HhuJKSLgoraPaHM_&taKv1(SiU!!!!AlJ1gfWGM+xBu)x:B?#f@eyd^!l6R4V!!!!!=bONQ2-0NkbaO<.a3N=}d{pezh5ng+!!F1K!!!!!mvi<c^[mM#1aRHyXkG:{H]s>+r38LQ5w8wtkncEKlL#$O_u@:bhZ$ullksj5y5eeQKs1LyerFqn)1-$|-.)e85qS#R
+n1c#A-qvF5_q1.?Gv(:XpmrkWu^Zdko#J:AY#$m}yD)qKRnljedGkM04>s84w$8693tygGe!8j?oBW3}tZ4:)#-cGq!!!!!!Tp0^l[)%njf#42-Ns8[8YZMCovA+s!13_Q!!!!!<xrNKxJux4!=ANP!!!!!xZKkeE0.wegdJ?Ioib6U-KHIaM9_]_!!!#b-}w{CHZL9AgWQwdISRtn-abAi!(X0B!!!!!PI62H_p7$|Rtu$z!!!!)6qTKxi$mhzyYch(2jJn$!!!wefe9E=Rz(B(KDu]:9r5p@Rv8|e!!!!)6qTKxC{d^J?Hoso!m4@!
+!!!!!S+uqnrv@WLyh52b!!!!.gopfmu6NdYt7GHDz?yz0u.:):P)O_M]{dW:if8tjAy}gczQZTG!!!!&FJJrIM-9?..)WCY{:!a7TtsbrT^!1@O{@J^7}&kKN=.C2:DZjc!!T=s!!!!!gBVOK9G1C)0%eh$.QhF{lN1_Y{3HAk3OVr:EamZ:)JD^1!!!!!^P@NXIaI!BzO>]W66sl-y+n%:nI]6!XN(3<EoO.u)JEjV!!!!!^P@NXB>(W&pw1DdXFO)5?nvH_z)fFUnxsr4-nQD:OhhWO!!!!$5e7x7l<<XhTYoAlU>4hTxUH.eWMq2d
+m0dB>zenN:^2M?.-ztD4!m4:P!!!!!wmDA+T<C]%vc(%XXZq#g>%a^9fMs&{2oe0X!!!!!Aczl2]X4qpWgqyv!!(_{!!!!!C{E_#tSG7X!-S@Q!!!!!(RPO|Z%ME_#ZCnW!!!!!(v4W[p!Gm)@aHo#!!!!!2<.!kojG02riA=Tke0X)KO=AYVP)&+u$lKu!!!!N&QNP4q2)xEOtMHSdP_Y}H<>L.cP?#O9!O6usqo[W!$1)D!!!!!<yT3<[T@.6[[5C^=TOoS:L=@:{7U_5%dl?q!7%V:!!!!!1#{zzSUZ6TDsMjfo0+5Qqwk%T2{j3t
+b($m[#5Yw<!!!!!)H2g1LT#iAEX}$%w2ISzkf@X1N|Abr1LO><a$l2GfSptL)1-%#cM+#nT6EK.X(X)ite3X3TW><Ys7PBC6MVHJuK[vUkP}Io9$(onL-z?f:BotJ%UcCiX+5b7MO}d]3ABR0rtVZx>Wn6}cB<]-ISXeIaNV&t!!!R6-}w{CZ:D4m2F%NiXrTKV%VCDE6_joX<SYSWT}PJs1QFbe!!!!!Vonc:J[BWgEmBA_nw%kd+tE>sKMVLRC&-F{!%J^r!!!!!RvD3^a>:Q3u{pokU#MG0q|rRhFlmlEoV?Ch#90JO!!!!!SCHL)
+xDRlEd+@E?>HuL<9$g:vp^5C+!!!!|-}w{ChqZp@sGe8w!!!![[U^CKncbeC7Q%igCYle!cp<HI[[!w?4EK%vzACXcSq5^J4S23Kj5v<d4Eb)p?%:A{_4q?fcfT^Rt5O_y{+GTX!!!!FXowJ}cxzNxOi<ppM2K%D+E_iB4wMbCL5iJhb-l6bBD-oY+l-_M-n-QqR=VoX!!!!)(W2CJM(6xF%7b^+Ht3mXn?j]V0iPQLt=>7@WO2CNno=h$DERWy!=AZm!!!!!_[}$Fv.W@_h7svrXo]C<7yND0(X7|}Fj?7YoTF9G<xeIc!!!!%Rs{{p
+alWK(#ZCLl)a@j7nzOjmqV|h6xW]iMSlQg0(ivk7#&<L8!!!!!bxcH]Dc6PUNFo[q@XaWviaOm5u[a+m(uEnULrAvuN^CiC!13<Q!!!!!_[}2jWHuq]hp>{5Hr|4xVS4%.5!(=5qvNt)HYp-G!!!!!<x||wEBdDZPx}!UE!om8kOS%@Eg!JftaG#n[7l^Nl6d!<!!!!!(PS-IBhc:HZ](SrY:y1Hny_mD)E?Xfu)Q?x!!!!+!T:|}Bt]<XZBp[$!!!!!?Q8#V_k<R3Gh)v|!!!!0gopfmX0=wY!!!9bJ}esB-XSup3%Prb!!!!!0_ARA
+Rubgm!!!!)6qTKx!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^
+!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc
+!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!
+<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!6lry?!!!!!(Rc]b!!!$NZK#zt!!D]^!!!!!&6{:)!!!!!<yXLb!!!![2qi:O!!+Ia!!!!!#&:VS!!!!!(PHZw!!!!3>kYps!!#qJ!!!!!!=AH1!!!!!<y!cP!!!!%(yHzf!!!NE!!!!!!(X-?!!!!!l6Ok1!!!!!=&iSc!!!.pP1nWR!#HSW!!!!!z)e<CZqMF|2l:Rq!!!#<@3=gYExg#i!!!#T
+ */

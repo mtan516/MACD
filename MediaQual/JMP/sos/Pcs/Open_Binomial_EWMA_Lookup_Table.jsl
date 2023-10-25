@@ -1,0 +1,2 @@
+//JSL Script to open the Binomial_EWMA_Lookup_Table.jmp
+Open("$ADDIN_HOME(com.intel.sos)\Pcs\Binomial_EWMA_Lookup_Table.jmp");

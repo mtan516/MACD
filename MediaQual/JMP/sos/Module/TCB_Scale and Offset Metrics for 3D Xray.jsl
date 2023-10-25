@@ -1,0 +1,202 @@
+/* 	Script: TCB_Scale and Offset Metrics for 3D Xray
+	Author: Anne Hansen
+	Date: October 29, 2014
+	Purpose: This script fits a rotation / translation / scale model  evaluation per 3D Xray JMP output file. Assumptions: NomX and NomY are calculated nominal bump locations. Misalignment X and Y are bump misalignment in X and Y directions. FOVX and FOVY are centers of the FOV 
+*/
+
+dt=current data table();
+dt<<clear select();
+
+
+//Column Dialog BOX to read in Columns needed for SPC/Offline Metrics
+	R=ColumnDialog( Title("3D X-ray Offset and Scale Metric Calculation "),
+		textbox("NOTE 1: FOV X and FOV Y refer to the coordinates of the center of the FOVs. This varies by die, product, and of course FOV."),
+		textbox("NOTE 2: For Unique ID enter either a column or column(s) which taken together can specify a unique die."),
+		UniqueID_col = ColList( "Enter in \!"Unique Die ID\!" Column(s)", MinCol(1) ),
+		FOV_col=ColList("FOV Name", MaxCol(1), MinCol(1) , Columns(:FOV_NAME)), 
+		bID=ColList("Bump ID", MaxCol(1), MinCol(1), Columns(Name("Bump ID"))),
+		nX=ColList("FOV X", MaxCol(1), MinCol(1), DataType(Continuous) , Columns(:FOV_X)),
+		nY=ColList("FOV Y", MaxCol(1), MinCol(1) , DataType(Continuous), Columns(:FOV_Y) ),
+		locX=ColList("Bump Location X", MaxCol(1), MinCol(1), DataType(Continuous), Columns(Name("Bump Location - X")) ),
+		locY=ColList("Bump Location Y", MaxCol(1), MinCol(1) , DataType(Continuous) , Columns(Name("Bump Location - Y"))),
+		misX=ColList("Bump Misalignment X", MaxCol(1), MinCol(1), DataType(Continuous) , Columns(:MisalignmentX) ),
+		misY=ColList("Bump Misalignment Y", MaxCol(1), MinCol(1) , DataType(Continuous) , Columns(:MisalignmentY)),	
+	);
+	
+		
+//Summarizes by FOV
+dtSumFOV=dt<< summary(Group(R["FOV_col"]));
+			
+//Searches for simple FOV names.	
+simpleFOV=dtSumFOV<<NewColumn("Automatic FOV ID",character, nominal,formula( 
+If(
+	If( Contains( as column(column(1)), "B") > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "L" ) > 0,
+		1,
+		0
+	) == 2, "BL",
+	If( Contains( as column(column(1)), "B" ) > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "R" ) > 0,
+		1,
+		0
+	) == 2, "BR",
+	If( Contains( as column(column(1)), "T" ) > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "L" ) > 0,
+		1,
+		0
+	) == 2, "TL",
+	If( Contains( as column(column(1)), "C" ) > 0, 1, 0 ) == 1, "C",
+	"TR"
+);));
+
+//
+nFOVName=nrows(dtSumFOV); 
+origFOVcolName=column(1)<<get name;	
+origFOVcol= column(1)<<Get Values;	
+guessFOVcolName=column(3)<<Get name;	
+guessFOVcol=column(3)<<get values;
+Close(dtSumFOV, nosave);
+
+FOVcheck=new window("FOV Automatic Location Check",<<Modal,<<on validate(FOVtable=FOVt<<make into data table; 1), vlistbox(textbox("Please check that the automatic FOV location assignment is correct. If correct, click OK. If incorrect, please manually enter ALL of the correct FOV Names."), textbox(" "), textbox("Note: Any Center FOV=\!"C\!", Top Right FOV=\!"TR\!", Top Left FOV=\!"TL\!", Bottom Right FOV=\!"BR\!", and Bottom Left FOV=\!"BL.\!""),textbox(" "), FOVt=tablebox(stringcolbox(origFOVcolName,origFOVcol), string col box(guessFOVcolName,guessFOVcol), enterBox=string col edit box("Manually Enter", repeat({""}, nFOVname))))); 
+
+	//Joins with correct FOV Name Column and points to correct FOV column Name. 
+If(ncol(FOVtable)==3, 
+	dt_new=dt<<Join(
+		with(FOVtable),
+		select(all), selectWith(:Manually Enter),
+		by matching columns(origFOVcolName=origFOVcolName)); R["FOV_col"]={:Name("Manually Enter")} 
+		,
+		dt_new=dt<<Join(
+		with(FOVtable),
+		select(all), selectWith(:Automatic FOV ID),
+		by matching columns(origFOVcolName=origFOVcolName));
+		R["FOV_col"]={:Name("Automatic FOV ID")} 
+		
+	);
+	
+close(FOVtable, nosave);	
+
+	//Creates New Data Table Subset "MyDataFile"
+	dt_new<<Select Excluded;
+	dt_new<<Invert row selection;
+	MyDataFile=dt_new<<Subset(selected rows,columns({R["UniqueID_col"], R["FOV_col"],R["bID"], R["nX"],R["nY"],R["locX"], R["locY"], R["misX"],R["misY"]}), OutputTableName( Char(dt<<GetName) || "_Subset" ), invisible );
+	dt_new<<clear select; 
+	
+	close(dt_new, nosave);
+
+	
+	
+	//Creates subset w/o Center "MyDataFileTemp"
+	MyDataFile<<select where (As Column(R["FOV_col"])=="C"); 
+	MyDataFile<<invert row selection;
+	MyDataFileTemp=MyDataFile<<subset(selected rows(1), columns({R["UniqueID_col"],R["bID"], R["FOV_col"],R["nX"],R["nY"], R["locX"], R["locY"] }), invisible, outputtablename("Temp Table"));
+	MyDataFile<<clear select();
+
+	//Names of FOV columns
+	xName=as column(R["nX"])<<get name; //FOV_X
+	yName=as column(R["nY"])<<get name;  //FOV_Y
+	
+
+	
+	MyDataFileTemp2=MyDataFileTemp<<Split(
+		Split By(R["FOV_col"]),
+		Split(R["nX"],R["nY"]),
+		Group(R["UniqueID_col"]),
+		outputtablename("Temp Table 2")
+	);
+	
+	
+	//Provides names of future split columns
+	tempN=function({colN, fov},
+		
+		apple=colN||" "||fov;
+		char(apple);
+	);//end function
+
+	
+	cX=MyDataFileTemp2<<new column("CoeffX", numeric, continuous);
+	cY=MyDataFileTemp2<<new column("CoeffY", numeric, continuous);
+		a=tempN(xName,"TL");
+		b=tempN(xName,"BL");
+		c=tempN(xName,"TR");
+		d=tempN(xName,"BR");
+	cX<<formula(mean(As Column(a), As Column(b), As Column(c), As Column(d) ));
+		aa=tempN(yName,"TL");
+		bb=tempN(yName,"BL");
+		cc=tempN(yName,"TR");
+		dd=tempN(yName,"BR");
+	cY<<formula(mean(As Column(aa), As Column(bb), As Column(cc), As Column(dd) ));
+	MyDataFileTemp2 << Run Formulas; //cX and cY are mean of X_loc and Y_loc all four corner FOV
+	
+	//provides list of columns for UniqID
+	columnsList=eval(R["UniqueID_col"]);
+	
+	MyDataFile88=MyDataFile<<join(with(MyDataFileTemp2),
+	By Matching Columns( columnsList, , R["bID"]), select(all), select with(:CoeffX, :CoeffY),
+			copy formula(0,0), Preserve main table order( 1 ), output table("Background Calcs"), invisible
+	);
+	
+	nomX=MyDataFile88<<new column("Nominal_X", numeric, continuous);
+	nomY=MyDataFile88<<new column("Nominal_Y", numeric, continuous);
+	
+	nomX<<formula(ascolumn(R["nX"])-:CoeffX+ascolumn(R["locX"])-col mean(ascolumn(R["locX"]), ascolumn(R["UniqueID_col"]), ascolumn(R["FOV_col"]) )); //X_loc-coeffX+bumplocationX-groupby_die/fov_mean(bumplocationX)
+	nomY<<formula(ascolumn(R["nY"])-:CoeffY+ascolumn(R["locY"])-col mean(ascolumn(R["locY"]), ascolumn(R["UniqueID_col"]), ascolumn(R["FOV_col"]) ));
+
+
+
+
+	Subset1 = MyDataFile88 << subset(Table Name("Subset1"));
+	Subset1 << new column("Dimension", character,nominal,set each value("X"));
+	Subset2 = MyDataFile88 << subset( Table Name("Subset2"));
+	Subset2 << new column("Dimension", character,nominal,set each value("Y"));
+	NonLinModelInput = Subset1 << Concatenate(Subset2, table name("NonLinModelInput"), invisible);
+	Close(Subset1,nosave); Close(Subset2,nosave);
+	NonLinModelInput << new column("AlignValue", numeric,continuous, set each value(match(:Dimension,"X",ascolumn(R["misX"]),ascolumn(R["misY"])))); //AlignValue: bump misalignment
+	NonLinModelInput << new column("AlignModel", numeric,continuous,
+		formula(
+			Parameter(
+				{X_Offset = 0, Y_Offset = 0, X_Scale_um_per_mm = 0, Y_Scale_um_per_mm = 0, Theta_mdeg = 0},
+				Match( :Dimension,"X", X_Offset + ((:Nominal_X + (X_Scale_um_per_mm/1000) * :Nominal_X) * Cosine( Theta_mdeg/(360*1000)*2*3.1415 ) - 
+				(:Nominal_Y + (Y_Scale_um_per_mm/1000) * :Nominal_Y) * Sine( Theta_mdeg/(360*1000)*2*3.1415 ) - :Nominal_X),
+									Y_Offset + (:Nominal_Y + (Y_Scale_um_per_mm/1000) * :Nominal_Y) * Cosine( Theta_mdeg/(360*1000)*2*3.1415 ) +
+									 ((:Nominal_X + (X_Scale_um_per_mm/1000) * :Nominal_X) * Sine( Theta_mdeg/(360*1000)*2*3.1415 ) - :Nominal_Y)
+				)
+			)
+		)
+	);
+	NonLinFit = NonLinModelInput << Nonlinear(
+		Y( :AlignValue ),
+		X( :AlignModel ),
+		Unthreaded( 1 ),
+		Newton,
+		Finish,
+		Plot( 0 ),
+		By(R["UniqueID_col"] ),
+		invisible, iteration log(0)
+	);
+
+	
+	//Extracts first unit NonLinOutput and sends to report
+	NonLinFitRep1=NonLinFit[1]<<report;
+	//Add in path to output, make combined data table; 
+	help=NonLinFitRep1[Outline Box("Solution")][NumberColBox(6)]<<make combined data table;
+	help<<delete columns(:ApproxStdErr);
+	
+	final=help<<Split(
+		Split By(:Parameter),
+		Split(:Estimate),
+		Group(R["UniqueID_col"]), output table("Scale/Offset Results Table")
+		
+	);
+	
+	
+close(MyDataFileTemp, nosave);
+	
+close(MyDataFileTemp2, nosave);
+close(help, nosave);

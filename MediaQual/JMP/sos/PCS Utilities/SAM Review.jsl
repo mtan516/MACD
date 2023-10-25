@@ -1,0 +1,671 @@
+Clear Globals();
+include("SAM Review Functions.jsl");
+data_table_path = "\\atdfile3.ch.intel.com\atd-web\MFGReports.ch.intel.com\SAM_Review\Raw_Data_Files\";
+server_SAM_File_dir_Path = "\\atdfile3.ch.intel.com\atd-web\MFGReports.ch.intel.com\SAM_Review\Scripts\";
+data_table_path = "\\atdfile3.ch.intel.com\atd-web\MFGReports.ch.intel.com\SAM_Review\Raw_Data_Files\";//rev
+
+//user_id = "WWID";
+local_dir = "";
+ws_cr_filter = "";
+filter = "";
+local_script_version = 1.6;//Version 1
+openWindowFlag = 0;
+
+wwid_check = Function({},
+	user_id = text << Get Text;
+	print(user_id);
+	If( user_id == "WWID", 
+		New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Please enter WWID"),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)),Button Box("OK")),
+					textbox("")
+				)
+		);
+	,
+		OpenDataFile(user_id);
+	
+	);
+	
+);
+
+Start = Function({},
+	
+	
+	//check if user has selected some filters
+	If( N Rows( Current Data Table() << Get Selected Rows() ) == 0,
+		New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Please make filter selection"),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)), Button Box("OK")),
+					textbox("")
+				)
+		);
+		,//else
+		ClearLogFile();
+		ws_cr_filter = filter << getScript;
+		//CaptureLog("filter_WS");
+		print(ws_cr_filter);
+		//Data Table( "Monitor_Sets" ) << save( write_path || "Monitor_Sets.jmp");
+		local_dir = Pick Directory ( "Select a directory to Save your reports." );
+		SetLocalDir(local_dir);
+		
+		//PromptMonitorSetList();
+		if( local_dir == "", 
+		
+			print("User Cancelled Directory selection");
+		,
+			GetMonitorSets();
+			//PromptMonitorSetList(); //commented to avoid showing monitorsets selected from WS filter and added below lines
+			close(Data Table( "Monitor_Sets" ), NoSave);
+			OpenPRFFilter();
+		);
+		
+		
+		
+	);	
+	
+	
+	
+);
+
+Pre_Go = Function({},
+	
+	PRFCheck();
+	
+);
+
+Go = Function({},
+	//Data Table( "Monitor_Sets" ) << save( write_path || "Monitor_Sets.jmp");
+	local_dir = Pick Directory ( "Select a directory to Save your reports." );
+	SetLocalDir(local_dir);
+	
+	//PromptMonitorSetList();
+	
+	GetMonitorSets();
+	Get_Charts_From_Chart_Report();
+	Get_Charts_From_Golden();
+	find_CE_Gaps();
+	find_Comprehensiveness_Gaps();
+	Find_PRF_Gaps();
+	find_RFC_Gaps();
+	Charts_with_RFC_Info();
+	print("--------------------Script Completed--------------------");
+);
+
+GetRawDataTableForUser = Function({},
+	
+	cr = Open(data_table_path || "DATA_temp_" || facility || ".jmp", invisible);
+	raw_dt = cr << Subset( All rows, Link to original data table( 0 ), Output Table("Raw_Data") );
+	close(cr, NoSave);
+	raw_dt << New Column ("Factory_Flag", Numeric, "Nominal", Formula(If(:FACTORY == FACTORY_CR, 1, 0)));
+	//raw_dt << Select Where(:Factory_Flag == 0);
+	//If(NRows(raw_dt << Get Selected Rows) > 0, raw_dt << delete rows() );
+	FinalReport<<close window();
+	
+	
+);
+StopAnalysisUserPromptFilterWS = Function({},
+	
+	FinalReport << close window;
+	close(cr, NoSave);
+	//close(Data Table("PRF_Stacked_SiteModule"), nosave);
+	FinalReport = New Window("Information: ",
+				//<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("If you could not find desired filter options, open raw data file and validate FACILITY and Product mapping."),
+					spacerbox(Size(50,5)),
+					textbox("If mapping is correct, contact SOS Support (JMP >> SOS >> Help)."),
+					spacerbox(Size(50,5)),
+					textbox("If mapping is incorrect, contact automation L2."),
+					//textbox("If FACILITY/Product mapping in raw data file is incorrect, please reachout to SOS Support team from SOS Manu-> Help"),
+					textbox(""),
+					hlistbox(
+						spacerbox(Size(50,5)),
+						Button Box("Open Raw Data Table",GetRawDataTableForUser),
+						spacerbox(Size(50,5)),
+						Button Box("Exit Script", FinalReport << close window())
+					),
+					textbox("")
+				)
+		);
+	//FinalReport << Set Window Size(600, 300);
+	
+);
+
+OpenDataFile=Function({},
+	
+	
+	If( facility != "Select Facility", 
+		
+		
+		//user_id = text << Get Text;
+		cr = Open(data_table_path || "DATA_temp_" || facility || ".jmp", invisible);
+		cr << New Column ("Factory_Flag", Numeric, "Nominal", Formula(If(:FACTORY == FACTORY_CR, 1, 0)));
+		cr << Select Where(:Factory_Flag == 0);
+		If(NRows(cr << Get Selected Rows) > 0, cr << delete rows() );
+		FinalReport << close window;
+		
+		//create_user_queue_dir(user_id);
+		
+		dt  = Current Data Table() << clear column selection << clear select;
+
+		//Create ReportWindow
+			FinalReport=New Window("Chart-Report Filter: PCS SAM Review",
+				spacerbox(Size(5,10)),
+				spacerbox(Size(5,10)),
+				hlistbox(
+					filterpb=panelbox("Select Product Information for your Module:",
+						spacerbox(Size(5,10)),
+						hlistbox(
+							filtervb=vlistbox(),
+							spacerbox(Size(5,10)),
+							vlistbox(
+								genrespb=panelbox("Proceed",
+									spacerbox(Size(5,10)),
+									buttonbox("Proceed with Filter selection", Start),
+									spacerbox(Size(5,10)),
+									buttonbox("Desired selection not available in Filter",StopAnalysisUserPromptFilterWS),
+									spacerbox(Size(5,10)),
+									
+								),
+								spacerbox(Size(5,1090)),
+								tb_monsets = textbox("If selecting specific monitor sets, ensure all monitor sets for the product under review are selected or the gap assessment results will be incomplete."),	
+								tb_monsets << Font Color("red"),
+								spacerbox(Size(5,10)),
+							),
+						),
+						spacerbox(Size(5,10)),
+					),
+					spacerbox(Size(5,10)),
+					spacerbox(Size(5,10)),
+				),
+			);
+				
+		//Add filter based on existing table to window
+		filterbox=vlistbox(
+			filter = Current Data Table() << Data Filter(
+					Conditional,
+					Mode( Show( 1 ), Include( 1 ) ),
+					Add Filter(
+						columns( :FACTORY_CR,:module_name_1, functional_area, :mkt_code, :mm_code, :form_factor, :package_tech,:prodgroup3, :monitor_set_name ),
+						Display( :module_name_1, Size( 221, 120 ), List Display ),
+						Display( :functional_area, Size( 221, 120 ), List Display ),
+						Display( :mkt_code, Size( 221, 120 ), List Display ),
+						Display( :mkt_code, Size( 221, 120 ), List Display ),
+						Display( :mm_code, Size( 221, 120 ), List Display ),
+						Display( :form_factor, Size( 221, 120 ), List Display ),
+						Display( :package_tech, Size( 221, 120 ), List Display ),
+						Display( :prodgroup3, Size( 221, 120 ), List Display ),
+						Display( :monitor_set_name, Size( 221, 200 ), List Display )
+					),
+					hlistbox(
+									filtervb=vlistbox(),
+									spacerbox(Size(5,10)),
+									genrespb=panelbox("Generate Results",
+										spacerbox(Size(5,10)),
+										buttonbox("Generate Results", GenerateResultsFunction),
+										spacerbox(Size(5,10)),
+									),
+									spacerbox(Size(5,10)),
+								)
+				);
+			filter << Display( :FACTORY_CR, Blocks Display );
+		);
+		filtervb<<Append(filterbox);
+		
+	, //else
+		New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Please select a facility from dropdown"),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)), Button Box("OK")),
+					textbox("")
+				)
+		);
+		
+	);
+
+);
+
+
+skipVersionUpdate = Function({},
+	if(openWindowFlag == 1,
+			versionCheckWindow << close window;
+		,
+			print("No version Update window Presented to User");
+	);
+	
+	//Create ReportWindow
+	FinalReport=New Window("PCS SAM Review Report",
+		spacerbox(Size(5,10)),
+		
+		spacerbox(Size(5,10)),
+		TextBox_Classification = Text Box( "Please select Facility" )
+							,
+							facility = "Select Facility";
+							selection_dropdown = Combo Box({"Select Facility", "ATD", "CD", "CDP", "CRTO", "KM", "ODP/OWLA", "PG", "VN", "WATD"},
+								facility = selection_dropdown << GetSelected();
+								//AFO fix: databases stores factories as AFo, however name used it ODP and OWLA.
+								if(facility == "ODP/OWLA",
+									facility = "AFO";
+								,
+									//do nothing
+								);
+								
+								print(facility);
+							),
+						
+						spacerbox(Size(5,10)),
+						//TextBox_Title = Text Box( "Please enter your WWID" ),
+						//text = Text Edit Box( "WWID" ),
+						//user_id = text << Get Text;
+						//print(user_id);
+						
+						
+						spacerbox(Size(5,10)),
+						buttonbox("Open Data File", OpenDataFile),
+						//buttonbox("Open Data File", wwid_check),
+						spacerbox(Size(5,25)),
+						user_guide_btn = Button Box("User Guide/Help", Web("https://content.sp2019.intel.com/sites/attdstats/ATTD_ATM%20Stats%20Library/PCS/BKMS/SAM%20Review%20Dashboard%20Instructions.pptx"), <<underlinestyle),
+						tb1 = Text Box(
+							//" Current step " || Char( i ) || " of " || Char( imax ),
+							"Compatible JMP Version : JMP12 and JMP16",
+							<<Set Font Size( 10 ),
+							<<Font Color( "red" ),
+							<<Set width( 400 )
+						)
+						
+						
+						
+						
+	);
+	FinalReport << Set Window Size(450, 350);
+	
+	
+	
+);
+UpdateScriptVersion = Function({},
+	
+	print("download latest script");
+	versionCheckWindow << close window;
+	
+	win1_flag = 0;
+	copy_win2 = 0;
+	
+	//rename, copy and delete temp file for  win1
+	rename_win1 = Rename File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\SAM Review.jsl", "win1_temp.jsl" );
+	if ( rename_win1 == 1 ,
+		copy_win1 = copy file( server_SAM_File_dir_Path || "SAM Review.jsl", "$ADDIN_HOME(com.intel.sos)\PCS Utilities\SAM Review.jsl");
+		if (copy_win1 == 1,
+				print("win1 downloaded successfully...");
+				del1 = Delete File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\win1_temp.jsl" );
+				win1_flag = 1;
+			,
+				print("Error occured while downloading SAM Review.jsl");
+				rename_win1_1 = Rename File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\win1_temp.jsl", "SAM Review.jsl" );	//undo rename
+				if(rename_win1_1 == 1,
+					print("Win1 changes reversed...");
+				,
+					print("Failed...");
+				);
+		);
+	,
+		print("Error occured while renaming win1");
+	);
+
+	//rename, copy and delete temp file for  win2
+	rename_win2 = Rename File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\SAM Review Functions.jsl", "win2_temp.jsl" );
+	if ( rename_win2 == 1 & win1_flag ==1, //added del_win1 to see if everything worked properly for win1
+		copy_win2 = copy file( server_SAM_File_dir_Path || "SAM Review Functions.jsl", "$ADDIN_HOME(com.intel.sos)\PCS Utilities\SAM Review Functions.jsl");
+		if (copy_win2 == 1,
+				print("win2 downloaded successfully...");
+				del2 = Delete File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\win2_temp.jsl" );
+				win2_flag = 1;
+			,
+				print("Error occured while downloading SAM Review Functions.jsl");
+				rename_win2_1 = Rename File( "$ADDIN_HOME(com.intel.sos)\PCS Utilities\win2_temp.jsl", "SAM Review Functions.jsl" );	//undo rename
+				if(rename_win2_1 == 1,
+					print("Win2 changes reversed...");
+				,
+					print("Failed...");
+				);
+		);
+	,
+		print("Error occured while renaming win1");	
+	);
+	
+	
+	if (win1_flag == 1 & win2_flag == 1,
+		//include("SAM Review Functions.jsl");//import contents of new win2
+		//include("$ADDIN_HOME(com.intel.sos)\SAM\SAM Review Functions.jsl");//import contents of new win2
+		versionCheckWindow = New Window("Script Updated Successfully",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("New Version of SAM Review Script has been downloaded."),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)),Button Box("OK")),
+					textbox("")
+				)
+		);
+		openWindowFlag = 1;
+		//versionCheckWindow << Set Window Size(350, 250);	
+	,	
+		versionCheckWindow = New Window("Script Updated Failed",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("SAM Review Script Update Failed. Please contact us through 'SOS HELP' option in SOS menu"),
+					textbox(""),
+					vlistbox(
+						spacerbox(Size(50,5)),
+						Button Box("OK")
+					)
+				);
+		);
+		
+		//versionCheckWindow << Set Window Size(350, 250);
+	);
+	
+);
+
+
+
+CheckScriptVersion = function({},
+	print("Checking for Laterst version of script on Server...");
+	config_file = Open(data_table_path || "\\" || "Config_SAM_Review_Script_Version.jmp");
+	server_script_version = config_file:LatestVersion[1];
+	close(config_file, NoSave);
+	print("Laterst version of script on Server is: " || Char(local_script_version));
+	print("Laterst version of script on Server is: " || Char(server_script_version));
+	if(local_script_version == server_script_version,
+			print("User is using Latest Script");
+			openWindowFlag = 0;
+			skipVersionUpdate();
+		,
+			versionCheckWindow = New Window("Script Update Available!!!",
+				//<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("New Version of SAM Review Script is available. Please Click 'Download' to get latest script."),
+					textbox(""),
+					hlistbox(
+						spacerbox(Size(50,5)),
+						Button Box("Skip", skipVersionUpdate),
+						Button Box("Download", UpdateScriptVersion)
+					)
+				);
+			);
+			openWindowFlag = 1;
+			versionCheckWindow << Set Window Size(350, 250);
+	
+	);
+);
+
+
+closeAllOpenTables = Function({},
+	
+	print("Closing all open tables...");
+	//close all data tables, if any from previous runs
+	try(close("Report.jrn"));
+	try(close(Data Table("All Sites Chart Report.jmp")));
+	try(close(Data Table("AllExclusions.csv")));
+	try(close(Data Table("Area_Module_Lookup.jmp")));
+	try(close(Data Table("CE_Gaps_Chart_Report.jmp")));
+	try(close(Data Table("CE_Gaps_Old_New_Delinquent.jmp")));
+	try(close(Data Table("Charts_with_RFC.jmp")));
+	try(close(Data Table("Charts_with_RFC_RptInfo.jmp")));
+	try(close(Data Table("Comprehensiveness_Gaps_Chart_Report.jmp")));
+	try(close(Data Table("Dashboard.jmp")));
+	try(close(Data Table("data_subset.jmp")));
+	try(close(Data Table("Facility.jmp")));
+	try(close(Data Table("filter_Selection.txt" )));
+	try(close(Data Table("Filters_Applied.jmp")));
+	try(close(Data Table("Gaps_CR_Golden.jmp")));
+	try(close(Data Table("Missing Triggers.csv")));
+	try(close(Data Table("Missing_SC_Gaps.jmp")));
+	try(close(Data Table("Monitor Sets not at Site.jmp")));
+	try(close(Data Table("Monitor_Sets.jmp")));
+	try(close(Data Table("Monitor_Sets_not_in_Golden.jmp")));
+	try(close(Data Table("Monitor_Sets_not_in_PRF.jmp")));
+	try(close(Data Table("Monitor_Sets_Source.jmp")));
+	try(close(Data Table("Monitor_Sets_Source_Summary.jmp")));
+	try(close(Data Table("monitorsets_from_cr_grf_not_in_PRF.jmp")));
+	try(close(Data Table("Monitorsets_from_PRF.jmp")));
+	try(close(Data Table("monitorsets_not_at_site.jmp")));
+	try(close(Data Table("non_spc_triggers_summary.jmp")));
+	try(close(Data Table("PRF_All_Platforms.jmp")));
+	try(close(Data Table("repeat_summary.jmp")));
+	try(close(Data Table("repeat_trigger_90day.jmp")));
+	try(close(Data Table("repeat_trigger_AR_summary.jmp")));
+	try(close(Data Table("repeat_trigger_exclusion.jmp")));
+	try(close(Data Table("repeat_trigger_secondary.jmp")));
+	try(close(Data Table("Report_Table.jmp")));
+	try(close(Data Table("rfc_Gaps.jmp")));
+	try(close(Data Table("RFC_Revison_Gaps.jmp")));
+	try(close(Data Table("SPC++_Master_Reference_File_Combo.jmp")));
+	try(close(Data Table("Summarized_Mapped_CR.jmp")));
+	try(close(Data Table("Summarized_Mapped_Golden.jmp")));
+	try(close(Data Table("Tabulated MRF Comprehensiveness Gaps.jmp")));
+	try(close( Data Table( "Monitor_Sets" ), NoSave));
+	try(close( Data Table( "Summarized_Mapped_Chart_Report" ), Nosave));
+	try(close( Data Table( "Summarized_Mapped_Chart_Report" ), NoSave));
+	try(close( Data Table( "Summarized_Mapped_Golden" ), NoSave));
+	try(close(Data Table( "data_subset" ), NoSave));
+	try(close(Data Table( "Facility" ), NoSave));
+	try(close(Data Table( "Filters_Applied.jmp" ), NoSave));
+	try(close(Data Table( "Mapped_Chart_Report" ), NoSave));
+	try(close(Data Table( "Mapped_Golden" ), NoSave));
+	try(close(Data Table( "Monitor Sets in PRF (Site)" ), NoSave));
+	try(close(Data Table( "Monitor_Sets" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_grf" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_grf_cr" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_not_in_ChartReport" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_not_in_Golden" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_not_in_PRF" ), NoSave));
+	try(close(Data Table( "Monitor_Sets_Source_Summary" ), NoSave));
+	try(close(Data Table( "monitors_in_PRF_by_site" ), NoSave));
+	try(close(Data Table( "non_spc_triggers_entity" ), NoSave));
+	try(close(Data Table( "PRF Stacked" ), NoSave));
+	try(close(Data Table( "rfc_Gaps" ), NoSave));
+	try(close(Data Table( "Summarized_Mapped_CR" ), NoSave));
+	try(close(Data Table("charts_with_entity"), NoSave));
+	try(close(Data Table("facility"), NoSave));
+	try(close(Data Table("Monitor Sets not at Site(Selected)"), NoSave));
+	try(close(Data Table("Monitor_Sets_cr"), NoSave));
+	try(close(Data Table("Monitor_Sets_not_in_PRF"), NoSave));
+	try(close(Data Table("monitorsets_from_cr_grf_not_in_PRF"), NoSave));
+	try(close(Data Table("monitorsets_not_at_site"), NoSave));
+	try(close(Data Table("PRF Stacked SiteModule") , NoSave));
+	try(close(Data Table("PRF Stacked SiteModule"), NoSave));
+	try(close(Data Table("PRF_Stacked_SiteModule"), NoSave));
+	try(close(Data Table("repeat_summary"), NoSave));
+	try(close(Data Table("repeat_trigger_AR_summary"), NoSave));
+	try(close(Data Table("repeat_trigger_exclusion"), NoSave));
+	try(close(Data Table("repeat_trigger_secondary"), NoSave));
+	try(close(Data Table("DATA_temp_ATD"), NoSave));
+	try(close(Data Table("DATA_temp_CD"), NoSave));
+	try(close(Data Table("DATA_temp_CRTO"), NoSave));
+	try(close(Data Table("DATA_temp_KM"), NoSave));
+	try(close(Data Table("DATA_temp_PG"), NoSave));
+	try(close(Data Table("DATA_temp_VN"), NoSave));
+	
+	//close data tables if referred with variable names:
+	try(close(report_table, NoSave));
+	try(close(filter_table, NoSave));
+	try(close(monitorsets, NoSave));
+	try(close(monitorsets_source_summary, NoSave));
+	try(close(monitorsets_not_at_site, NoSave));
+	try(close(Monitor_Sets_not_in_Golden, NoSave));
+	try(close(Monitor_Sets_not_in_PRF, NoSave));
+	try(close(Monitorsets_not_in_PRF_fromCRGRF, NoSave));
+	try(close(charts, NoSave));
+	try(close(charts_golden, NoSave));
+	try(close(grf_cl_type, NoSave));
+	try(close(charts_RFC, NoSave));
+	try(close(rfc, NoSave));
+	try(close(CE_Gaps, NoSave));
+	try(close(Comp_Gaps, NoSave));
+	try(close(RFC_Gaps, NoSave));
+	try(close(RFC_SC_Gaps, NoSave));
+	try(close(RFC_Rev_Gaps, NoSave));
+	try(close(RFC_Revison_Gaps_summary, NoSave));
+	try(close(CR_Golden_Mismatches, NoSave));
+	try(close(repeat_trigger_dash, NoSave));
+	try(close(repeat_trigger_dt, NoSave));
+	try(close(repeat_trigger_summary_dt, NoSave));
+	try(close(repeat_trigger_secondary_dt, NoSave));
+	try(close(repeat_trigger_AR_table, NoSave));
+	try(close(Dashboard_Table, NoSave));
+	try(close(allExclusions, NoSave));
+	try(close(CE_charts, NoSave));
+	try(close(CE_Gaps, NoSave));
+	try(close(CE_summary_gaps, NoSave));
+	try(close(Central_report_SPC, NoSave));
+	try(close(chart_summary, NoSave));
+	try(close(chart_summary1, NoSave));
+	try(close(charts, NoSave));
+	try(close(charts_golden, NoSave));
+	try(close(charts_not_in_grf, NoSave));
+	try(close(charts_RFC, NoSave));
+	try(close(Charts_with_rfc, NoSave));
+	try(close(charts_without_limits, NoSave));
+	try(close(comp_gaps, NoSave));
+	try(close(Comp_Gaps, NoSave));
+	try(close(comp_gaps_summary, NoSave));
+	try(close(cr, NoSave));
+	try(close(cr_golden_gap, NoSave));
+	try(close(CR_Golden_Mismatches, NoSave));
+	try(close(cr_mapped_dt, NoSave));
+	try(close(dashboard_table, NoSave));
+	try(close(Dashboard_Table, NoSave));
+	try(close(dt, NoSave));
+	try(close(dt_area_module, NoSave));
+	try(close(dt_temp, NoSave));
+	try(close(dt_temp1, NoSave));
+	try(close(dt2, NoSave));
+	try(close(dt3, NoSave));
+	try(close(entityIDs, NoSave));
+	try(close(facility, NoSave));
+	try(close(facility_table, NoSave));
+	try(close(filter_table, NoSave));
+	try(close(gaps, NoSave));
+	try(close(grf, NoSave));
+	try(close(grf_cl_type, NoSave));
+	try(close(grf_mapped_dt, NoSave));
+	try(close(joined_charts_grf, NoSave));
+	try(close(maintable, NoSave));
+	try(close(MeanRepeat2, NoSave));
+	try(close(missing_triggers, NoSave));
+	try(close(Missing_Triggers, NoSave));
+	try(close(mon_sets_from_prf_dt, NoSave));
+	try(close(mon_sets_source_prf, NoSave));
+	try(close(mon_sets_unique, NoSave));
+	try(close(Monitor_Sets_not_in_Golden, NoSave));
+	try(close(Monitor_Sets_not_in_PRF, NoSave));
+	try(close(monitors_in_CR, NoSave));
+	try(close(monitors_in_Golden, NoSave));
+	try(close(monitors_in_PRF, NoSave));
+	try(close(monitors_not_in_CR, NoSave));
+	try(close(monitors_not_in_grf, NoSave));
+	try(close(monitors_not_in_PRF, NoSave));
+	try(close(monitorset_source_table, NoSave));
+	try(close(monitorsets, NoSave));
+	try(close(monitorsets_all, NoSave));
+	try(close(monitorsets_from_prf, NoSave));
+	try(close(Monitorsets_from_PRF, NoSave));
+	try(close(monitorsets_not_at_site, NoSave));
+	try(close(Monitorsets_not_at_site, NoSave));
+	try(close(Monitorsets_not_in_PRF_fromCRGRF, NoSave));
+	try(close(monitorSets_PRF, NoSave));
+	try(close(Monitorsets_PRF, NoSave));
+	try(close(monitorsets_source_summary, NoSave));
+	try(close(mrf, NoSave));
+	try(close(non_spc_triggers_entity, NoSave));
+	try(close(number, NoSave));
+	try(close(old_vs_new, NoSave));
+	try(close(prf, NoSave));
+	try(close(PRF, NoSave));
+	try(close(prf_gaps, NoSave));
+	try(close(prf_joined_with_monitorsets_table, NoSave));
+	try(close(PRF_Stack, NoSave));
+	try(close(repeat_trigger_AR_table, NoSave));
+	try(close(repeat_trigger_dash, NoSave));
+	try(close(repeat_trigger_dt, NoSave));
+	try(close(repeat_trigger_secondary_dt, NoSave));
+	try(close(repeat_trigger_summary_dt, NoSave));
+	try(close(repeatTrigger_exclude_table, NoSave));
+	try(close(repeatTriggerExcludedRFC, NoSave));
+	try(close(report_table, NoSave));
+	try(close(report_table_ppt, NoSave));
+	try(close(rfc, NoSave));
+	try(close(RFC_Gaps, NoSave));
+	try(close(rfc_rev_gaps, NoSave));
+	try(close(RFC_Rev_Gaps, NoSave));
+	try(close(rfc_rev_gaps_source, NoSave));
+	try(close(RFC_Revison_Gaps_summary, NoSave));
+	try(close(RFC_SC_Gaps, NoSave));
+	try(close(sc_gaps, NoSave));
+	try(close(SC_Gaps, NoSave));
+	try(close(SC_Gaps_table, NoSave));
+	try(close(sub0, NoSave));
+	try(close(sub1, NoSave));
+	try(close(sub2, NoSave));
+	try(close(subset_new_prf, NoSave));
+	try(close(Summarized_Mapped_CR_without_RFC, NoSave));
+	try(close(summary_table, NoSave));
+	try(close(temp_dt_monList ,NoSave));
+	try(close(temp1, NoSave));
+	try(close(triggers_60_days, NoSave));
+	try(close(unique_charts, NoSave));
+	try(FinalReport << close window);
+	try(PRF_Filter << close window);
+	try(prf_prompt << close window);
+	try(progress_bar_dlgStatus << close window);
+	try(report_window << close Window);
+	try(Window( "Overall Progress" ) << close window);
+	try(close(Data Table("Report_temp"), nosave));
+	print("Closed all open tables...");
+	
+);		
+
+closeAllOpenTables();
+CheckScriptVersion();
+	
+	
+	
+
+
+/*
+Rev1: 
+	First version on SOS
+Rev2: 
+	Changes based on inputs from Stats SLG:
+	1)	SAM Review::Added user guide link on site selection prompt and edited text for JMP16 version(line 271 to 274)
+	2)	SAM Review Function:: Added WATD to PRF Stacking function (line 1097)
+	3)	SAM Review Function:: Added new columns to golden file from line 647 to 665
+
+Rev1.3:
+	1)bug fix highlighted for WATD site by Khandaker, Md Shahriar
+
+Rev1.4:
+	1)bug fix: delete empty row from Facility/Factory data table(line number 222-228)
+	
+Rev1.5:
+	1)Added PCS SPC++ charts tab on scripts
+
+Rev1.6:
+	1)Added if block to fix bug on line 1370 on functions file: Requestor: Herrington, William on 12/14/2021
+	 
+
+*/

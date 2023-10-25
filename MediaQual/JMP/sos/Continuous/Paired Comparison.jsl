@@ -1,0 +1,421 @@
+﻿/*******************************************************************************************
+  
+  Paired Comparison:
+  Author: Karl Pazdernik
+  Revision: 2
+  Date: 4/8/2015
+  JMP Version: 9.0.3 and beyond
+
+SOS Revision History
+	Rev 2: Added alpha as input. Changed initialization of variables to global variables.
+*******************************************************************************************/
+
+
+/************************SCRIPT INITIALIZATION*********************************/
+////////////////////////////////////////////////////////////////////////////////
+// 1. Clear all global variables
+// 2. Call sosglbls and sosfunc Function Libraries.
+//////////////////////////////////////////////////////////////////////////////////
+
+Clear Globals();
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+/************************FUNCTION DEFINITIONS**********************************/
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: myfactorial(a)
+//Type: Function
+//Description:
+// 1. Computes the factorial of an integer greater than 0
+////////////////////////////////////////////////////////////////////////////////
+myfactorial = Function( {a}, If( a <= 1, 1, a * Recurse( a - 1 ) ) );
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateOverlayp(x_,y_,z_,i_)
+//Type: Function
+//Description:
+// 1. Generates overlay plot
+// 2. Arguments:
+//	x_ 				: optional x-axis data (col)
+//	y_ 				: y-axis data (col)
+//	z_		 		: optional by variable (col)
+//	i_		 		: by variable index (num)
+////////////////////////////////////////////////////////////////////////////////
+GenerateOverlayp = Function( {x_, y_, z_, i_}, 
+
+	If( N Items( Eval(z_) ) >= 1,
+		Overlay_Boxp = Overlay Plot(
+			X( Eval( x_ ) ),
+			Y( Eval( y_ ) ),
+			Where( As Column( z_ ) == bc[i_] ),
+			Separate Axes( 1 ),
+			Connect Thru Missing( 1 ),
+			SendToReport(
+				Dispatch( {}, "Overlay Plot Graph", FrameBox, {Marker Size( 4 ), Line Width Scale( 0.5 )} ),
+				Dispatch( {}, "Overlay Plot", OutlineBox, {Set Title( "Overlay Plot of " || (As Column(z_) << Get Name) || "=" || bc[i_] )} )
+			)
+		)
+	,
+		Overlay_Boxp = Overlay Plot(
+			X( Eval( x_ ) ),
+			Y( Eval( y_ ) ),
+			Separate Axes( 1 ),
+			Connect Thru Missing( 1 ),
+			SendToReport( Dispatch( {}, "Overlay Plot Graph", FrameBox, {Marker Size( 4 ), Line Width Scale( 0.5 )} ) )
+		)
+	)
+);	
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateAnalysisp(y_,z_,i_)
+//Type: Function
+//Description:
+// 1. Generates overlay plot
+// 2. Arguments:
+//	y_ 			: y-axis data (at least 2 columns)
+////////////////////////////////////////////////////////////////////////////////
+//
+::GenerateAnalysisp = Function( {y_, z_, i_},
+	
+	// Matched Pairs Analysis //
+	If( N Items( Eval(z_)),
+		Analysis_Box = Matched Pairs(
+			Y( Eval( y_ ) ),
+			Where( As Column( z_ ) == bc[i_] ),
+			Plot Dif By Mean( 0 ),
+			Plot Dif By Row( 1 ),
+			Reference Frame( 0 ),
+			Set α Level( alpha ),
+			SendToReport(
+				Dispatch( {}, "Matched Pairs", OutlineBox, {Set Title( "Matched Pairs of " || (As Column(z_) << Get Name) || "=" || bc[i_] )} )
+			)
+		);
+	,
+		Analysis_Box = Matched Pairs(
+			Y( Eval( y_ ) ),
+			Plot Dif By Mean( 0 ),
+			Plot Dif By Row( 1 ),
+			Reference Frame( 0 ),
+			Set α Level( alpha )	
+		);
+	);
+	
+	
+	tpairs = {};
+	tbias = {};
+	tsds = {};
+	tlci = {};
+	tuci = {};
+	tpvals = {};
+	tdecision = {};
+	tby_out = {};
+	
+	
+	For( j = 1, j <= m, j++,
+		tname = Report( Analysis_Box )[Outline Box( j + 1 )] << Get Title;
+		tpairs[j] = Right( tname, Length( tname ) - 12 );
+		out_nums = Report( Analysis_Box )[Outline Box( j + 1 ), Number Col Box( 1 )] << Get;
+		tbias[j] = out_nums[3];
+		tsds[j] = out_nums[4] * Sqrt( out_nums[7] );
+		tuci[j] = out_nums[5];
+		tlci[j] = out_nums[6];
+		tpvals[j] = Report( Analysis_Box )[Outline Box( j + 1 ), Number Col Box( 3 )] << Get( 1 );
+		
+		If( tpvals[j] > alpha,
+			tdecision[j] = "SE",
+			tdecision[j] = "SW"
+		);
+		If( N Items(Eval(z_)),
+			Insert Into(tby_out, bc[i_]);
+		);
+	);
+
+	pairs[i_] = tpairs;
+	bias[i_] = tbias;
+	sds[i_] = tsds;
+	lci[i_] = tlci;
+	uci[i_] = tuci;
+	pvals[i_] = tpvals;
+	decision[i_] = tdecision;
+	by_out[i_] = tby_out;
+
+);
+///////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: add_te_p
+//Type: Expression
+//Description:
+// 1. These expressions add the TE calculation to the Summary output window.
+////////////////////////////////////////////////////////////////////////////////
+::add_te_p = Expr(
+
+	If( Contains( t_sum_p << Get Names, "AD" ) > 0,
+		t_sum_p[Number Col Box( "AD" )] << Delete;
+		t_sum_p[String Col Box( "TE Test" )] << Delete;
+		Summary_Box << Set Menu Item State( 1, 0 );
+	,
+		ADp = J( m * byitems, 1, . );
+		TEp = {};
+		lim_flagp = {};
+		
+		t_sum_p << Append( ad_box_p = Number Col Edit Box( "AD", ADp ) );
+		t_sum_p << Append( te_box_p = String Col Box( "TE test", TEp ) );
+		
+		Summary_Box << Set Menu Item State( 1, 1 );
+	);
+
+); //EndExpr
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: update_table_p
+//Type: Expression
+//Description:
+// 1. This expression updates the table after AD or limits are provided.
+////////////////////////////////////////////////////////////////////////////////
+::update_table_p = Expr(
+
+	///////////////////////////////
+	// Update via AD calculation //
+	Try(
+		ADp = ad_box_p << get as matrix;
+	
+	// Check for inappropriate entries //
+		lim_flagp = As List( ADp < 0 );
+	
+	// Compute TE //
+		TEp = As List( (Matrix( lci ) > -1 * ADp & Matrix( uci ) < ADp) + Matrix( lim_flagp ) * 2 );
+		Substitute Into( TEp, 1, "TE", 0, "not TE", 2, "Negative AD", 3, "Negative AD", ., "" );
+		te_box_p << Set Values( TEp );
+	)
+); //EndExpr
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/***********************************PERFORM ANALYSIS**********************************/
+
+// Initialize variables //
+::alpha = 0.05;
+::pairs = {};
+::bias = {};
+::sds = {};
+::lci = {};
+::uci = {};
+::pvals = {};
+::decision = {};
+::by_out = {};
+::jmpv = Num( Word( 1, JMP Version(), "." ) );
+
+// Open data table if none open //
+If( N Table() == 0,	Open());
+
+
+
+//////////////////////////////////////////////////////
+// Initial dialog box where columns are categorized //
+Result = Column Dialog(
+	Title( "Paired Comparison" ),
+	Response = ColList( "Response Variables", MinCol( 2 ), DataType( Numeric ) ),
+	Run_ID = ColList( "Unit or Part", MaxCol( 1 ), Columns( :Unit, :UnitID, :Part ) ),
+	By_col = ColList( "By Variable", MaxCol( 1 ), Columns( :By ) ),
+	H List( "Alpha level:   ", alpha_input = Edit Number( alpha ) )
+);
+button = Result["Button"];
+Remove From( Result );
+Parms = Eval List( Result );
+alpha = alpha_input;
+
+// Error Check alpha rate //
+If( alpha <= 0 | alpha >= 1,
+	Dialog( "Alpha probability not in range 0 to 1.", HList( Button( "OK" ) ) );
+	button = -1;
+);
+
+
+
+
+// Determine the number of tabs to create //
+If( N Items( By_col ),
+	Summarize( bc = By( By_col[1] ) );
+	By_col[1] << Data Type( Character );
+	byitems = N Items( bc );
+	byname = By_col[1] << Get Name;
+,
+	byitems = 1
+);
+
+// Determine the number of analyses per tab //
+n = N Items( Response );
+m = myfactorial( n ) / (myfactorial( n - 2 ) * 2);
+
+
+
+If( button == 1, 
+//////////////////////////////////////////////////////////////////////
+	// MAIN LOOP
+	// Description:
+	// 1. This where calculations are performed for each response variable
+	// 2. Output is organized into appropriate boxes
+	/////////////////////////////////////////////////////////////////////
+	
+
+	// Perform analysis on response variables //
+	nw = New Window( "Paired Comparison", output = Tab Box() );
+	If( byitems > 1,
+		
+		For( i = 1, i <= byitems, i++, 
+			
+			tmp_plot = V List Box( GenerateOverlayp( Run_ID, Response, By_col, i ) );
+			tmp_plot[Text Box(1)] << Delete;
+			tmp_analysis = V List Box( GenerateAnalysisp( Response, By_col, i ) );
+			tmp_analysis[Text Box(1)] << Delete;
+			
+			
+			output << Insert(
+				byname || " = " || bc[i],
+				V List Box(
+					Outline Box( "Summary " || byname || "=" || bc[i],
+						Table Box(
+							String Col Box( "Parameter", pairs[i] ),
+							Number Col Box( "Bias", bias[i], <<SetFormat( 8, 4 ) ),
+							Number Col Box( "Std Dev", sds[i], <<SetFormat( 8, 4 ) ),
+							Number Col Box( "p-value", pvals[i], <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 8 ) ),
+							String Col Box( "Decision", decision[i] ),
+							Number Col Box( Char(100*(1-alpha)) || "% LCI", lci[i], <<SetFormat( 8, 4 ) ),
+							Number Col Box( Char(100*(1-alpha)) || "% UCI", uci[i], <<SetFormat( 8, 4 ) ),
+							<<TableStyle( "Bordered" )
+						)
+					),
+					H List Box( tmp_plot, tmp_analysis )
+				)
+			);
+		);
+	,
+		output << Insert( "Analysis",
+			H List Box( V List Box(GenerateOverlayp( Run_ID, Response, By_col, 1 )), V List Box(GenerateAnalysisp( Response, By_col, 1 )) )
+		);
+	);
+
+
+	
+// Flatten lists so that they can be reported in a summary and used to assess TE //
+	pairs = Flatten2DList(pairs);
+	by_out = Flatten2DList(by_out);
+	bias = Flatten2DList(bias);
+	sds = Flatten2DList(sds);
+	pvals = Flatten2DList(pvals);
+	decision = Flatten2DList(decision);
+	lci = Flatten2DList(lci);
+	uci = Flatten2DList(uci);
+
+
+////////////////////////////////////////////////////////////////
+	// SUMMARY DISPLAY BOX
+	// 1. A summary is added to the beginning of the output window
+	////////////////////////////////////////////////////////////////
+	
+	
+	// Create summary display box //
+	Summary_Box = Outline Box( "Paired Comparison Summary",
+		t_sum_p = Table Box(
+			String Col Box( "Parameter", pairs ),
+			If( byitems > 1,
+				String Col Box( byname, by_out )
+			),
+			Number Col Box( "Bias", bias, <<SetFormat( 8, 4 ) ),
+			Number Col Box( "Std Dev", sds, <<SetFormat( 8, 4 ) ),
+			Number Col Box( "p-value", pvals, <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 8 ) ),
+			String Col Box( "Decision", decision),
+			Number Col Box( Char(100*(1-alpha)) || "% LCI", lci, <<SetFormat( 8, 4 ) ),
+			Number Col Box( Char(100*(1-alpha)) || "% UCI", uci, <<SetFormat( 8, 4 ) ),
+			<<TableStyle( "Bordered" )
+		)
+	);
+	
+	// Add display box to beginning of output window //
+	output << Add( 1, "Summary", Summary_Box );
+	If( byitems > 1,
+		If( (Length(Char(bc)) - 4*byitems) > n*50, output << Set Style( combo ) );
+	,
+		//output << Set Style( outline );
+	);
+
+	
+	// Add TE calculations //
+	If( jmpv >= 11,
+		Summary_Box << Set Menu Script( {"Technical Equivalence", Eval( add_te_p )} );
+		t_sum_p << Set Cell Changed Function( update_table_p );
+	);
+	
+	
+	// Show final output window //
+	nw << Append( FooterBox );
+	nw << Bring Window to Front;
+);
+
+////////////////////////////////////////////////////////////////
+/***************************END SCRIPT*************************/

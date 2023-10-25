@@ -1,0 +1,44 @@
+/**********************
+t distribution demo script
+By:  		Paul Wenz ( ATTD Statistician)
+Rev: 		1.1
+Date:  	                 Nov 2007
+Remark:  	This script can show the t distribution changes with changes of df. 
+
+Fixed error in JMP 5 on Nov 13'07 by Wang Fang
+***********************/
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Curve_legend = Expr(
+	Graph_Legend = Outline Box("Graph Legend",
+		Text Box("	Blue curve is standard normal distribution."),
+		Text Box("	Red curve is t distribution."),
+		TextBox(" ")
+	             )
+);// Graph Legend Report
+
+df = 1;
+New Window("t-distribution demo",
+	Outline Box("t-distribution demo",
+		Graph Box(
+			Framesize(300, 150),
+			X Scale(-5, 5),
+			Y Scale(0, .5),
+			Double Buffer,
+			Pen Color("blue");
+			Y Function(Normal Density(x), x);
+			Pen Color("red");
+			Y Function(t Density(x, df), x);
+			Text({0, df / 80 + 0.01}, "df = ", df);
+			Handle(0, df / 80, df = Floor(80 * y) + 1)
+		                          ),
+		Curve_legend,
+		Graph_Legend << Close;
+		Text Box(
+			"Click on the black square and drag up to increase df and drag down to decrease df"
+		)
+                      
+
+	),
+	FooterBox
+); 

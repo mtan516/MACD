@@ -1,0 +1,330 @@
+/*******************************************************************************************
+	
+	P-Chart with Exact Binomial Limits
+	Author: Philip Brown
+	Editor: Paul Wenz
+	Rev: Version 1.3
+	Date: 7/27/2012
+	JMP Version: 9
+	Starting Condition:  Table with Run_ID, sample size, and # of defects.
+	Output: p-chart with mean defect rate, k-sigma UCL.
+			OOC report with #OOC and % OOC. 
+			
+	Edits: 
+	Rev 1.3 Added Percent Norm Capability
+	Rev 1.2.1 Properly handle excluded rows.
+	Rev 1.2  Removed 2 sigma limits.  Added user specified k sigma.
+	
+	Rev 1.1  Data table copy correctly selects all rows and columns.
+				Reformatted script
+				Added 1 unit to x axis
+				fixed graph resizing bug
+				added more :: to scope variables
+
+*******************************************************************************************/
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Declare Globals/Includes>/////////////////////////////////////////////////////
+ClearGlobals();
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"),::FooterBox=VListBox(textbox(" ")));
+If( NTable()==0, ::dt=Open(); CurrentDataTable(dt), ::dt=CurrentDataTable() );
+
+// Make a copy of original table
+dt << Clear Select;
+dt << Clear Column Selection;
+dt << Select Where(!excluded (row state())); // add for 1.2.1 to properly handle excluded rows.
+::data_table = dt << Subset(Output Table(Char(dt<<GetName)||"_"||"(Copy)"));
+
+//Initialize variables
+::valid=.;
+::PChart_MainDiag_Expr=.;
+::PChart_PreProc_Expr=.;
+::Main=.;
+::button={0,0,0,0};
+::result=.;
+::num_units=.;
+::num_fails=.;
+::run_id=.;
+::N_Units_Col=.;
+::N_Fails_Col=.;
+::Run_ID_Col=.;
+::N_Fails_Vals={};
+::N_Units_Vals={};
+::Obs_Rate_Vals={};
+::Obs_Pct_Rate={};
+::Overall_Rate=.;
+::Overall_Pct_Rate=.;
+//::UCL_2_Sigma = {};
+::UCL_3_Sigma = {};
+//::p_2_Sigma = 0.023;
+//::p_3_Sigma = 0.0013;
+::N_OOC_Low = 0;
+::N_OOC_High = 0;
+::Y_axis_type = {"Percent for ","Proportion for "};
+::Y_Name = "";
+::RATE_COL=3;
+::PCT_COL=7;
+::p=.;
+::Calc_pbar=.;
+
+/////////////////////////////////////////////////////////////////////////////////////
+// CreateColumn( dt, colname, type, position)
+// This function is similar to AddMultipleColumns but checks first to see if the column already exists
+/////////////////////////////////////////////////////////////////////////////////////
+::CreateColumn = Function( {dt, col, type,position="AfterLast"},
+	Local( {names,found=0},
+		CurrentDataTable(dt);
+		names = dt<<GetColumnNames(String);
+		For( i=1, i<=NItems(names), i++,
+			If( col == names[i], found=1;i=NItems(names), found=0 );
+		);
+		If( !found, Eval(EvalExpr(dt<<AddMultipleColumns( Char(col),1, Expr(Parse(position)),Expr(Parse(type)) ) )) );
+	);
+);
+/////////////////////////////////////////////////////////////////////////////////////
+
+::p_chart_expr = Expr(
+	Outline Box("Control Chart",
+		V List Box(
+			Overlay Plot(
+				X(x_arg),
+				Y(y_arg1,/* y_arg4,*/ y_arg5, y_arg6),
+				Ungroup Plots(1),
+				Connect Thru Missing(1),
+				X Axis << {Scale(Linear), Format(Best), Min(1), Max(max_arg), Inc(1), Minor Ticks(1),
+				Show Minor Ticks(0)},
+				y_arg1(Connect Color(Black), OverlayMarkerColor(0), OverlayMarker(0)),
+				//y_arg4(ConnectColor(Red), Show Points(0), Step(1)),
+				y_arg5(ConnectColor(Red), Show Points(0), Step(1)),
+				y_arg6(ConnectColor(Green), Show Points(0))
+			) // End Overlay Plot
+		); //End VListBox
+	); //End OutlineBox
+); //EndExpr
+
+/////////////////////////////////////////////////////////////////////////////////////
+::pct_norm_chart_expr = Expr(
+	pct_norm_chart = Outline Box("Control Chart",
+		V List Box(
+			Overlay Plot(
+				X( Run_ID_Col[1] ),
+				Y( :Percent Norm ),
+				Sort X( 0 ),
+				Y Axis[1] << {{Format( "Best", 10 ), Max( p_norm_max ), Minor Ticks( 0 ), Add Ref Line( k, Solid, {255, 0, 0},"UCL" )}},
+				X Axis << {Scale(Linear), Format(Best), Min(1), Max(x_max + 1), Inc(1), Minor Ticks(1),Show Minor Ticks(0)},
+				Separate Axes( 1 ),
+				Connect Thru Missing( 1 ),
+				:Percent Norm( Connect Color( 0 ) ),
+				Connect Points( 1 ),
+				SendToReport(
+					Dispatch( {}, "Overlay Plot", OutlineBox, {Set Title( "Percent Norm Chart" )} ),
+					Dispatch( {}, "Overlay Plot Graph", FrameBox, {Frame Size( 500, 250 )} )
+				)
+			) // End Overlay Plot
+		); //End VListBox
+	); //End OutlineBox
+); //EndExpr
+
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Main Dialog>/////////////////////////////////////////////////////
+
+::PChart_MainDiag_Expr = Expr(
+	diag_result = Column Dialog(
+		Title("p-Chart"),
+		num_fails = ColList("Number of Defects (Required)", Max Col(1), MinCol(1), DataType(Numeric)),
+		num_units = ColList("Sample Size (Required)", Max Col(1), MinCol(1), DataType(Numeric)),
+		run_id = ColList("Sample Label (Optional)", Max Col(1), DataType(Character)),
+		HList(
+			VList("Select Chart Type", sw = RadioButtons("Y axis as percentage", "Y axis as fraction")),
+			VList(
+				VList("Enter k for Limits", k=EditNumber(3),
+				VList("Prespecified P-Bar (Enter in same units as chart type)", p=EditNumber())),
+				VList(cb=CheckBox("Also Create SPC++ Percent Norm Chart",0))
+			)
+		)
+	);
+	::N_Units_Col = diag_result["num_units"];
+	::N_Fails_Col = diag_result["num_fails"];
+	::Run_Id_Col = diag_result["run_id"];
+	::out_switch = diag_result["sw"];
+	::p_norm_switch = diag_result["cb"];
+	::k = diag_result["k"];
+	::p = diag_result["p"];
+	::p_k_Sigma = 1 - Normal Distribution(k);
+	button[1] = diag_result["Button"];
+); //EndExpr
+
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Pre-processor>/////////////////////////////////////////////////////
+
+::PChart_PreProc_Expr = Expr(
+	If(button[1] == 1,  
+		Current Data Table(data_table);
+		If(N Items(Run_ID_Col) == 0,
+			CreateColumn(data_table, "Row", "Numeric");
+			For Each Row(Column(data_table, "Row")[] = Row());
+			Run_Id_Col = Eval List({Column(data_table, "Row")});
+		);
+		Y_Name = Column(data_table, N_Fails_Col) << GetName;
+		::x_max = N Row(data_table); //Change this if we have non-summarized data
+		::colnames = data_table << GetColumnNames;
+		Summarize(Samples_Total = By(Column(Run_ID_Col)));
+		::N_Samples_Total = N Items(Samples_Total);
+		get_pos = Loc(colnames, "2 Sigma Lower Limit");
+		If(N Row(get_pos) != 0,
+			init_n_cols = get_pos[1] - 1,
+			init_n_cols = N Items(colnames)
+		);
+		// N_Samples_Total = Sum(N_Fails_Col[1]<<GetValues);	
+		N_Units_Vals = Column(N_Units_Col[1]) << GetValues;
+		N_Fails_Vals = Column(N_Fails_Col[1]) << GetValues;
+		Obs_Rate_Vals = N_Fails_Vals :/ N_Units_Vals; //Y1_1
+		Obs_Pct_Rate = Obs_Rate_Vals * 100; //Y1_2
+		// Calculate pbar
+		If(out_switch == 1,
+		// then percent scale
+			Calc_pbar = 100 * Sum(N_Fails_Vals) / Sum(N_Units_Vals),
+		// else rate scale
+			Calc_pbar = Sum(N_Fails_Vals) / Sum(N_Units_Vals);
+		);
+
+		If(IsMissing(p),
+			// then calculate pbar
+			Overall_Rate = Sum(N_Fails_Vals) / Sum(N_Units_Vals);
+			Overall_Pct_Rate = Overall_Rate * 100, //Y2_2, //Y2_1
+			// else use prespecified pbar
+			If(out_switch == 1,
+				// then p is a percent
+				Overall_Pct_Rate = p;
+				Overall_Rate = p/100,
+				// else p is a rate
+				Overall_Rate = p;
+				Overall_Pct_Rate = p *100;
+			);
+		);
+		
+	); //EndIf Button[1]
+);//EndExpr
+
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Core Routine>/////////////////////////////////////////////////////
+
+Pchart_Main = Expr(
+	:: Limit_Matrix = J(N Row(N_Units_Vals), 2, 0);
+	For(i = 1, i <= N Row(N_Units_Vals), i++,
+		While(Binomial Distribution(Overall_Rate, N_Units_Vals[i], Limit_Matrix[i, 1]) < 1 - p_k_Sigma,
+			Limit_Matrix[i, 1]++
+		); // UCL
+		While(Binomial Distribution(Overall_Rate, N_Units_Vals[i], Limit_Matrix[i, 2]) < p_k_Sigma,
+			Limit_Matrix[i, 2]++
+		); // LCL
+	);
+
+	// Create Analysis Output Columns		
+	CreateColumn(data_table, "LCL", "Numeric");
+	CreateColumn(data_table, "UCL", "Numeric");
+	CreateColumn(data_table, "Obs Rate", "Numeric");
+	CreateColumn(data_table, "Mean Rate", "Numeric");
+	CreateColumn(data_table, "LCL Rate", "Numeric");
+	CreateColumn(data_table, "UCL Rate", "Numeric");
+	CreateColumn(data_table, "Obs Pct Rate", "Numeric");
+	CreateColumn(data_table, "Mean Pct Rate", "Numeric");
+	CreateColumn(data_table, "Pct LCL Rate", "Numeric");
+	CreateColumn(data_table, "Pct UCL Rate", "Numeric");
+	CreateColumn(data_table, "P Chart OOC Indicator", "Numeric");
+	Column(data_table,"P Chart OOC Indicator") << set formula(If(:Obs Rate > :UCL Rate, 1, 0));
+	
+	If(p_norm_switch,
+		CreateColumn(data_table, "Percent Norm OOC Indicator", "Numeric");
+		CreateColumn(data_table, "Percent Norm", "Numeric");
+		Column(data_table,"Percent Norm") << Set Formula((As Column(Eval(N_Fails_Col)) / As Column(Eval(N_Units_Col)) - (k - 1.5) / As Column(Eval(N_Units_Col)) - Overall_Rate) / Root((Overall_Rate * (1 - Overall_Rate)) / As Column(Eval(N_Units_Col)), Empty()));
+		data_table << Run Formulas;
+		Column(data_table,"Percent Norm OOC Indicator") << set formula(If(:Percent Norm > k, 1, 0));
+		p_norm_max = Max(Colmax(:Percent Norm),k)+1;
+	);
+	
+	// Load Calculated values into data table
+	Column(data_table, "LCL") << SetValues(Limit_Matrix[0, 2]);
+	Column(data_table, "UCL") << SetValues(Limit_Matrix[0, 1]);
+	Column(data_table, "Obs Rate") << SetValues(Obs_Rate_Vals);
+	Column(data_table, "Obs Pct Rate") << SetValues(Obs_Rate_Vals * 100);
+	Column(data_table, "Mean Rate") << SetValues(J(N Row(N_Units_Vals), 1, Overall_Rate));
+	Column(data_table, "Mean Pct Rate") << SetValues(J(N Row(N_Units_Vals), 1, Overall_Rate * 100));
+	Column(data_table, "LCL Rate") << SetValues(Limit_Matrix[0, 2] :/ N_Units_Vals);
+	Column(data_table, "UCL Rate") << SetValues(Limit_Matrix[0, 1] :/ N_Units_Vals);
+	Column(data_table, "Pct LCL Rate") << SetValues((Limit_Matrix[0, 2] :/ N_Units_Vals) * 100);
+	Column(data_table, "Pct UCL Rate") << SetValues((Limit_Matrix[0, 1] :/ N_Units_Vals) * 100);
+
+	For Each Row(
+		If(N_Fails_Col[1][] > :UCL[],
+			N_OOC_High++
+		);
+		If(N_Fails_Col[1][] < :LCL[],
+			N_OOC_Low++
+		);
+	);
+	// Generate P-Chart
+	If(out_switch == 1,
+		::findx = PCT_COL; // then
+		::pbar = Overall_Pct_Rate,
+		::findx = RATE_COL; // else
+		::pbar = Overall_Rate
+	);
+	
+	p_chart = Eval(
+		Substitute(Name Expr(p_chart_expr),
+			Expr(x_arg), Run_ID_Col[1],
+			Expr(y_arg1), Eval(Column(init_n_cols + findx)), // Obs Pct Rate
+			//Expr(y_arg4), Eval(Column(init_n_cols + findx + 2)), // Pct LCL Rate
+			Expr(y_arg5), Eval(Column(init_n_cols + findx + 3)), // Pct UCL Rate
+			Expr(y_arg6), Eval(Column(init_n_cols + findx + 1)), // Mean Pct Rate
+			Expr(max_arg), x_max + 1
+		)
+	);
+	If(p_norm_switch,
+		p_norm = pct_norm_chart_expr;
+		p_chart << Append(p_norm);
+	);
+	p_chart_ooc_reprt = Outline Box("P Chart OOC Report",
+		Table Box(
+			Number Col Box("k Sigma", {k}),
+			Number Col Box("Alpha", {p_k_Sigma}),
+			Number Col Box("P-Bar(calc)", {Calc_pbar}),
+			Number Col Box("P-Bar(preset)", {p}),
+			Number Col Box("# Samples", {N_Samples_Total}),
+			//Number Col Box("# OOC Low", {N_OOC_Low}),
+			Number Col Box("# OOC", {N_OOC_High}),
+			//Number Col Box("% OOC Low", {Eval(100 * N_OOC_Low / N_Samples_Total)}, <<SetFormat(4, 1)),
+			Number Col Box("% OOC", {Eval(100 * N_OOC_High / N_Samples_Total)}, <<SetFormat(4, 1)),
+		)
+	);
+	
+	If(p_norm_switch,
+		pct_norm_ooc_reprt = Outline Box("Percent Norm OOC Report",
+			Table Box(
+				Number Col Box("# OOC", {Colsum(:Percent Norm OOC Indicator)}),
+				Number Col Box("% OOC", {Eval(100 * Colsum(:Percent Norm OOC Indicator) / N_Samples_Total)}, <<SetFormat(4, 1))
+			)
+		),
+		pct_norm_ooc_reprt = HListBox();
+	);
+	
+	p_chart << Append(HListBox(p_chart_ooc_reprt,pct_norm_ooc_reprt));
+	// Display Chart and reports in output window
+	New Window("P-Chart - Control Chart", p_chart);
+	p_chart[Outline Box(2)] << SetTitle("P-Chart for " || Y_Name);
+	p_chart[Text Box(1)] << SetText(Eval(Y_axis_type[out_switch] || Y_Name));
+	p_chart[framebox(1)] << Frame Size(500, 250); //new code
+); //EndExpr
+
+//////////////////////////////////////////////////////////////////////////////////////
+///////////////////<Main Routine>/////////////////////////////////////////////////////
+
+valid = 1;
+While(valid == 1 & button[1] != -1, 
+	Eval(PChart_MainDiag_Expr);
+	Eval(PChart_PreProc_Expr);
+	If(button[1] == 1, Eval(Pchart_Main); valid = 0);
+);
+
+
+

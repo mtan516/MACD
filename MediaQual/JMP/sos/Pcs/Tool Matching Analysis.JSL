@@ -1,0 +1,49 @@
+/********************************************************************
+ *PCS Tool Matching: 1 or 2 Level sampling
+ *Orginator: Paul Wenz and Philip Brown
+ *JMP Version: 8
+ *
+********************************************************************/
+
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sos tool matching functions.jsl");
+
+If(N Table() == 0, dt = Open(), 	dt = Current Data Table());
+//dt << MinimizeWindow;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+Initialize_tool_matching_globals;
+
+// Main Routine
+:: valid = 1;
+While(valid == 1 & button[1] != -1, 
+	Eval(TM_MainDiag_Expr);
+	Eval(TM_PreProc_Expr);
+	If(button[1] == 1,
+		If(((ref_select > 1) & (ref_select != 4)),
+			If(N Items(Param) != 0,
+				Eval(Substitute(Name Expr(RefSrcExpr), Expr(_Main), Expr(TM_Main)));
+				valid = 0;
+			, 
+				Eval(NotReqExpr);
+				If(tempbutton == -1,
+					valid = 1;
+					dt << DeleteColumns(Column(dt, "PARAMETERID"));
+					If(savrsQ,
+						dt << DeleteColumns(Column(dt, "Row State Save"))
+					);
+				, 
+					ref_select = 1;
+					Eval(TM_Main);
+					valid = 0;
+				);
+			)
+		, 
+			Eval(TM_Main);
+			valid = 0;
+		); //EndIf ref_select
+	); // end if
+);  // end while 

@@ -1,0 +1,190 @@
+/*******************************************************************************************
+	
+	2-Proportion Sample Size
+	Author: Paul Wenz
+	Rev: 1.1.1
+	Date: 10/31/2005
+	JMP Version: 5.1.1
+	Starting Condition: Input first proportion, delta, alpha, beta, and hypothesis type.
+	Output: Sample size is computed using exact binomial methods.
+	Changes from 1sample ss:  remove decision criteria, rename "target proportion"
+	Improvements: Added "for each group" next to sample size.  Clarified instructions in dialog box.
+		Added error checking for negative delta
+
+********************************************************************************************/
+
+button = 1;
+alpha = 0.05;
+beta = 0.10;
+input_p0 = .;
+delta = .;
+hyptype="SB";
+scale="Defect %";
+n=.;
+
+/****************************** Input Dialog Box **************************************************/
+
+while(button==1,
+
+ If(hyptype=="SB",a2="SB";b2="SEB";c2="SE",
+    hyptype=="SEB",a2="SEB";b2="SB";c2="SE",
+    hyptype=="SE",a2="SE";b2="SB";c2="SEB");
+
+ If(scale=="Defect %",a3="Defect %";b3="DPM";c3="Yield %",
+    scale=="DPM",a3="DPM";b3="Defect %";c3="Yield %",
+    scale=="Yield %",a3="Yield %";b3="Defect %";c3="DPM");
+
+ result=Dialog(title("2-Proportion Sample Size"),
+  "Provide Values for First (POR) Proportion, Delta,",
+  "Hypothesis Type, Alpha, and Beta. ",
+  " ",
+  " ",
+  VList(
+    Hlist( Lineup(2,
+    "First Proportion", input_p0=EditNumber(input_p0),
+    "Delta", delta=EditNumber(delta)
+	), scale=radiobuttons(a3,b3,c3)),
+   Lineup(3,
+   "Hypothesis Type",hyptype=radiobuttons(a2,b2,c2)," ",
+    " "," "," ",
+    " "," "," ",
+    "Alpha", alpha=EditNumber(alpha)," ",
+    "Beta", beta=EditNumber(beta)," ",
+    " "," "," ",
+    " "," "," ",
+    "Sample Size:", n=EditNumber(n)," for each group."
+	), 
+      " ",
+   HList(Button("OK"), Button("Cancel"))
+  )
+ );
+
+/****************************** Extract Results **************************************************/
+
+button = result["Button"];
+alpha=result["Alpha"];
+beta=result["Beta"];
+
+hyptype=result["hyptype"];
+ if(hyptype==1,hyptype=a2,
+    hyptype==2,hyptype=b2,
+    hyptype==3,hyptype=c2);
+
+scale=result["scale"];
+ if(scale==1,scale=a3,
+    scale==2,scale=b3,
+    scale==3,scale=c3);
+
+delta = result["delta"];
+input_p0=result["input_p0"]; 
+ if(scale=="Defect %",p0=result["input_p0"]/100,
+    scale=="DPM",p0=result["input_p0"]/1000000,
+    scale=="Yield %",p0=1-result["input_p0"]/100);
+ if(scale!="DPM" & hyptype=="SB", p1 = p0 - result["delta"]/100 ,
+    scale=="DPM" & hyptype=="SB", p1 = p0 - result["delta"]/1000000,
+    scale!="DPM" & hyptype=="SEB", p1 = p0 + result["delta"]/100 ,
+    scale=="DPM" & hyptype=="SEB", p1 = p0 + result["delta"]/1000000, 
+    scale!="DPM" & hyptype=="SE", if(abs(0.5 - (p0 + result["delta"]/100))< abs(0.5 - (p0 - result["delta"]/100)),
+						p1 = p0 + result["delta"]/100, p1 = p0 - result["delta"]/100),
+    scale=="DPM" & hyptype=="SE", if(abs(0.5 - (p0 + result["delta"]/1000000))< abs(0.5 - (p0 - result["delta"]/1000000)),
+						p1 = p0 + result["delta"]/1000000, p1 = p0 - result["delta"]/1000000)
+	);
+
+//show(input_p0);
+//show(p0);
+//show(p1);
+
+/****************************** Check for Input Errors **************************************************/
+
+If (button==1,
+
+/* Error Checking for Alpha and Beta */
+  if(alpha > .4 | alpha <= 0, Dialog(Title("Error"),"","Alpha must be between 0 and .4",
+   "",Button("OK"),"");alphatest="out",Is Missing(alpha),Dialog(Title("Error"),
+   "","Please Enter a Value For Alpha, Between 0 and .4","",Button("OK"),"");
+   alphatest="missing",alphatest="OK");
+  if(beta > .4 | beta <= 0, Dialog(Title("Error"),"","Beta must be between 0 and .4",
+   "",Button("OK"),"");betatest="out",Is Missing(beta),Dialog(Title("Error"),
+   "","Please Enter a Value For Beta, Between 0 and .4","",Button("OK"),"");
+   betatest="missing",betatest="OK");
+
+/* Error Checking for Target Prop and Delta */
+
+if(alphatest=="OK" & betatest=="OK",
+ if(scale!="DPM",
+  if(input_p0 >= 100 | input_p0 <= 0, Dialog(Title("Error"),"","Target Proportion must be between 0 and 100",
+   "",Button("OK"),"");p0test="out",Is Missing(input_p0),Dialog(Title("Error"),
+   "","Please Enter a Value For Target Proportion, Between 0 and 100","",Button("OK"),"");
+   p0test="missing",p0test="OK"););
+ if(scale=="DPM",
+  if(input_p0 >= 1000000 | input_p0 <= 0, Dialog(Title("Error"),"",
+   "Target Proportion must be between 0 and 1,000,000","",Button("OK"),"");p0test="out",
+   Is Missing(input_p0),Dialog(Title("Error"),"",
+   "Please Enter a Value For Target Proportion, Between 0 and 1,000,000","",Button("OK"),"");p0test="missing",
+   p0test="OK"););
+ if(p1 < 0 | p1 > 1 | delta <= 0, Dialog(Title("Error"),"","Delta out of range",
+   "",Button("OK"),"");deltatest="out",Is Missing(delta),Dialog(Title("Error"),
+   "","Please Enter a Value For Delta","",Button("OK"),"");
+   deltatest="missing",deltatest="OK");
+  );
+
+/********************************* Sample Size Algorithms *******************************************************/
+
+	/************ 2 sample binomial t-test function:  ************
+		returns 1 if p1 SE p2 
+		returns 0 if p1 not SE p2 
+		pass alpha for 1 sided test, pass alpha/2 for 2 sided test  */
+
+	test = function({x1,x2,n,alpha}, 
+		tphat1=x1/n;	
+		tphat2=x2/n;
+		df= 2* n - 2;
+		s=sqrt((n*tphat1*(1-tphat1)+n*tphat2*(1-tphat2))/df);
+		t=(tphat1-tphat2)/(s*sqrt(1/n+1/n));
+		if(1-tDistribution(abs(t),df)<alpha,1,0)
+		);
+	/************************************************************/
+
+if(alphatest=="OK" & betatest=="OK" & p0test=="OK" & deltatest=="OK",
+
+power=0;
+n=128;
+nstep=n;
+jSE=1;
+bounded=0;
+
+if(hyptype=="SB",  pi=p1; pj=p0; testalpha=alpha);
+if(hyptype=="SEB", pi=p0; pj=p1; testalpha=alpha);
+if(hyptype=="SE", pi=p0; pj=p1; testalpha=alpha/2);
+
+while(nstep != 1,
+  istart=maximum(0,floor(pi*n - 5 * sqrt(n * pi * (1-pi))));
+  ifinish=minimum(n,ceiling(pi*n + 5 * sqrt(n * pi * (1-pi))));
+  jstart=maximum(0,floor(pj*n - 5 * sqrt(n * pj * (1-pj))));
+  jfinish=minimum(n,ceiling(pj*n + 5 * sqrt(n * pj * (1-pj))));
+
+  for(i=istart, i<=ifinish, i++,
+    for(j=maximum(i+1,jstart), And(j<=jfinish,jSE), j++,
+	if(test(i,j,n,testalpha), power = power + (1- Binomial Distribution(pj,n,j))* Binomial Probability(pi,n,i); 
+		 jSE=0 )
+    );
+    jSE=1
+  );
+    
+  if(1-power< beta, bounded=1; nstep = nstep / 2; n=n-nstep, 
+	if(bounded, nstep = nstep / 2); nstep= nstep*2; n=n+nstep);
+  
+  statusmsg("Searching..."||char(n));
+  power=0
+);
+
+//show(1-power, n);
+statusmsg(char(n));
+
+); //End if for evaluating sample size error free
+); //End if button is OK
+); //End while   
+
+
+
+

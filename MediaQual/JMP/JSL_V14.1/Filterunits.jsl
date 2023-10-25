@@ -1,0 +1,165 @@
+SplitfileCO = Expr( 
+	dt = currentdatatable();
+	col_name_list = dt << get column names(string);
+	blah = Column Dialog(
+		NF = ColList( "Noise Factor", Max Col( 1 ),MinCol(1), columns(:Name("Noise Factor"))),
+		Para = ColList( "Parameter", Max Col( 1 ),MinCol(1), DataType(Numeric), columns(:Name("CO"))),
+		Grping = ColList( "DataMatrix", Max Col( 1 ),MinCol(1), DataType(Character), columns(:Name("2DID"))),
+		VList( "Zcor per factor", Zcor = EditNumber (10), "Tune per factor", Tune = EditNumber (15), "Validation per factor", Val = EditNumber (15))
+	);
+	Remove From(blah);
+	Eval List(blah);
+	udt = dt << Summary(
+		Group( column(NF), column(Grping)  ),
+		Range( column(Para) ),
+		Link to original data table( 0 ),
+		statistics column name format( "column" ),
+		output table name( "Temp" )
+		);
+	udt << New Column("Sample Set",character, set each value("NOT USED"));
+	udt << Sort( Replace table, By( column(NF), column(Para) ), Order( Ascending, Ascending ) );
+	if (Zcor >= 3,
+		udt << Subset(
+			By( column(NF) ),
+			Sample Size( Zcor ),
+			Selected columns only( 0 ),
+			columns( column(Grping), column(Para) )
+		);
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			if (Data Table(i) != udt ,if(Data Table(i) != dt,
+				Insert Into( openDTs, Data Table( i ) )
+		)));
+			// OpenDTs is now a list of all open tables in JMP //
+		If( N Table() > 1,
+			Sel= openDTS[1] << Concatenate( 
+				openDTs[2 :: N Items(openDTs)]
+				 );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		zc = currentdatatable();
+		zc << Delete Columns(Para);
+		zc << New Column("Sample Set",character, set each value( "ZCOR"));
+		udt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping ),
+			Add Columns from Update table( :Sample Set )
+			);
+		dt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping ),
+			Add Columns from Update table( :Sample Set )
+			);
+		Close(zc, nosave);
+		udt << select where( :Sample Set == "ZCOR");
+		udt << delete rows();
+	);
+	if (Tune >= 3,
+		udt << Subset(
+			By( column(NF) ),
+			Sample Size( Tune ),
+			Selected columns only( 0 ),
+			columns( column(Grping), column(Para) )
+		);
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			if (Data Table(i) != udt ,if(Data Table(i) != dt,
+				Insert Into( openDTs, Data Table( i ) )
+		)));
+			// OpenDTs is now a list of all open tables in JMP //
+		If( N Table() > 1,
+			Sel= openDTS[1] << Concatenate( 
+				openDTs[2 :: N Items(openDTs)]
+				 );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		zc = currentdatatable();
+		zc << Delete Columns(Para);
+		zc << New Column("Sample Set",character, set each value( "TUNE"));
+		udt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping),
+			Add Columns from Update table( :Sample Set )
+			);
+		dt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping),
+			Add Columns from Update table( :Sample Set )
+			);
+		Close(zc, nosave);
+		udt << select where( :Sample Set == "TUNE");
+		udt << delete rows();
+	);
+	if (Val >= 3,
+		udt << Subset(
+			By( column(NF) ),
+			Sample Size( Tune ),
+			Selected columns only( 0 ),
+			columns( column(Grping), column(Para) )
+		);
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			if (Data Table(i) != udt ,if(Data Table(i) != dt,
+				Insert Into( openDTs, Data Table( i ) )
+		)));
+			// OpenDTs is now a list of all open tables in JMP //
+		If( N Table() > 1,
+			Sel= openDTS[1] << Concatenate( 
+				openDTs[2 :: N Items(openDTs)]
+				 );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		zc = currentdatatable();
+		zc << Delete Columns(Para);
+		zc << New Column("Sample Set",character, set each value( "VAL"));
+		udt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping),
+			Add Columns from Update table( :Sample Set )
+			);
+		dt << Update(
+			With(zc),
+			By Matching Columns( Grping == Grping),
+			Add Columns from Update table( :Sample Set )
+			);
+		Close(zc, nosave);
+		udt << select where( :Sample Set == "VAL");
+		udt << delete rows();
+	);
+	Close(udt, nosave);
+	udt = dt << Summary(
+		Group( column(NF), column(Grping), :Sample Set  ),
+		Range( column(Para) ),
+		Link to original data table( 0 ),
+		statistics column name format( "column" ),
+		output table name( "UnitLevel" )
+		);
+	Fit Group(
+		Oneway(
+			Y( column(Para)),
+			X( column(NF)),
+			Means and Std Dev( 1 ),
+			Box Plots( 1 ),
+			Mean Error Bars( 1 ),
+			Std Dev Lines( 1 ),
+			X Axis Proportional( 0 ),
+			Points Jittered( 1 )			
+		),
+		Oneway(
+			Y( column(Para)),
+			X( :Sample Set),
+			Means and Std Dev( 1 ),
+			Box Plots( 1 ),
+			Mean Error Bars( 1 ),
+			Std Dev Lines( 1 ),
+			X Axis Proportional( 0 ),
+			Points Jittered( 1 )			
+		), <<{Arrange in Rows( 2 )});
+	);
+SplitfileCO

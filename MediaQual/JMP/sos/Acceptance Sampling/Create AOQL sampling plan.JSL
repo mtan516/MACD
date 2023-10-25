@@ -1,0 +1,455 @@
+/*********************
+Create sampling plan to meet AOQL
+Author: Wang Fang
+Rev:  1.04
+Date: 3/7/2006
+JMP Version: 5.1.1
+Starting condition: User inputs AOQL, lot size, distribution option and output option.
+Output: The script will output the sampling plan n, c and actual AOQL and AOQ, OC, ATI Curves
+SOS Revision History
+	3/7.2006 v1.04: 1. Added footer boxFile sosglbls.jsl created to hold global variables that might apply to all scripts. Include added.
+**********************/
+clear globals();		//clears all values from previous calculations 
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+n_list={};
+c_list={};
+aoql_list={};
+startingn=1;
+
+//Create Dialog Window Request: 
+
+result=Dialog(title("Sampling Plan for AOQL"),
+		VList("Enter AOQL and lot size below:",
+			Lineup(2,
+				" "," ", 
+				
+				"AOQL (%)", input_aoql=EditNumber(),
+				"Lot Size (N)", lotsize=EditNumber(),
+				//"Maximum Sample Size", maxsize=EditNumber(250),
+				
+				" ", " ")), 
+		
+			Vlist("Distribution", 
+			dist = radiobuttons("Binomial", "Hypergeometric"),
+			" "),	
+			Vlist("Output Plans", 
+			option = radiobuttons("Plan with Minimum Sample Size", "k Smallest Plans","All Plans up to Sample Size n"),
+			" "),	"Output Curves",
+                                  Hlist(	
+		                   occheck=check box("OC Curve",0),
+		                   aticheck=check box("ATI Curve",0),
+		                   aoqcheck=check box("AOQ Curve",1)
+			),
+                                  " ",	
+			HList(Button("OK"), Button("Cancel"))
+			);
+
+//Read in results from dialog box
+
+lotsize=result["lotsize"];
+input_aoql=result["input_aoql"]/100;
+option=result["option"];
+dist=result["dist"];
+number_plans=0;
+input_number_plans=1;
+occheck=result["occheck"];
+aticheck=result["aticheck"];
+aoqcheck=result["aoqcheck"];
+
+if(result["Button"]==1 & ( IsMissing(lotsize) | IsMissing(input_aoql) | lotsize<=0 | input_aoql>=1|input_aoql<=0) ,
+	
+	while (result["Button"]==1 &( IsMissing(lotsize) | IsMissing(input_aoql) | lotsize<=0 | input_aoql>=1|input_aoql<=0),  
+
+		Dialog("Entry Errors", 
+			Vlist(" ", "Please check the following:", " ", 
+                                 	"AOQL between 0 to 100", " ", 
+				"lot size>0", " ",
+				Button("OK")
+				)
+			);
+
+		result=Dialog(title("Sampling Plan for AOQL"),
+		VList("Enter the below:",
+			Lineup(2,
+				" "," ", 
+				
+				"AOQL (%)", input_aoql=EditNumber(),
+				"Lot Size (n)", lotsize=EditNumber(),
+				"Maximum Sample Size", maxsize=EditNumber(250),
+				
+				" ", " ")), 
+		
+			Vlist("Distribution", 
+			dist = radiobuttons("Binomial distribution", "Hypergeometric"),
+			" "),	
+			Vlist("Option", 
+			option = radiobuttons("Plan with Minimum Sample Size", "k Smallest Plans","All Plans up to Sample Size n"),
+			" "),	
+                                  Hlist("Output",	
+		                   occheck=check box("OC Curve",0),
+		                   aticheck=check box("ATI Curve",0),
+		                   aoqcheck=check box("AOQ Curve",1)
+			),
+                                  " ",		
+			HList(Button("OK"), Button("Cancel"))
+			);
+
+                               //Read in results from dialog box
+
+                                 lotsize=result["lotsize"];
+                                 input_aoql=result["input_aoql"]/100;
+                                 occheck=result["occheck"];
+                                 aticheck=result["aticheck"];
+                                 aoqcheck=result["aoqcheck"];
+                                 option=result["option"];
+                                 dist=result["dist"];
+                                 occheck=result["occheck"];
+                                 aticheck=result["aticheck"];
+                                 aoqcheck=result["aoqcheck"];
+
+	);	// end while
+);   		//end if;
+
+
+if(result["Button"]==1,
+          if(option==2,
+           result2=Dialog(title("K Smallest Plans"),
+		VList("Enter the k smallest plans as below:"," ",
+			
+			Lineup(2,
+		             	"k Smallest Plans (must be more than 1)", k=EditNumber(2)),
+			" ",
+			
+			HList(Button("OK"), Button("Cancel")))
+			);
+	input_number_plans = result2["k"];
+           if(input_number_plans<=0,
+               while(input_number_plans<=0|Ismissing(input_number_plans),
+                        result2=Dialog(title("K Smallest Plans"),
+		  VList("Enter the k smallest plans as below:"," ",
+			
+			Lineup(2,
+		             	"k Smallest Plans (must be more than 1)", k=EditNumber(2)),
+			" ",
+			
+			HList(Button("OK"), Button("Cancel")))
+			);
+	input_number_plans = result2["k"]));
+           maxsize=lotsize;
+             );//end if option==2
+             if(option==3,
+                 Result3=Dialog(title("All Plans up to Sample Size n"),
+                              Vlist("Enter the Maximum Sample Size n as below:"," ",
+                                       lineup(2,
+                                                   "Maximum Sample Size n(must be more than 1 less than lotsize)", maxsize=EditNumber(250)),
+                                        " ",
+                                        HList(Button("OK"), Button("Cancel")))
+               );  
+            maxsize=result3["maxsize"]; 
+             if(maxsize<=0|maxsize>=lotsize|Ismissing(maxsize),
+                        while(maxsize<=0|maxsize>=lotsize|Ismissing(maxsize),
+                                Result3=Dialog(title("All Plans up to Sample Size n"),
+                              Vlist("Enter the Maximum Sample Size n as below:"," ",
+                                       lineup(2,
+                                                   "Maximum Sample Size n(must be more than 1 less than lotsize)", maxsize=EditNumber(250)),
+                                        " ",
+                                        HList(Button("OK"), Button("Cancel")))
+               );  
+            maxsize=result3["maxsize"]));
+            );//end if option=3
+           if(option==1,input_number_plans=1;maxsize=lotsize);
+
+           for(c=0, (number_plans<input_number_plans|option==3)&startingn<=maxsize, c++,
+           searching_n=1;
+           for(n=startingn, n<=maxsize&searching_n==1, n++,
+
+               if(dist==1,
+                  /*** AOQL calculation with n, c, sampleszie using binomial distribution***/
+                   AOQL=0;
+                   searching=1;
+                   For(DPM=0, DPM<=1000000&searching==1, DPM=DPM+(1/lotsize)*1000000,
+                        p=DPM/1000000;
+                        pa=binomial distribution(p,n,c);
+                        AOQ=p*(lotsize-n)*pa/lotsize;
+                        if(AOQL>AOQ,searching=0);
+                         if(AOQL<=AOQ, AOQL=AOQ)
+                         ); //end for DPM
+                   );//end if dist=1
+                 if(dist==2,
+                   AOQL=0;
+                   searching=1;
+                   For(DPM=0, DPM<=lotsize&searching==1, DPM++,
+                         p=DPM/lotsize;
+                         pa=hypergeometric Distribution(lotsize,DPM,n,c);
+                         AOQ=p*(lotsize-n)*pa/lotsize;
+                          if(AOQL>AOQ,searching=0);
+                          if(AOQL<=AOQ, AOQL=AOQ)
+                            ); //end for DPM
+                        );//end for dist=2
+            show(n, c, AOQL);
+              //check to see if AOQL match tolerance
+              if (AOQL<=input_aoql,
+                  number_plans=number_plans+1;
+                  InsertInto(n_list,n);
+                  InsertInto(c_list,c);
+                  InsertInto(aoql_list,AOQL);
+                  searching_n=0;
+                 show(n,c,AOQL);
+                  );//end if AOQL
+              );//end n
+           startingn=n+1;
+           );//end c
+show(n_list, c_list, aoql_list);
+aoq_scale=max(aoql_list)*1.2;
+if(number_plans>0,
+
+      if(dist==1,
+         //calculate pmax for binomial distribution
+   pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+1/lotsize,
+         temp=binomial distribution(pmax,n,c);
+         if(binresult-temp<0.00005,stopid=0);
+          binresult=temp
+       );
+//generate OC curve using binomial distribution
+                       output=New Window("AOQL Sampling Plan",
+                                                          outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"Lot Size", "AOQL", "Distribution"}),
+                                                     StringColBox("Value",{char(lotsize),char(input_aoql*100)||"%",if(dist==1," Binomial","Hypergeometric")})
+                                       
+                                     ) ),
+                                                            outlinebox("AOQL Sampling Plan",
+                                                                           TableBox(
+                                                                            NumberColBox("n",n_list),
+                                                                             NumberColBox("c",c_list),
+                                                                            NumberColBox("AOQL", aoql_list)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+if(occheck==1,
+                        eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                       HList Box( Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,100),
+                                                                      xName("Lot Quality in Percent"),YName("Probability of Acceptance(%)"),
+                                                                                  myn_list=xx;
+                                                                                  myc_list=yy;
+                                                                                 myplan=zz,
+                                                                                  For (i=1,i<=myplan,i++, 
+                                                                                           Pen color(i+2);
+                                                                                           Pen size(1);
+                                                                                           Y Function(100*Binomial Distribution(x/100, myn_list[i], myc_list[i]), x);
+                                                                                        )
+                                                                                     ),
+                                                    
+                                                                         legendoc=VList Box(
+                                                                               
+                                                                                      
+                                                                                  )
+                                                                       )
+                                                            )), expr(xx), n_list, expr(yy), c_list, expr(zz), number_plans));
+                                 For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendoc<<append(a)
+                               );
+                            axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                            output<<append(occurve)
+);
+if(aticheck==1,
+                       eval(substitute(expr(aticurve=Outlinebox("ATI Curve",
+                                 HList Box(
+                                 Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,lotsize),
+                                                  xName("Lot Quality in Percent"),YName("ATI"),
+                                                   myn_list=xx;
+                                                   myc_list=yy;
+                                                   myplan=zz,
+                                                 For (i=1,i<=myplan,i++, 
+                                                        Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(n_list[i]*Binomial Distribution(x/100, myn_list[i],myc_list[i])+lotsize*(1-Binomial Distribution(x/100,myn_list[i], myc_list[i])), x))
+                                                        ),
+                                        Legendati=Vlist Box(
+                                                    )
+                                                    )
+                                               )), expr(xx), n_list, expr(yy), c_list, expr(zz), number_plans));
+                             For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendati<<append(a)
+                               );
+                            axisy = aticurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=aticurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                            output<<append(aticurve)
+);
+if(aoqcheck==1,
+                        eval(substitute(expr(aoqcurve=Outlinebox("AOQ Curve",
+                                        HList Box(
+                                                   Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,aoq_scale),
+                                                  xName("Lot Quality in Percent"),YName("AOQ"),
+                                                    myn_list=xx;
+                                                   myc_list=yy;
+                                                   mylot=zz;
+                                                   myplan=ss,
+                                                 For (i=1,i<=myplan,i++, 
+                                                        Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function((x/100)*(mylot-myn_list[i])*Binomial Distribution(x/100, myn_list[i],myc_list[i])/mylot, x))
+                                                        ),
+                                       Legendaoq=Vlist Box(
+                                                    )
+                                                    )
+                                           )), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans)) ;
+                          For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendaoq<<append(a)
+                               );
+                          axisy = aoqcurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=aoqcurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                           axisy<<add ref line(input_aoql,"Solid","Blue Cyan");
+                          output<<append(aoqcurve)
+                    )
+         );
+if(dist==2,
+   pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+1/lotsize,
+         temp=Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+         if(binresult-temp<0.00005,stopid=0);
+          binresult=temp
+   );
+show(pmax);
+//generate OC curve using hypergeometric distribution
+output=New Window("AOQL Sampling Plan",
+                       outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"Lot Size", "AOQL", "Distribution"}),
+                                                     StringColBox("Value",{char(lotsize),char(input_aoql*100)||"%",if(dist==1," Binomial","Hypergeometric")})
+                                       
+                                     ) ),
+                       outlinebox("AOQL Sampling Plan",
+                                     TableBox(
+                                                    NumberColBox("n",n_list),
+                                                    NumberColBox("c",c_list),
+                                                    NumberColBox("AOQL", aoql_list)
+                                                    )
+                                         )
+                              );
+if(occheck==1,
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HList Box(Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance"),
+                                                    myn_list=xx;
+                                                   myc_list=yy;
+                                                   mylot=zz;
+                                                   myplan=ss,
+                                                 For (i=1,i<=myplan,i++, 
+                                                        Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Hypergeometric Distribution(mylot,floor(x*mylot/100), myn_list[i], myc_list[i]), x))
+                                                         ),
+                                             Legendoc=Vlist Box(
+                                                        )
+                                                        )
+                                           )), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendoc<<append(a)
+                               );
+                             axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                output<<append(occurve)
+ );
+
+if(aticheck==1,
+                 eval(substitute(expr(aticurve=Outlinebox("ATI Curve",
+                                               Hlist Box(Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,lotsize),
+                                                               xName("Lot Quality in Percent"),YName("ATI"),
+                                                               myn_list=xx;
+                                                              myc_list=yy;
+                                                                mylot=zz;
+                                                              myplan=ss,
+                                                                For (i=1,i<=myplan,i++, 
+                                                                Pen color(i+2);
+                                                                Pen size(1);
+                                                                Y Function(myn_list[i]*Hypergeometric Distribution(mylot,floor(x*mylot/100), myn_list[i], myc_list[i])+mylot*(1-Hypergeometric                                                                 Distribution(mylot,floor(x*mylot/100), myn_list[i], myc_list[i])), x)
+                                                            )
+                                                        ),
+                                                  legendati=Vlist Box(
+                                                               )
+                                                           )
+                                                    )), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));
+                     For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendati<<append(a)
+                               );
+                      axisy = aticurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=aticurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                     output<<append(aticurve)
+   );
+if(aoqcheck==1,
+           eval(substitute(expr(aoqcurve=Outlinebox("AOQ Curve",
+                                 Hlist Box(Graph Box(FrameSize(300,200),XScale(0,pmax*100),YScale(0,aoq_scale),
+                                                  xName("Lot Quality in Percent"),YName("AOQ"),
+                                                               myn_list=xx;
+                                                              myc_list=yy;
+                                                                mylot=zz;
+                                                              myplan=ss,
+                                                 For (i=1,i<=myplan,i++, 
+                                                        Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function((floor(x*mylot/100)/mylot)*(mylot-myn_list[i])*Hypergeometric Distribution(mylot,floor(x*mylot/100), myn_list[i], myc_list[i])/mylot, x)
+                                                         )
+                                                        ),
+                                                  Legendaoq=Vlist Box(
+                                                      )
+                                                      )
+                                                    )), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));
+                           For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("гн (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legendaoq<<append(a)
+                               );
+                         axisy = aoqcurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=aoqcurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+                         axisy<<add ref line(input_aoql,"Solid","Blue Cyan");
+                        output<<append(aoqcurve);
+      )
+   );//end if dist=2
+  output<<append(FooterBox);	
+);//end if number_plans==0
+if(number_plans==0, 
+   Dialog("No sampling plans can be found which meet the stated requirements.", " ",  Button("OK"))
+  );//end if number_plans==0
+);//end if result["Button"]==1
+
+

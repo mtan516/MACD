@@ -1,0 +1,520 @@
+/*******************************************************************************************
+	
+	Sample Data Set Index
+	Author: Paul Wenz
+	JMP Version: 11
+	Starting Condition: None
+	Output: Script opens datasets from Sample Data Sets folder
+	
+********************************************************************************************/
+
+DOE2Key=Function({},
+db=Dialog(Title("DOE 2 HW2"),
+	Text("This script will generate the response data for homework #2 in DOE 2."),
+	Text("First, design your experiment in JMP."),
+	Text("Then run this script with your DOE matrix as the current table."),
+	Text("Make sure your column names are spelled exactly as specified in the homework."),
+	HList(Button("OK"),Button("Cancel"))
+); 
+b=db["button"];
+If (b==1,
+  If( NTable()==0, ::dt2=open(), ::dt2=CurrentDataTable() );
+  cn = dt2 << GetColumnNames(String);
+  MissCol={};
+  If(Contains(cn,"PBTi")==0, InsertInto(MissCol,"PBTi"));
+  If(Contains(cn,"PBTe")==0, InsertInto(MissCol,"PBTe"));
+  If(Contains(cn,"TPBD")==0, InsertInto(MissCol,"TPBD"));
+  If(Contains(cn,"DT")==0, 	InsertInto(MissCol,"DT"));
+  If(Contains(cn,"GT")==0, 	InsertInto(MissCol,"GT"));
+  If(Contains(cn,"FOT")==0, InsertInto(MissCol,"FOT"));
+  If(Contains(cn,"FOBS")==0, InsertInto(MissCol,"FOBS"));
+  If(Contains(cn,"TDC")==0, InsertInto(MissCol,"TDC"));
+  MissColText="";
+  for(i=1,i<=NItems(MissCol),i++,
+		MissColText=MissColText||MissCol[i]||", ";
+  );
+
+  If(NItems(MissCol)>0,
+    /* then */
+	  Dialog(Title("Error"),Text("Missing Column Names:"),Text(MissColText),Button("OK")),
+	/* else */
+	  If(Contains(cn,"Voids")==0,  dt2 << newcolumn("Voids", Numeric, Continuous));
+	  row()=1;
+	  for each row(Voids=Round(Abs((25 - 10 *  :PBTi - 5 *  :GT *  :FOT) + 5 *  :GT *  :FOBS + Random SeededNormal() * 2 +  :GT * 3), 2));
+  )
+)
+);
+
+
+
+  
+/****************************** Commonality Datasets ********************************************/
+
+comm = OutlineBox("Commonality Datasets", 
+	ButtonBox("Lot Level Commonality 1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Commonality\Lot Level Commonality 1.JMP")),
+	ButtonBox("Lot Level Commonality 2", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Commonality\Lot Level Commonality 2.JMP")),
+TextBox(" "));
+ 
+  
+/****************************** Stats 101 Datasets ********************************************/   
+   
+stats101 =  OutlineBox("Stats 101 Datasets", 
+  s101_bc = OutlineBox("Big Class",
+    ButtonBox("Big Class", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\big class.JMP")),
+  ),
+  s101_2 =OutlineBox("Module 2:  Introduction to JMP ", 
+    ButtonBox("Packages", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\packages.JMP")),
+
+  ),
+  s101_5 =OutlineBox("Module 5:  Single Variable Graphs", 
+    ButtonBox("More Packages", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\more packages.JMP")),
+    ButtonBox("Failures", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\failures.JMP")),
+  ),
+  s101_7 =OutlineBox("Module 7:  Two Variable Graphs", 
+    ButtonBox("Movies", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\movies.jmp")),
+    ButtonBox("Transfer Students", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\transfer students.JMP")),
+    ButtonBox("Class Scores bigclass", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\class scores bigclass.jmp")),
+    
+    ButtonBox("Stress", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\stress.JMP")),
+    ButtonBox("Ingots", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\ingots.jmp")),
+    ButtonBox("Cereal", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\cereal.JMP")),
+
+    ButtonBox("Class Scores Raw", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\class scores raw.JMP")),
+    ButtonBox("Cycle Time", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\cycle time.JMP")),
+    ButtonBox("More Transfer Students", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\More transfer students.JMP")),
+    ButtonBox("Class Scores final", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\class scores final.JMP")),
+  ),
+  
+  s101_9 =OutlineBox("Module 9:  Multiple Variables Graphs", 
+    ButtonBox("Visual", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\visual.JMP")),
+    ButtonBox("Lot yields", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Lot yields.JMP")),
+    ButtonBox("Epoxy and BLT", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Epoxy and BLT.JMP")),
+    ButtonBox("Placement Offset", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Placement Offset.jmp")),
+    ButtonBox("Placement Carrier Locations", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Placement Carrier Locations.jmp")),
+    ButtonBox("Crime 2004", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Crime 2004.JMP")),
+    ButtonBox("Chicago schools", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Chicago schools.JMP")),
+    ButtonBox("Platform build data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Stats 101\Platform build data.JMP")),
+  ),
+ 
+  TextBox(" ")
+  	
+  );  
+
+/****************************** DOE 1 Datasets ********************************************/  
+  
+doe1 =  OutlineBox("DOE 1 Datasets", 
+  doe1_3 = OutlineBox("Module 4:  1 Sample", 
+    ButtonBox("Flux Thickness", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Flux Thickness.JMP")),
+    ButtonBox("NG LM", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\NG LM.JMP"))
+  ),
+  doe1_4 = OutlineBox("Module 5:  2 Samples", 
+    ButtonBox("Lids", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Lids.JMP")),
+    ButtonBox("FM on Epoxy", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\FM on Epoxy.JMP")),
+    ButtonBox("Laser Mark", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Laser Mark.JMP")),
+    ButtonBox("Clean", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Clean.JMP"))
+  ),
+  doe1_5 = OutlineBox("Module 6:  Paired Samples", 
+    ButtonBox("Jogging", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Jogging.JMP")),
+    ButtonBox("Stencil Design", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Stencil Design.JMP")),
+    ButtonBox("Ball Height", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Ball Height.JMP"))
+  ),
+  doe1_6 = OutlineBox("Module 7:  K Samples", 
+    ButtonBox("Warpage", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Warpage.JMP")),
+    ButtonBox("Pull", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Pull.JMP")),
+    ButtonBox("Tab Placement", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Tab Placement.JMP")),
+    ButtonBox("Nozzle", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Nozzle.JMP")),
+    ButtonBox("TCB Force", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\TCB_Force.jmp"))
+  ),
+  doe1_7 = OutlineBox("Module 8:  Blocked", 
+    ButtonBox("Cars", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Cars.JMP")),
+    ButtonBox("Epoxy Machine", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Epoxy Machine.JMP")),
+    ButtonBox("Peel", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Peel.JMP")),
+    ButtonBox("Nanospec", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE1\Nanospec.JMP"))
+  ),
+  
+  TextBox(" "));   
+ 
+/****************************** Binomial Datasets ********************************************/   
+  
+bin =  OutlineBox("Binomial Datasets", 
+  bin_2 = OutlineBox("Module 2:  Single Proportions", 
+    ButtonBox("ICH7 Bin15 Fallout", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\ICH7 Bin15 Fallout.JMP")),
+    ButtonBox("P Chart Example", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\P Chart example.JMP"))
+  ),
+  bin_3 = OutlineBox("Module 3:  Two Proportions", 
+    ButtonBox("BARD", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\Bard Missing Ball Fallout Rate.JMP")),
+    ButtonBox("Defect", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\Defect.jmp")),
+  ),
+  bin_4 = OutlineBox("Module 4:  K Proportions", 
+    ButtonBox("Encap Unit", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\Encap_Unit Level Data.JMP")),
+    ButtonBox("Encap Summary", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\Encap_Summary Level Data.JMP")),
+    ButtonBox("Bonder", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\bonder.JMP"))
+  ),
+  bin_hw = OutlineBox("Homework", 
+    ButtonBox("exp1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\exp1.jmp")),
+    ButtonBox("exp3", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Binomial\exp3.jmp")),
+    ButtonBox("Save Blank WP Template to Desktop", 
+		copy file("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\WP template.xml", "$desktop/WP template.xml");
+		If(
+			//if (check if file was copied on desktop)
+			File Exists("$desktop/WP template.xml"),
+			//then (show completion message)
+			successwindow=New Window("WP Template Copied Successfully",
+				ButtonBox("Close Window", successwindow<<Close Window),
+				textbox("Blank WP Template successfully copied to your desktop.",<<Set Font Size(15),<<Font Color("Blue"),<<Set Wrap(1000)),
+			);	
+		);
+	),
+  ),
+
+  TextBox(" "));   
+ 
+/****************************** MCA Datasets ********************************************/  
+
+MCA =  OutlineBox("MCA Datasets", 
+  MCA_3 = OutlineBox("Chapter 3:  MCA Procedures", 
+    ButtonBox("AccuracyExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\AccuracyExample.JMP")),
+    ButtonBox("AccuracyEx1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\AccuracyEx1.JMP")),
+    ButtonBox("RepeatabilityExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\RepeatabilityExample.JMP")),
+    ButtonBox("RepeatEx", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\RepeatEx.JMP")),
+    ButtonBox("ReproducibilitySingleExample", 
+		open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\ReproducibilitySingleExample.JMP")),
+    ButtonBox("ReproducibilityExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\ReproducibilityExample.JMP")),
+    ButtonBox("ReproducibilityEx", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\ReproducibilityEx.JMP")),
+    ButtonBox("ReproducibilityManyFactorLevels", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\ReproducibilityManyFactorLevels.JMP"))
+  ),
+  MCA_4 = OutlineBox("Chapter 4:  MCA PCS", 
+    ButtonBox("MCS_Example", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCS_Example.JMP")),
+    ButtonBox("MCS_Ex", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCS_Ex.JMP"))
+  ),
+  MCA_5 = OutlineBox("Chapter 5:  Correlation and Matching", 
+    ButtonBox("CorrelationExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\CorrelationExample.JMP")),
+    ButtonBox("MatchingExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MatchingExample.JMP"))
+  ),
+  MCA_HW = OutlineBox("Homework", 
+    ButtonBox("MCA_hw1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCA_hw1.JMP")),
+    ButtonBox("MCA_hw2_acc", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCA_hw2_acc.JMP")),
+    ButtonBox("MCA_hw2_rpt", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCA_hw2_rpt.JMP")),
+    ButtonBox("MCA_hw2_rpd", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\MCA_hw2_rpd.JMP")),
+    spacerbox(Size(5, 20)),
+    ButtonBox("MCA_Homework1_Template", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\Intro to MCA - Homework 1.pdf")),
+    ButtonBox("MCA_Homework2_Template", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\Intro to MCA - Homework 2.pdf")),
+  ),
+  MCA_App = OutlineBox("Appendices", 
+    ButtonBox("InadequateUnits", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\InadequateUnits.JMP")),
+    ButtonBox("LinearityExample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\LinearityExample.JMP")),
+    ButtonBox("Sigma Matching Ex 1 Rpt DPMS dX", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\Sigma Matching Ex 1 Rpt DPMS dX.JMP")),
+    ButtonBox("Sigma Matching Ex 2 Rpt DPMS dT", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\Sigma Matching Ex 2 Rpt DPMS dT.JMP")),
+    ButtonBox("Sigma Matching Ex 3 Rpd Scale", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\Sigma Matching Ex 3 Rpd Scale.JMP"))
+  ),
+  MCA_4pt = OutlineBox("4 Point Matching", 
+    ButtonBox("4 Point Parametric Matching Analysis for Test", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\MCA\4 Point Parametric Matching Example.JMP"))
+  ),
+    
+  TextBox(" "));   
+
+/****************************** DOE 2 Datasets ********************************************/  
+
+doe2 =  OutlineBox("DOE 2 Datasets", 
+  doe2_1 = OutlineBox("Module 1:  Full Factorials", 
+    ButtonBox("Polish", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\Polish.JMP")),
+    ButtonBox("SBL", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\SBL.JMP"))
+  ),
+  doe2_2 = OutlineBox("Module 2:  Single Replicate Full Factorials", 
+    ButtonBox("Filtration", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\filtration.JMP")),
+    ButtonBox("Mod1ex2", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\mod1ex2.JMP"))
+  ),
+  doe2_3 = OutlineBox("Module 3:  Fractional Factorials", 
+    ButtonBox("Inj_mold", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\inj_mold.JMP")),
+    ButtonBox("Ball", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\ball.JMP"))
+  ),
+  doe2_4 = OutlineBox("Module 4:  Central Composites", 
+    ButtonBox("Chem_rsm", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\chem_rsm.JMP")),
+    ButtonBox("Flux", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\flux.JMP")),
+    ButtonBox("Thermal DOE", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\thermal doe.JMP"))
+  ),
+  doe2_hw = OutlineBox("Homework", 
+    ButtonBox("Reflow", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\DOE2\Reflow.JMP")),
+    ButtonBox("Epoxy Underfill DOE Response Generator", DOE2Key() )
+  ),
+
+  TextBox(" "));   
+
+/****************************** PCS 301 Datasets ********************************************/  
+
+pcs301 = OutlineBox("PCS 301 Datasets", 
+  pcs301_2 = OutlineBox("Module 2:  Process and PCS Health", 
+    // Lesson 1
+    ButtonBox("Thickness001", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Thickness001.JMP")),
+    ButtonBox("DispenseWeight", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\DispenseWeight.JMP")),
+    ButtonBox("Thickness002", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Thickness002.JMP")),
+    ButtonBox("TraceWidth", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\TraceWidth.JMP")),
+    ButtonBox("Thickness005", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Thickness005.JMP")),
+    ButtonBox("SolderSealantWeightRaw", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\SolderSealantWeightRaw.JMP")),
+    // Lesson 2    
+    ButtonBox("LaserCutPlacement", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserCutPlacement.JMP")),
+		// Lesson 3
+  	ButtonBox("SolderSealantWeight", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\SolderSealantWeight.JMP"))
+  ),
+  pcs301_3 = OutlineBox("Module 3:  Capability", 
+    ButtonBox("Thickness004", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Thickness004.JMP")),
+    ButtonBox("SolderSealantWeight", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\SolderSealantWeight.JMP")),
+    ButtonBox("Voids", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Voids.JMP")),
+    ButtonBox("BumpFlux", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\BumpFlux.JMP")),
+    ButtonBox("HDMT SOT Delta Example", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\HDMT SOT Delta Example.jmp")),
+    ButtonBox("HDMT SOT Delta Exercise", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\HDMT SOT Delta Exercise.jmp")),
+    ButtonBox("DieTal", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\DieTal.jmp"))
+  ),
+  pcs301_4 = OutlineBox("Module 4:  Multiple Tools", 
+    // Tool Matching
+    ButtonBox("LaserCutPlacementVF", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserCutPlacementVF.JMP")),
+    ButtonBox("BlueM", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\BlueM.JMP")),
+    // Control Charts
+    ButtonBox("TransTopPart1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\TransTopPart1.JMP")),
+    ButtonBox("TransTopPart2", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\TransTopPart2.JMP")),
+  ),
+  pcs301_5 = OutlineBox("Module 5:  RFC Health", 
+    // PCS Portal
+    ButtonBox("PCS Portal", web("http://pcsportal.intel.com/")),
+	),
+  pcs301_6 = OutlineBox("Module 6:  Advanced Control Charts", 
+		//TTD
+    ButtonBox("EpoxyPeak1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\EpoxyPeak1.jmp")),
+    ButtonBox("EpoxyPeak2", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\EpoxyPeak2.jmp")),
+    ButtonBox("EpoxyDwell", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\EpoxyDwell.jmp")),
+    //BBD
+    ButtonBox("CAMDiePeakTempBBD", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\CAMDiePeakTempBBD.jmp")),
+		//Dispo
+    ButtonBox("Dispo Die FAT", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\DispoDieFAT.JMP")),
+    ButtonBox("Die Peak Temp", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\DiePeakTemp.JMP")),
+    ButtonBox("LaserScribeWidth", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserScribeWidth.JMP"))
+  ),
+  pcs301_7 = OutlineBox("Module 7:  Advanced SOS Lab", 
+    ButtonBox("LaserCutPlacement2ToolsXY", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserCutPlacement2ToolsXY.jmp")),
+    ButtonBox("LaserCutPlacementAllToolsXY", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\LaserCutPlacementAllToolsXY.JMP")),
+    Lineupbox(N Col( 4 ),
+		ButtonBox("VariableAssignmentExample", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\VariableAssignmentTbl.JMP")),
+		ButtonBox("PCSReferenceTableExample", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\PCS ALL Reference Table.JMP")),
+		ButtonBox("1Click_Global_Variables", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\One Click Global Variables.jsl")),
+		ButtonBox("UserInputTbl_Cpk_Smy_Stats", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\UserInputTbl_Cpk_Smy_Stats.jmp")),
+		ButtonBox("Stability_1ClickMain_Files_Open", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Stability Analysis_1ClickMain_Files_Open.jsl")),
+		ButtonBox("ToolMatching_1ClickMain_Files_Open", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Tool Matching_1ClickMain_Files_Open.jsl")),
+		ButtonBox("Capability_1ClickMain_Files_Open", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Capability Analysis_1ClickMain_Files_Open.jsl")),
+		ButtonBox("Cpk_SummaryStats_1ClickMain_Files_Open", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Cpk_SummaryStats_1ClickMain_Files_Open.jsl")),
+		ButtonBox("Stability_1ClickMain_Files_Closed", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Stability Analysis_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("ToolMatching_1ClickMain_Files_Closed", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Tool Matching_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("Capability_1ClickMain_Files_Closed", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Capability Analysis_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("Cpk_SummaryStats_1ClickMain_Files_Closed", open("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Cpk_SummaryStats_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("StabilityAnalysis1Click_Demo", include("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Stability Analysis_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("ToolMatching_1Click_Demo", include("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Tool Matching_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("CapabilityAnalysis1Click_Demo", include("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Capability Analysis_1ClickMain_Files_Closed.jsl")),
+		ButtonBox("Cpk_SummaryStats_1Click_Demo", include("$ADDIN_HOME(com.intel.sos)\1Click Utilities\Cpk_SummaryStats_1ClickMain_Files_Closed.jsl")),
+    ),
+  ),
+  pcs301_8 = OutlineBox("Homework", 
+    ButtonBox("FluxThickness", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\FluxThickness.jmp")),
+    ButtonBox("Preheat", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\Preheat.JMP")),
+    ButtonBox("EpoxyDwell", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\EpoxyDwell.jmp")),
+    spacerbox(Size(5, 20)),
+    ButtonBox("PCS301_Homework2_Template", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\PCS 301 HW2.pdf")),
+    ButtonBox("PCS301_Homework3_Template", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\PCS 301 HW3.pdf")),
+    ButtonBox("PCS301_Homework4_Template", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS301\PCS 301 HW4.pdf")),
+  ),
+  TextBox(" ")
+);    
+
+/****************************** PCS 302 Datasets ********************************************/  
+
+pcs302 = OutlineBox("PCS 302 Datasets",
+  pcs302_1 = OutlineBox("Module 1: Introduction", 
+    //Module 1
+	ButtonBox("HDMX SOT Sample", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\HDMX_SOT_Sample.jmp")),
+    ButtonBox("HDMX SOT Sample Summarized", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\HDMX_SOT_Sample_Summarized.jmp")),
+    ButtonBox("V8 SOT 4wks", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\V8_SOT_4wks.jmp")),
+  ), 
+  pcs302_2 = OutlineBox("Homework",
+	//Homework
+	ButtonBox("HW_SOT1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\HW_SOT1.jmp")),
+    ButtonBox("HW_MCBO_Calculation", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\HW_MCBO_Calculation.jmp")),
+  ),
+  pcs302_3 = OutlineBox("Appendices",
+	//Appendices
+    ButtonBox("V8 SOT 4wks", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\V8_SOT_4wks.jmp")),
+    ButtonBox("V8 SOT 4wks Stacked", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\V8_SOT_4wks_Stacked.jmp")),
+    ButtonBox("VLV-1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\VLV1.jmp")),
+    ButtonBox("VLV-1 Stacked", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS302\VLV1_Stacked.jmp")),
+  ),
+);
+
+/****************************** PCS 303 Datasets ********************************************/  
+pcs303 = OutlineBox("PCS 303 Datasets", 
+  pcs303_1 = OutlineBox("Module 1:  Binomial Lot Level Control Charts for Varying N", 
+    // Lesson 2
+		ButtonBox("FM", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\FM.jmp")),
+		ButtonBox("CAM_Rework", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\CAM_Rework.jmp")),
+		ButtonBox("CAM_DieMisalignment", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\CAM_DieMisalignment.jmp")),
+		ButtonBox("GN24", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\GN24.jmp")),
+		ButtonBox("Coplanarity", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Coplanarity.jmp")),
+		ButtonBox("Bent Pins", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Bent Pins.jmp")),
+		ButtonBox("Bent Pins ALL", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Bent Pins ALL.jmp")),
+		ButtonBox("aPEVI", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\aPEVI.jmp")),
+		ButtonBox("BIC Yield", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\BIC Yield.jmp")),	
+		ButtonBox("DI", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\DI.jmp")),
+		ButtonBox("Mold Bleed", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Mold_Bleed.jmp")),
+		ButtonBox("Mold Bleed ALL", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Mold_Bleed_ALL.jmp")),
+		ButtonBox("PNorm UCL Calculator", include("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\PNorm UCL Calculator.jsl"))
+	),
+	pcs303_2 = OutlineBox("Module 2: Binomial EWMA Control Charts for Unit Level Data", 
+		ButtonBox("Binomial EWMA Example", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\Binomial EWMA Example.jmp")),
+		ButtonBox("TCB Example Unit Level", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\TCB Example Unit Level.jmp")),
+		ButtonBox("TCB Example Lot Level", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\PCS303\TCB Example Lot Level.jmp"))
+	)
+);
+
+
+/****************************** IQ Datasets ********************************************/  
+
+IQ =  OutlineBox("Process Matching (IQ) Datasets", 
+  iq_1 = OutlineBox("Module 2:  Designing IQ Experiments", 
+    ButtonBox("Laser Mark Ref Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Laser Mark Ref Data.JMP"))
+  ),
+  iq_2 = OutlineBox("Module 3:  Analyzing IQ Experiments", 
+    ButtonBox("IHS Ref and Qual Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\IHS Ref and Qual Data.JMP"))
+  ),
+  iq_3 = OutlineBox("Module 4:  Identifying Commonality", 
+	ButtonBox("2sample_Commonality", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\2sample_Commonality.jmp")),
+    ButtonBox("Checkpoint 4.5a", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Checkpoint 4_5a.jrn")),
+    ButtonBox("Checkpoint 4.5b", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Checkpoint 4_5b.jrn")),
+    ButtonBox("Checkpoint 4.5c", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Checkpoint 4_5c.jrn")),
+    ButtonBox("Checkpoint 4.5d", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Checkpoint 4_5d.jrn")),
+    ButtonBox("Checkpoint 4.5e", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Checkpoint 4_5e.jrn")),
+    ButtonBox("Laser Mark Ref and Qual Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Laser Mark Ref and Qual Data.JMP"))
+  ),
+  iq_hw = OutlineBox("Homework", 
+    ButtonBox("IQ HW1", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\IQ HW1.JMP")) 
+  ),
+  test_iq = OutlineBox("Test IQ Course", 
+    ButtonBox("4 Point Parametric Matching", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\4 Point Parametric Matching.jmp")),
+    ButtonBox("Class Test", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\Class Test.jmp")),
+    ButtonBox("Homework", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\Homework.jmp")),
+    ButtonBox("LCBI bin", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\LCBI bin.jmp")),
+    ButtonBox("OLF", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\OLF.jmp")),
+    ButtonBox("STHI", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\TestIQ\STHI.jmp"))
+  ),
+  iq_exp = OutlineBox("IQ Experiment", 
+	ButtonBox("Reference Dataset", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\Roller Ball Reference Data CH3113 Rev2.jmp")),
+    ButtonBox("Save Blank WP Template to Desktop", 
+		copy file("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\IQ\WP template.xml", "$desktop/WP template.xml");
+		If(
+			//if (check if file was copied on desktop)
+			File Exists("$desktop/WP template.xml"),
+			//then (show completion message)
+			successwindow=New Window("WP Template Copied Successfully",
+				ButtonBox("Close Window", successwindow<<Close Window),
+				textbox("Blank WP Template successfully copied to your desktop.",<<Set Font Size(15),<<Font Color("Blue"),<<Set Wrap(1000)),
+			);	
+		);
+	)
+  ),
+  TextBox(" "));   
+  
+  /****************************** Monitor Reduction Elimination Datasets ********************************************/  
+
+monred = OutlineBox("Monitor Reduction Elimination Datasets",
+  monred_1 = OutlineBox("Process Monitor Elimination", 
+    //Module 1
+	ButtonBox("Data Sharing Example", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Sample Size Data Sharing Example.zip")),
+    ButtonBox("Ablation Shelf Raw Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\ABS Raw Data_Elimination Example.jmp")),
+    ButtonBox("ABS Stability Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Stability Analysis Reports_ProcessMonitorElimination.jrn")),
+    ButtonBox("ABS Capability Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Capability Analysis Reports_ProcessMonitorElimination.jrn")),
+  ), 
+  monred_2 = OutlineBox("Process Monitor Frequency Reduction",
+	//Module 2
+    ButtonBox("Wafer Coat Raw Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Wafer Coat Raw Data_Frequency Reduction.jmp")),
+    ButtonBox("Tool Matching Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Tool Matching Analysis_FrequencyReduction.jrn")),
+    ButtonBox("Stability Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Stability Analysis_Frequency Reduction.jrn")),
+    ButtonBox("Capability Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Capability Analysis_FrequencyReduction.jrn")),
+  ),
+  monred_3 = OutlineBox("Process Monitor Sample Size Reduction",
+	//Homework
+	ButtonBox("Scribe Delta Raw Data", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\PLS_placement_SSReduction Rawdata.jmp")),
+    ButtonBox("Correlation Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Correlation Analysis_SSReduction.jrn")),
+    ButtonBox("Two Sample Comparison", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Two sample comparison_SSReduction.jrn")),
+    ButtonBox("Control Charts Comparison", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\ControlCharts_SSReduction.jrn")),
+    ButtonBox("Capability Analysis", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Capability Analysis_All Plans_SSReduction.jrn")),
+    ButtonBox("Sampling Plan Script", open("$ADDIN_HOME(com.intel.sos)\Sample Data Sets\Monitor Reduction\Random_pickup_SSReduction.jsl")),
+  ),
+);
+
+/********* Start Program *****************/
+
+Output = New Window("Sample Data Set Index",
+  tb1 = OutlineBox("Index of Data Sets from Stats Courses",
+    tb2 = TextBox(" Navigate through the outline boxes and click to open a sample data set:"), 
+    VListBox(
+    	HListBox(stats101,mca,IQ),
+			HListBox(doe1,bin,doe2),
+			HListBox(pcs301,pcs302,pcs303),
+			HListBox(comm, monred)
+    ) 
+  ),
+  ButtonBox("Close Window", Output << CloseWindow )
+);
+
+s101_bc << close(1);
+s101_2 << close(1);
+s101_5 << close(1);
+s101_7 << close(1);
+s101_9 << close(1);
+
+
+bin_2 << close(1);
+bin_3 << close(1);
+bin_4 << close(1);
+bin_hw << close(1);
+
+doe2_1 << close(1);
+doe2_2 << close(1);
+doe2_3 << close(1);
+doe2_4 << close(1);
+doe2_hw << close(1);
+
+MCA_3 << close(1);
+MCA_4 << close(1);
+MCA_5 << close(1);
+MCA_hw << close(1);
+MCA_App << close(1);
+MCA_4pt << close(1);
+
+doe1_3 << close(1);
+doe1_4 << close(1);
+doe1_5 << close(1);
+doe1_6 << close(1);
+doe1_7 << close(1);
+
+pcs301_2 << close(1);
+pcs301_3 << close(1);
+pcs301_4 << close(1);
+pcs301_5 << close(1);
+pcs301_6 << close(1);
+pcs301_7 << close(1);
+pcs301_8 << close(1);
+
+pcs302_1 << close(1);
+pcs302_2 << close(1);
+pcs302_3 << close(1);
+pcs303_1 << close(1);
+pcs303_2 << close(1);
+
+comm << close(1);
+
+iq_1 << close(1);
+iq_2 << close(1);
+iq_3 << close(1);
+iq_hw << close(1);
+test_iq << close(1);
+iq_exp << close(1);
+
+monred_1 << close(1);
+monred_2 << close(1);
+monred_3 << close(1);

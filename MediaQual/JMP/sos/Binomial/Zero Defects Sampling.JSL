@@ -1,0 +1,435 @@
+/*******************************************************************************************
+Zero Defects Sampling (ZDS) Script
+
+Starting Condition: User inputs Confidence, and either Sample Size, Target Proportion, or neither.
+
+Output:	
+	- If Sample Size is input, the output is Target Proportion.
+    - If Target Proportion is input, the output is Sample Size.
+    - If neither is input, the output is a plot of Sample Size vs Proportion.
+
+Revision History (Descending Order, Newest at the top):
+Rev 2 - Jeff Baumann - 2020WW17
+	- Add commenting and logging throughout script for easier debug in future
+	- Fix error messages for DPM and positive number
+	- Update all Dialog boxes to instead be Windows as Dialog is being phased out by JMP.
+Rev 1 - Jonathan Gatlin/Paul Wenz - 2010
+	- Fixed competing graph issue for plot of sample size vs proportion.
+	- Enclosed graphbox in an outline box.
+	- Added extra decimal places on percent. 
+	- Changed DPM and percent rounding from floor to ceiling to avoid conflict with 1 sample analysis.
+Rev 0 - Jonathan Gatlin/Paul Wenz - 2010
+	- Initial Creation
+
+********************************************************************************************/
+//Log Line
+	Print("Zero_Defect_Sampling_Script starting.");
+
+/*************************************************************
+Divider - Set Initial Values of Variables
+
+**************************************************************/
+//Log Line
+	Print("Zero_Defect_Sampling_Script: Set initial values of variables starting.");
+
+//Set initial values of variables
+	button=1;			//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+	confidence=.95;		//Default confidence level setting (alpha = 1-confidence)
+	target_p0=.;		//Default target proportion
+	n=.;				//Default sample size
+	scale="%";			//Default scale (choices are % or DPM)
+
+//Log Line
+	Print("Zero_Defect_Sampling_Script: Set initial values of variables completed.");
+
+/*************************************************************
+Divider - Create user window and determine ZDS results
+
+**************************************************************/
+//Log Line
+	Print("Zero_Defect_Sampling_Script: Create user window and determine ZDS results starting.");
+
+//Dialog Box is active until the user clicks Cancel or generates a Plot
+While(button==1,
+	
+	/*************************************************************
+	Divider - Create user window and determine user inputs
+
+	**************************************************************/
+	//Log Line
+	Print("Zero_Defect_Sampling_Script: Create user window and determine user inputs starting.");
+	
+	//ComboBox set-up, depending on whether the user chooses % or DPM
+	If(
+		//if (user chooses %)
+		scale=="%",
+		//then (a is % and b is DPM)
+		a="%";
+		b="DPM",
+		//if (user chooses DPM)
+		scale=="DPM",
+		//then (a is DPM and b is %)
+		a="DPM";
+		b="%"
+	);
+		
+	//User Window
+	result=New Window("Zero Defects Sampling",
+		<<modal,
+		<<Return Result,
+		vlistbox(
+			textbox("Supply one value to determine the second."),
+			textbox("Supply neither to see a plot of Sample Size vs Proportion."),
+			textbox(" "),
+			lineupbox(NCol(3),
+				textbox("Target Proportion"), target_p0=numbereditbox(target_p0), type=combobox(Eval list({a, b})),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Sample Size Required"), n=numbereditbox(n), spacerbox(),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Confidence"), confidence=numbereditbox(confidence), spacerbox()
+			),
+			textbox(" "),
+			hlistbox(spacerbox(Size(170, 5)), Button Box("OK"), Button Box("Cancel"))
+		)
+	);
+	
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=result["Button"];
+	confidence=result["confidence"];
+	alpha=1-confidence;
+	target_p0=result["target_p0"];
+	n=result["n"];
+	type=result["type"];
+	If(
+		//if (type is first choice)
+		type==1,
+		//then (set scale to value of a)
+		scale=a,
+		//if (type is second choice)
+		type==2,
+		//then (set scale to value of b)
+		scale=b
+	);
+	
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("Zero_Defect_Sampling_Script: Ending Script, Cancel chosen.");
+		Print("Zero_Defect_Sampling_Script: Create user window and determine user inputs completed.");
+		Print("Zero_Defect_Sampling_Script: Create user window and determine ZDS results completed.");
+		Print("Zero_Defect_Sampling_Script completed.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+	//Log Line
+	Print("Zero_Defect_Sampling_Script: Create user window and determine user inputs completed.");
+	
+	/*************************************************************
+	Divider - Error testing of alpha, sample size, and target proportion
+
+	**************************************************************/
+	//Log Line
+	Print("Zero_Defect_Sampling_Script: Error testing of alpha and sample size starting.");
+	
+	//Default additional variables for error testing
+	alphatest=.;		//default setting for variable to ensure alpha value is acceptable
+	ntest=.;			//default setting for variable to ensure sample size value is acceptable
+	potest=.;			//default setting for variable to ensure target proportion value is acceptable
+	
+	//Error testing
+	If(
+		//if ("OK" was selected)
+		button==1,
+		//then (test for alpha error and sample size error)
+		//Alpha error testing
+		If(
+			//if (alpha is greater than 0.4 or less than or equal to 0 or is missing)
+				alpha > 0.4 | alpha <= 0 | Is Missing(alpha), 
+			//then (show error window and set alphatest variable and log line)
+				//Show error window
+				New Window("Error",
+					<<Modal,
+					vlistbox(
+						textbox(""),
+						textbox("Enter a value for Confidence between 0.6 <= Conf < 1"),
+						textbox(""),
+						hlistbox(spacerbox(Size(225,5)), Button Box("OK")),
+						textbox("")
+					)
+				);
+				//Set alphatest variable
+				alphatest="out";
+				//Log Line
+				Print("Zero_Defect_Sampling_Script: Error with value of confidence."),
+			//else (set alphatest variable)
+				//Set alphatest variable
+				alphatest="OK"
+		);
+		//Sample Size error testing
+		If(
+			//if (sample size is less than 1)
+				n < 1, 
+			//then (show error window and set ntest variable and log line)
+				//Show error window
+				New Window("Error",
+					<<Modal,
+					vlistbox(
+						textbox(""),
+						textbox("Sample Size must be a positive number >= 1."),
+						textbox(""),
+						hlistbox(spacerbox(Size(175,5)), Button Box("OK")),
+						textbox("")
+					)
+				);
+				//Set ntest variable
+				ntest="out";
+				//Log Line
+				Print("Zero_Defect_Sampling_Script: Error sample size is below 1."),
+			//if (sample size is missing)
+				Is Missing(n),
+			//then (set ntest variable)
+				ntest="missing", 
+			//else (set ntest variable)
+				ntest="OK"
+		);
+		//Target Proportion error testing
+		If(
+			//if (% was chosen and target proportion is not between 0 and 100)
+				scale=="%" & (target_p0 <= 0 | target_p0 >= 100),
+			//then (show error window and set potest variable and log line)
+				//Show error window
+				New Window("Error",
+					<<Modal,
+					vlistbox(
+						textbox(""),
+						textbox("Target Proportion must be 0% < p < 100%"),
+						textbox(""),
+						hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+						textbox("")
+					)
+				);
+				//Set potest variable
+				potest="out";
+				//Log Line
+				Print("Zero_Defect_Sampling_Script: Error with value of proportion %."),
+			//if (DPM was chosen and target proportion is not between 0 and 1,000,000)
+				scale=="DPM" & (target_p0 <= 0 | target_p0 >= 1000000), 
+			//then (show error window and set potest variable and log line)
+				//Show error window
+				New Window("Error",
+					<<Modal,
+					vlistbox(
+						textbox(""),
+						textbox("Target Proportion must be 0 DPM < p < 1,000,000 DPM", <<Set Wrap(1000)),
+						textbox(""),
+						hlistbox(spacerbox(Size(250,5)), Button Box("OK")),
+						textbox("")
+					)
+				);
+				//Set potest variable
+				potest="out";
+				//Log Line
+				Print("Zero_Defect_Sampling_Script: Error with value of proportion DPM."),
+			//if (target proportion is mising)
+				Is Missing(target_p0),
+			//then (set potest variable)
+				potest="missing",
+			//else (set potest variable)	
+				potest="OK"
+		);
+		//Error checking that at least one of Target Proportion or Sample Size were left blank to be calculated
+		If(
+			//if (neither target proportion nor sample size were left blank)
+				alphatest=="OK" & ntest=="OK" & potest=="OK",
+			//then (show error window and log line)
+				//Show error window
+				New Window("Error",
+					<<Modal,
+					vlistbox(
+						textbox(""),
+						textbox("Make sure either the Sample Size or Target Proportion is blank, or both.",<<Set Wrap(500)),
+						textbox(""),
+						hlistbox(spacerbox(Size(300,5)), Button Box("OK")),
+						textbox("")
+					)
+				);
+				//Log Line
+				Print("Zero_Defect_Sampling_Script: Error neither target proportion nor sample size were left blank."),	
+		);
+	);
+
+	//Log Line
+	Print("Zero_Defect_Sampling_Script: Error testing of alpha and sample size completed.");
+	
+	/*************************************************************
+	Divider - Analysis when user chooses %
+
+	**************************************************************/
+	//Analysis when user chooses %
+	If(
+		//if ("OK" and % were chosen)
+			button==1 & scale=="%",
+		//then (test for error in target proportion and perform ZDS analysis)
+			//Log Line
+			Print("Zero_Defect_Sampling_Script: Analysis when user chooses % starting.");
+	
+			//Calculation of Sample Size if Target Proportion (%) is provided
+			If(
+				//if (sample size is missing)
+					alphatest=="OK" & ntest=="missing" & potest=="OK",
+				//then (calculate the sample size based on target proportion)
+					//Get target proportion as a decimal
+					target_p02=target_p0/100;
+					//Determine smallest integer meeting the calculation
+					n = Ceiling(Log(alpha) / Log(1 - target_p02))
+			);
+			
+			//Calculation of Target Proportion (%) if Sample Size is provided
+			If(
+				//if (target proportion is missing)
+					alphatest=="OK" & ntest=="OK" & potest=="missing",
+				//then (calculate the target proportion based on the sample size)
+					//Calculate temp variable
+					target_p0_temp = 100*(1 - Alpha ^ (1 / n));
+					//Determine smallest number meeting the calculation based on the range of the temp variable
+					If(
+						//if (temp variable is less than 0.01)
+							target_p0_temp <  0.01, 
+						//then (calculate target proportion and divide by 100,000)
+							target_p0 = Ceiling(target_p0_temp * 100000)/100000,
+						//if (temp variable is between 0.01 and 0.1)
+							0.01 <= target_p0_temp < 0.1, 
+						//then (calculate target proportion and divide by 10,000)
+							target_p0=Ceiling(target_p0_temp*10000)/10000,
+						//if (temp variable is between 0.01 and 1)	
+							0.1 <= target_p0_temp < 1, 
+						//then (calculate target proportion and divide by 1000)	
+							target_p0=Ceiling(target_p0_temp*1000)/1000,
+						//if (temp variable is between 1 and 10)
+							1 <= target_p0_temp < 10, 
+						//then (calculate target proportion and divide by 100)	
+							target_p0=Ceiling(target_p0_temp*100)/100,
+						//if (temp variable is greater or equal to 10)	
+							target_p0_temp >= 10, 
+						//then (calculate target proportion and divide by 10)	
+							target_p0=Ceiling(target_p0_temp * 10)/10	
+					)      
+			);
+
+			//Generates the plot of Sample Size vs Proportion (%)
+			If(
+				//if (both sample size and target proportion are missing)
+					alphatest=="OK" & ntest=="missing" & potest=="missing",
+				//then (create plot of sample size vs target proportion and set button to -1)
+					Eval(
+						Substitute(
+							Expr(
+								New Window("Zero Defects Sampling for Alpha = "||char(alpha), 
+									OutlineBox("Zero Defects Sampling for Alpha = "||char(alpha),
+										Graph Box(
+											FrameSize(400, 300),
+											Xscale(0, 3),
+											Yscale(0, 2000),
+											Yfunction(Ceiling(Log(Local_Alpha) / Log(1 -  (target_p0)/100)), target_p0),
+											xname("Target Proportion in "||scale), 
+											yname("Sample Size"),
+											xaxis(inc(0.5), minor ticks(1), show major grid(1), show minor grid(1)),
+											yaxis(inc(300), minor ticks(1), show major grid(1), show minor grid(1))  
+										)
+									)
+								)
+							),
+							Expr(Local_Alpha),
+							Alpha
+						) //End Substitute
+					); //End Eval  
+					//Set button to -1
+					button=-1
+			);   
+			//Log Line
+			Print("Zero_Defect_Sampling_Script: Analysis when user chooses % completed.");
+		   
+	); //End If (Analysis when user chooses %)
+
+	/*************************************************************
+	Divider - Analysis when user chooses DPM
+
+	**************************************************************/
+	//Analysis when user chooses DPM
+	If(
+		//if ("OK" and DPM were chosen)
+			button==1 & scale=="DPM",
+		//then (test for error in target proportion and perform ZDS analysis)
+			//Log Line
+			Print("Zero_Defect_Sampling_Script: Analysis when user chooses DPM starting.");
+			
+			//Calculation of Sample Size if Target Proportion (DPM) is provided
+			If(
+				//if (sample size is missing)
+					alphatest=="OK" & ntest=="missing" & potest=="OK",
+				//then (calculate the sample size based on target proportion)
+					//Get target proportion as a decimal
+					target_p02=target_p0/1000000;
+					//Determine smallest integer meeting the calculation
+					n = Ceiling(Log(alpha) / Log(1 - target_p02))
+			);
+			
+			//Calculation of Target Proportion (DPM) if Sample Size is provided
+			If(
+				//if (target proportion is missing)
+					alphatest=="OK" & ntest=="OK" & potest=="missing",
+				//then (calculate the target proportion based on the sample size)
+					//Determine smallest number meeting the calculation
+					target_p0 = ceiling(1000000*(1 - Alpha ^ (1 / n)));     
+			);
+			
+			//Generates the plot of Sample Size vs Proportion (DPM)
+			If(
+				//if (both target proportion and sample size are missing)
+					alphatest=="OK" & ntest=="missing" & potest=="missing",
+				//then (create plot of sample size vs target proportion and set button to -1)
+					Eval(
+						Substitute(
+							Expr(
+								New Window("Zero Defects Sampling for Alpha = "||char(alpha), 
+									OutlineBox("Zero Defects Sampling for Alpha = "||char(alpha),
+										Graph Box(
+											FrameSize(400, 300),
+											Xscale(0, 30000),
+											Yscale(0, 2000),
+											Yfunction(Ceiling(Log(Local_Alpha) / Log(1 -  (target_p0)/1000000)), target_p0),
+											xname("Target Proportion in "||scale), 
+											yname("Sample Size"),
+											xaxis(inc(5000), minor ticks(1), show major grid(1), show minor grid(1)),
+											yaxis(inc(300), minor ticks(1), show major grid(1), show minor grid(1))  
+										)
+									)
+								)
+							),
+							Expr(Local_Alpha),
+							Alpha
+						) //End Substitute
+					); //End Eval  
+					//Set button to -1
+					button=-1
+			);   
+			//Log Line
+			Print("Zero_Defect_Sampling_Script: Analysis when user chooses DPM completed.");
+
+	); //End If (Analysis when user chooses DPM)
+
+); //End of while
+
+//Log Line
+	Print("Zero_Defect_Sampling_Script: Create user window and determine ZDS results completed.");
+
+//Log Line
+	Print("Zero_Defect_Sampling_Script completed.");
+
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

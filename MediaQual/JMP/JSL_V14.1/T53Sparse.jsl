@@ -1,0 +1,143 @@
+////////////////////////////////////////////////////
+//// Code to create Matching & Correlation plot ////
+//// comparing T53 to T130.						////
+Close All(Data Tables, No Save);
+Close All(Reports, NoSave);
+Close All(Journals, NoSave);
+
+// Matching scripts //
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+//Include( "C:\Users\mtan\Documents\Current Projects\MCA\MCA_JMPSCRIPTS\R2\SOSFunc.jsl" );
+//img = Open("C:\Users\mtan\Desktop\memes\1.PNG", jpg);
+
+
+// User-defined data structure //
+ICOSdb = Dialog(
+	Title( "Finish T53S Data Processing" ),
+	"This script Parses data from the T53.",
+	"It will prompt the user for the location of specific files or folders.",
+	"You cannot have any JMP tables open for this script to run properly.",
+	"",
+	"How is your T53 data organized?",
+	ref_data = Radio Buttons( "Dog", "Cat" ),
+	"",
+	"Package Type:",
+	pkg_type = Radio Buttons( "BGA", "LGA" ),
+	HList( Button( "OK" ), Button( "Cancel" ) )
+);
+T53_flag = ICOSdb["ref_data"];
+pkg_flag = ICOSdb["pkg_type"];
+n = 1;
+
+If( ICOSdb["Button"] != -1,
+
+	// Save folder //
+		save_path = Pick Directory( "Select the folder where the final output will be saved." );
+	// T53 files //
+	If(
+		T53_flag == 1,
+			img = Open( "$ADDIN_HOME(ATTD.FINISH)\seen.jpg", jpg );
+			obj = New Window( "Fetching T53S file", img );
+		,
+		T53_flag == 2, 
+			img = Open( "$ADDIN_HOME(ATTD.FINISH)\swagga.jpg", jpg );
+			obj = New Window( "Working Meow", img );
+	);
+		T53_folder = Pick Directory( "Select the folder containing T53 files" );
+		T53_filelist = Files In Directory( T53_folder );
+		For( k = 1, k <= N Items( T53_filelist ), k++,
+			cfile = T53_filelist[k];
+			If( Contains( cfile, "Tray" ) > 0,
+				dts = Open( T53_folder || cfile, invisible );
+				caption({150,150},"Processing T53S files");
+			);
+		);
+		caption(remove);
+
+	// Concatenate all tables together //
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			Insert Into( openDTs, Data Table( i ) )
+		);
+	// OpenDTs is now a list of all open tables in JMP //
+		T53dt = openDTS[1];
+		If( N Table() > 1,
+			T53dt = openDTS[1] << Concatenate( 
+			openDTs[2 :: N Table()],
+			Create source column
+			 );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		T53dt << Current Data Table();
+	// Format columns //
+		T53dt:Sample_ID << Set Name( "2DID" );
+		T53dt:Coplanarity << Set Name( "Coplanarity temp" );
+		T53dt << New Column( "T53_CO", numeric, continuous, formula( Num(:Coplanarity temp) ), EvalFormula);
+		T53dt:Substrate_Flatness << Set Name( "Substrate temp" );
+		T53dt << New Column( "T53_SC", numeric, continuous, formula( Num(:Substrate temp) ), EvalFormula);
+		If(
+			pkg_flag == 1,
+			T53dt:Ball_height << Set Name( "Ball_Height temp" );
+			T53dt << New Column( "T53_BH", numeric, continuous, formula( Num(:Ball_Height temp) ),EvalFormula);
+		);
+		If(
+			pkg_flag == 2,
+			T53dt:Land_Depth << Set Name( "Ball_Height temp" );
+			T53dt << New Column( "T53_BH", numeric, continuous, formula( Num(:Ball_Height temp) ),EvalFormula);
+		);
+		Column( T53dt, "X_loc" ) << Set Name( "X" );
+		Column( T53dt, "Y_loc" ) << Set Name( "Y" );
+		T53dt << New Column( "Xt", Width( 10 ), formula( Round(Num( :X ),1) ), EvalFormula );
+		T53dt << New Column( "Yt", Width( 10 ), formula( Round(Num( :Y ),1) ), EvalFormula );
+		T53dt << New Column( "X_loc", Width( 10 ), formula( Round(Num( :Xt ),0) ), EvalFormula );
+		T53dt << New Column( "Y_loc", Width( 10 ), formula( Round(Num( :Yt ),0) ), EvalFormula );
+		T53dt:X_loc << Delete Formula;
+		T53dt:Y_loc << Delete Formula;
+		T53dt:Xt << Delete Formula;
+		T53dt:Yt << Delete Formula;
+		T53dt << Delete Columns( "X", "Y", "Xt", "Yt" );
+		T53dt << New Column( "Request", character, nominal, set each value( Word( 1, :Source Table, "_" ) ) );
+		T53dt:WS_Lot << Set Name( "Lot" );
+		T53dt << New Column( "Tray", formula( Regex( Regex( :Source Table, "Tray[0-9]+" ), "[0-9]+" ), EvalFormula ));
+
+	// Average in case of multiple runs //
+		mT53dt = T53dt << Summary( 
+			Group( :Name( "2DID" ),:X_loc, :Y_loc, :Request, :Lot ), 
+			Mean( :T53_CO), Mean(:T53_SC), Mean(:T53_BH) , Std Dev( :T53_CO ),
+				statistics column name format( "column" )
+		);
+		Column( mT53dt, "T53_CO 2" ) << Set Name( "T53_CO_SD" ) << Format("Fixed Dec",6,2);
+		
+		Column( mT53dt, "T53_CO" ) << Format("Fixed Dec",6,2);
+		Column( mT53dt, "T53_SC" ) << Format("Fixed Dec",6,2);
+		Column( mT53dt, "T53_BH" ) << Format("Fixed Dec",6,2);
+
+		Column( mT53dt, "N Rows" ) << Set Name( "T53 Runs" );
+		for(i=1, i<=Ncol(mT53dt),i++,Column(mT53dt,i)<< Set Lock(0););
+
+	// Saving files //
+		Summarize( save_flag = By( :T53 Runs ) );
+		
+		mT53dt << Add Properties to Table(
+			{New Script(
+				"Identify Units",
+				Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+				dt = currentdatatable();
+				Eval(Splitfile);
+				)
+			}
+		);
+		
+		Close( mT53dt, save( save_path || "T53.jmp" ) );
+		If( N Items( save_flag ) == 1 & save_flag[1] == "1",
+			Close( T53dt, nosave ),
+			Close( T53dt, save( save_path || "T53_all_runs.jmp" ) )
+		);
+	obj << close window();
+	img = "";	
+	T53dt = Open( save_path || "T53.jmp" );
+	
+
+)

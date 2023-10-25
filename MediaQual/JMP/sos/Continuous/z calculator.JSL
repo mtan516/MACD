@@ -1,0 +1,195 @@
+/*
+
+Normal Distribution Calculation
+Rev: 2.1
+Date: Oct 12, 2007
+Author: Wang Fang
+JMP Version: 5.1.1
+Starting Condition: User select input Z value or input probability value
+Output: If input Z value, return probability values as output; if input probability value, return Z value as output
+Edited by Wang Fang in Feb 2007: Change z to capital Z
+Edited by Paul Wenz in March 2007: Change order of p-values to match JMP output
+Edited by Wang Fang in Oct 2007: Close output graph bug if the t is set negative value, change the fill color from red to black
+*/ 
+
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+
+
+zvalue = .;
+mu = .;
+sigma = .;
+probmorez = .;
+problessz = .;
+probz = .;
+button = 1;
+valuez = .;
+prob = .;
+scale = "Z Value";
+a = "Z Value";
+b = "Probability Value";
+navy = {4 / 255, 48 / 255, 85 / 255};
+
+scale_expr = Expr(
+	result = Dialog(
+		title("Standard Normal Distribution Probability Calculator"),
+		"Choose one of the input values below: ",
+		type = Radiobuttons(a, b),
+		HList(Button("OK"), Button("Cancel"))
+	);
+	If(result["Button"] == -1,
+		Throw("User cancelled")
+	);
+	Remove From(result);
+	Eval List(result);
+);
+
+prob_UI_expr = Expr(
+	result = Dialog(
+		title("Z Distribution Probability Calculator"),
+		VList(
+			"Enter Z value below: ",
+			Lineup(2, "", "", "Z value      ", zvalue = EditNumber(zvalue)),
+			" ",
+			"Normal Distribution Probability Calculation: ",
+			"",
+			Lineup(2,
+				"Prob > |Z|", probt = editnumber(probz),
+				"Prob > Z", probmoret = editnumber(probmorez),
+				"Prob < Z", problesst = editnumber(problessz)
+			),
+			"",
+			HList(button("OK"), button("Cancel"))
+		)
+	);
+	If(result["Button"] == -1,
+		Throw("User cancelled")
+	);
+	Remove From(result);
+	Eval List(result);
+);
+
+z_UI_expr = Expr(
+	result = Dialog(
+		title("Z Value Calculator"),
+		VList(
+			"Enter the upper tail area probability below: ",
+			Lineup(2, "", "", "Probability", prob = EditNumber(prob)),
+			" ",
+			"Z Value Calculation: ",
+			"",
+			Lineup(2, "Z Value        ", valuez = editnumber(valuez)),
+			"",
+			"Note: The probability is the area to the RIGHT of Z. ",
+			"",
+			HList(button("OK"), button("Cancel"))
+		)
+	);
+	If(result["Button"] == -1,
+		Throw("User cancelled")
+	);
+	Remove From(result);
+	Eval List(result);
+);
+
+disp_type1_expr = Expr(
+	New Window("Standard Normal Distribution",
+		H List Box(
+			Outline Box("Prob>|Z|",
+				Graph Box(
+					FrameSize(200, 120),
+					X Scale(-4, 4),
+					Y Scale(0, 1.2 * Normal Density(0)),
+					X Name("Z"),
+					Y Name(""),
+					Y Function(Normal Density(x), x),
+					Fill Color(navy),
+					Y Function(If(Abs(x) > Abs(zvalue), Normal Density(x), 0), x, fill(1, 0));
+				)
+			),
+			Outline Box("Prob>Z",
+				Graph Box(
+					FrameSize(200, 120),
+					X Scale(-4, 4),
+					Y Scale(0, 1.2 * Normal Density(0)),
+					X Name("Z"),
+					Y Name(""),
+					Y Function(Normal Density(x), x),
+					Fill Color(navy),
+					Y Function(If(x > zvalue, Normal Density(x), 0), x, fill(1, 0));
+				)
+			),
+			Outline Box("Prob<Z",
+				Graph Box(
+					FrameSize(200, 120),
+					X Scale(-4, 4),
+					Y Scale(0, 1.2 * Normal Density(0)),
+					X Name("Z"),
+					Y Name(""),
+					Y Function(Normal Density(x), x),
+					Fill Color(navy),
+					Y Function(If(x < zvalue, Normal Density(x), 0), x, fill(1, 0))
+                                                      
+					;
+				)
+			)
+                                
+		),
+		FooterBox
+	)
+);
+
+disp_type2_expr = Expr(
+	New Window("Standard Normal Distribution",
+		Outline Box("Z Value",
+			Graph Box(
+				FrameSize(200, 120),
+				X Scale(-4, 4),
+				Y Scale(0, 1.2 * Normal Density(0)),
+				X Name("Z"),
+				Y Name(""),
+				Y Function(Normal Density(x), x),
+				Pen Color(navy),
+				Line({xxx, 0}, {xxx, Normal Density(xxx)}),
+				Fill Color(navy),
+				Y Function(If(x > xxx, Normal Density(x), 0), x, fill(1, 0));
+			)
+		),
+		Text Box("     P(X>" || Char(valuez) || ")=" || Char(prob)),
+		FooterBox
+	)
+);
+
+///////////////////////////////////////////////////////////////////////////////////////////////Main/////////////////////////////////////////////////////////////////////////////////////////////////////
+While(button == 1,
+	Eval(scale_expr);
+	If(type == 1, scale = a);
+	If(type == 2, scale = b);
+	While(button == 1,
+		If(scale == "Probability Value",
+			Eval(z_UI_expr);
+			If(prob >= 1 | prob <= 0,
+				Dialog(Title("Error"), "Probability value must be between 0 and 1", button("OK"))
+			);
+			If(Is Missing(prob),
+				Dialog(Title("Error"), "Missing Value!", button("OK"))
+			);
+			valuez = Round(-Normal Quantile(prob), 4);
+			Eval(Substitute(Name Expr(disp_type2_expr), Expr(xxx), valuez));
+		);
+		If(scale == "Z Value",
+			Eval(prob_UI_expr);
+			If(sigma <= 0,
+				Dialog(Title("Error"), "Standard Deviation must be more than 1", button("OK"))
+			);
+			If(Is Missing(zvalue),
+				Dialog(Title("Error"), "Missing Value!", button("OK"))
+			);
+			probmorez = Round(1 - Normal Distribution(zvalue), 4);
+			problessz = Round(Normal Distribution(zvalue), 4);
+			probz = Round((1 - Normal Distribution(Abs(zvalue))) * 2, 4);
+			Eval(Substitute(Name Expr(disp_type1_expr), Expr(zvalue), zvalue));
+		);
+	);
+);
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

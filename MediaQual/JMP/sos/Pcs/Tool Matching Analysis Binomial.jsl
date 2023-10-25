@@ -1,0 +1,688 @@
+/***
+Best In Class (BIC) script
+Date:  April 14, 2013
+Author: Todd Jordan.  CRD by Ai Lin Ong
+
+	Computes overall Chi^2 across Facility or Entity for each level of By variable
+	If both Facility and Entity are specified:
+		Computes overall Chi^2 across Facilities
+		Computes overall Chi^2 across Facility|Entity combinations
+		Will perform analysis at each level of By variable
+	Performs Best in Class  analysis to identify BIC tools
+		Compares non-BIC tools to BIC and determines technical significance 
+			(based on relative risk ratio)
+	Creates Var Charts of defect rate by:
+		By variable and Facility/Entity variable
+		By variable, Facility variable and Entity variable
+			if both Facility and Entity are specified
+	Rev History:
+		Rev 1.1
+		Rev 2: Added lines 252 - 254 to correct error in JMP11 when total number of defects = 0.
+			   Added "" around Value Colors in the report graphs for JMP11 compatibility.
+***/
+
+clear globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+
+
+/*****	Functions	*****/
+/***	Chi^2 calculation
+		Inputs: row vector with defects or goods, row vector with total n
+		Outputs:  Chi^2 value, p, df
+***/
+chi2_fcn =function({def_mat, n_mat}, {default local},
+	ngood = n_mat-def_mat;
+	expb = n_mat * (sum(def_mat)/sum(n_mat));
+	expg = n_mat * (sum(ngood)/sum(n_mat));
+	obs_expbad = def_mat - expb;
+	obs_expgood = ngood -expg;
+	chisq_bad = (obs_expbad)^2:/expb;
+	chisq_good = (obs_expgood)^2:/expg;
+	chisq = sum(chisq_bad) + sum(chisq_good);
+	df = nrows(def_mat)-1;
+	chi_p = 1 - ChiSquare Distribution( chisq, df );
+	chi_res = (matrix({chisq, chi_p, df}))`;
+);
+
+/***	BIC calculation
+		Note, could just iteratively call chi2_fcn
+		Inputs: row vector with defects or goods, row vector with total n
+		Output:  rows from matrix that are BIC
+***/
+bic_fcn = function({def_mat, n_mat}, {default local},
+	def_mat2 = def_mat[1];
+	n_mat2 = n_mat[1];
+	If(nrows(def_mat)>1,
+	for(i=2, i<= nrows(def_mat), i++,
+		def_mat2 = def_mat2|/def_mat[i];
+		n_mat2 = n_mat2|/n_mat[i];
+		chi_res = chi2_fcn(def_mat2, n_mat2);
+		if(chi_res[1,2]<0.05, 
+			bic_rows = (index(1,i-1))`; 
+			i=nrows(def_mat);
+		);
+	);
+	bic_rows;
+	,//else
+	bic_rows = [1]
+	)
+);
+
+/***	Relative Risk Function
+		Inputs: BIC total defects, BIC total n, Entity defects, entity n
+		Outputs: relative risk ratio, 95% LCI
+		Notes:
+			p1/p2 = (d1/n1)/(d2/n2) = d1/n1 * n2/d2
+			1-p1)/(n1*p1) = 1/d1 - 1/n1
+***/
+rel_risk_fcn = function({bic_def, bic_n, ent_def, ent_n}, {Default Local},
+		if(bic_def == 0,
+			bic_def = bic_def + 0.5;
+			bic_n = bic_n + 1;
+			ent_def = ent_def + 0.5;
+			ent_n = ent_n + 1;
+		);
+		rel_risk = ent_def/ent_n * bic_n/bic_def;
+		se = 1.96*sqrt(1/ent_def - 1/ent_n + 1/bic_def - 1/bic_n);
+		lci = exp(log(rel_risk)-se);
+		uci = exp(log(rel_risk)+se);
+		rel_risk_results = rel_risk|/lci;
+);
+/*****	End Functions  *****/
+
+// Make copy of data table.
+If(NTable() == 0, dt_orig = Open(), dt_orig = CurrentDataTable());
+::dt_origname = dt_orig<<GetName;
+dt_orig<<ClearSelect;
+dt_orig<<ClearColumnSelection;
+::dt = dt_orig<<Subset( Rows( dt_orig<<GetRowsWhere(!Excluded()) ), AllColumns);
+dt<<SetName( Char(dt_origname)||"_"||"Copy");
+CurrentDataTable(dt);
+dt<<BringWindowToFront;	
+dt<<ClearSelect;
+dt<<ClearColumnSelection;
+wait(0);
+
+// Get columns.
+r = Column Dialog(
+	Title("Input"),
+     FacID = ColList( "1. Facility and/or 2. Entity (Required)",
+           Max Col( 2 ),
+           Min Col( 1 ),
+           DataType( Character ),
+           Columns(:Facility)
+     ),
+     DefID = ColList( "# Defects (Required)",
+           Max Col( 1 ),
+           Min Col( 1 ),
+           DataType( numeric )
+     ),
+     NID = ColList( "Sample Size (Required)",
+           Max Col( 1 ),
+           Min Col( 1 ),
+           DataType( Numeric )
+     ),
+     ParmID = ColList( "By (Optional)",
+           Max Col( 1 ),
+           MinCol( 0 ),
+           DataType( Character )
+     ),
+     Lineup(2,
+		Text Box("Note: "), Text Box("Accept ratio for fail rate to BIC Comparison")
+     ),
+	Lineup(2,
+		Text Box("Accept Ratio: "), k_cv = EditNumber( 2 )
+     )
+);
+
+buttonR = r["Button"];
+if (buttonR==-1, close(dt, No Save); throw());
+
+remove from (r, {5,6,7,9});
+evallist(r);
+
+rollups=nitems(FacID);
+fac_ent_name = column(FacID[1])<<get name;
+group_lst = FacID; 
+If(nitems(group_lst)>1, 
+	group_lst2= remove(group_lst, nitems(group_lst),1);tool_name = column(FacID[2])<<get name
+	, group_lst2=group_lst
+);
+If(nitems(parmID)>0, 
+	parm_name = column(ParmID)<<get name; insertinto(group_lst, ParmID,1);insertinto(group_lst2, ParmID,1)
+);
+/***************	Data Table Processing	**************************/
+
+/***	Create Summary Table for Facility OR Entity	***/
+dt_list = {};
+dt_fac = dt<<summary(
+	Group( eval(group_lst2) ),
+	Sum( DefID[1] ),
+	Sum( NID[1] ),
+	statistics column name format( "column" )
+);
+InsertInto(dt_list, dt_fac);
+
+/***	Create Summary Table for Facility and Entity	***/
+If(nitems(FacID)==2,
+	dt_fac_ent = dt<<summary(
+		Group( eval(group_lst)),
+		Sum( DefID[1] ),
+		Sum( NID[1] ),
+		statistics column name format( "column" )
+	);
+	insertinto(dt_list, dt_fac_ent);
+);
+
+/***	Loop to add formulas	***/
+for(i=1, i<= nitems(dt_list), i++,
+	dt_list[i]<< new column("N Good", numeric, 
+		formula( NID[1][]-DefID[1][])
+	);
+
+	p_name = "Defect Rate (%)";
+	dt_list[i]<< new column(p_name, numeric, 
+		formula( 100*DefID[1][]/NID[1][])
+	);
+	
+	rr_name = "Ratio of Defect Rates";
+	dt_list[i]<< new column(rr_name, numeric);
+	
+	lci_name = "LCL of Ratio";
+	dt_list[i]<< new column("LCL of Ratio", numeric);
+
+	BIC_name = "Comparison to BIC (accept ratio = "||char(k_cv)||")";
+	dt_list[i]<< new column(BIC_name, character);
+	
+	If(nitems(ParmID)>0,
+		Data Table(dt_list[i] ) << Sort(
+			By( ParmID[1], column(dt_list[i],p_name) ),
+			Order( Ascending, Ascending ),
+			replace table(1)
+		);
+		,
+		Data Table(dt_list[i] ) << Sort(
+			By( column(dt_list[i],p_name) ),
+			Order( Ascending ),
+			replace table(1)
+		);
+	);
+
+); //end For
+
+/***************	Calculate Chi2 and BIC stats	**************************/
+/***	Create table for efficient row selection	***/
+If(nitems(ParmID)>0,
+	dt_sum = Data Table(dt_list[1]) << summary( Group( ParmID[1]) );
+	,
+	dt_sum = Data Table(dt_list[1]) << Summary( Group, N( FacID[1] ) );
+);
+
+/***	Result Place holders	***/
+OA_result = [];
+OA_decision = {};
+parmID_list = {};
+rollup_list = {};
+bic_def_res = [];
+bic_n_res = [];
+bic_p_res = [];
+
+/***	Loop to cycle through Parameter IDs	***/
+for(i=1, i<=nrows(dt_sum), i++,
+	dt_sum<<clear select;
+	dt_sum<<select rows(i);
+	InsertInto(rollup_list, fac_ent_name);
+	If(rollups==2, InsertInto(rollup_list, tool_name));
+for(l=1, l<=nitems(dt_list), l++,
+/***	Get row vectors for n defects and n total	***/
+	If(nitems(ParmID)>0,
+		insertinto(parmID_list, column(dt_sum,ParmID[1])[i]),
+		insertinto(parmID_list,"" )
+	);
+	parm_rows = dt_list[l]<<get selected rows;
+	n_def = column(dt_list[l],DefID)[parm_rows];
+	n_tot = column(dt_list[l], NID)[parm_rows];
+	/***	Overall Results	***/
+	OA_chi2 = chi2_fcn(n_def, n_tot);
+	OA_result = OA_result|/OA_Chi2;
+	
+	/***	BIC Calc and Results	***/
+	if(OA_Chi2[1,3]==0,
+		insertinto(OA_decision, "Insufficient Data");
+		bic_rows=[1],
+		Is Missing(OA_Chi2[1,2]),
+		insertinto(OA_decision, "Matched");
+		bic_rows = (1::nrows(parm_rows))`,
+		OA_Chi2[1,2]>=0.05,
+		insertinto(OA_decision, "Matched");
+		bic_rows = (1::nrows(parm_rows))`, //Check
+		OA_Chi2[1,2]<0.05,
+		insertinto(OA_decision, "Not Matched");
+		bic_rows = bic_fcn(n_def, n_tot)
+	);
+	bic_def = sum(n_def[bic_rows]);
+	bic_n = sum(n_tot[bic_rows]);
+	bic_p = 100* bic_def / bic_n;
+	bic_def_res = bic_def_res|/bic_def;
+	bic_n_res = bic_n_res|/bic_n;
+	bic_p_res = bic_p_res|/bic_p;
+
+	current data table(dt_list[l]);
+	column(dt_list[l],BIC_name)[parm_rows[bic_rows]]="BIC";
+	for(ii = nrows(bic_rows)+1, ii<= nrows(parm_rows), ii++,
+		ent_def = n_def[ii];
+		ent_n = n_tot[ii];
+		rr_results = rel_risk_fcn(bic_def, bic_n, ent_def, ent_n);
+		column(dt_list[l],rr_name)[parm_rows[ii]] = rr_results[1];
+		column(dt_list[l],LCI_name)[parm_rows[ii]] = rr_results[2];
+		If(rr_results[2]<= k_cv,
+			column(dt_list[l],BIC_name)[parm_rows[ii]] = "Not Tech Diff than BIC",
+			column(dt_list[l],BIC_name)[parm_rows[ii]] = "Flag: Worse than BIC"
+		)	
+	);
+	column(dt_list[l],BIC_name)<<set property("Value Colors", {"BIC" = 4, "Not Tech Diff than BIC" = 0, "Flag: Worse than BIC" = 3})<<set property("Value Ordering", {"BIC", "Not Tech Diff than BIC", "Flag: Worse than BIC"});
+);//end loop through tables
+);//end loop through parameters
+/***	End BIC Calculations	***/
+
+/*****************	Create Graphs	*************************************/
+dt<<ClearSelect;
+dt<<ClearColumnSelection;
+If(nitems(dt_list)==2,
+	dt_list2 = dt_list;
+	remove from(dt_list2,2);
+	dtent = Data Table( dt_list[2]) << Subset(allrows);
+	insertinto(dt_list2,dtent);
+);
+//ctr=1;
+If(nitems(dt_list)==2,
+	VC1_plot = expr(blah = dt_list2[1]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst2) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			Where( If(nitems(parmID)>0,column(dt_list2[1],parm_name)[] == parmID_list[eval(ctr)], all(1) )),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		parentdb = blah<<parent;
+		parentdb[textbox(1)]<<delete;
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+	VC2_plot = expr(blah = dt_list2[2]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			Where( If(nitems(parmID)>0,column(dt_list2[2],parm_name)[] == parmID_list[ctr], all(1) )),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		parentdb = blah<<parent;
+		parentdb[textbox(1)]<<delete;
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+	,//Else
+	VC1_plot = expr(blah = dt_list[1]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			Where( If(nitems(parmID)>0,column(dt_list[1],parm_name)[] == parmID_list[ctr], all(1) )),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		parentdb = blah<<parent;
+		parentdb[textbox(1)]<<delete;
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+);
+
+/***	Overall Summary Plot	***/
+If(nitems(dt_list)==2,
+	VC1OA_plot = expr( blah = dt_list2[1]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst2) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+	VC2OA_plot = expr( blah = dt_list2[2]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+	,//Else
+	VC1OA_plot = expr( blah = dt_list[1]<<
+		Variability Chart(
+			Y( :Name( "Defect Rate (%)" ) ),
+			X( eval(group_lst) ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			Show Range Bars( 0 ),
+			Show Cell Means( 0 ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 0 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 ),
+			AIAG Labels( 0 ),
+			Show Box Plot Whisker Bars( 0 ),
+			Automatic Recalc( 0 ),
+			SendToReport(
+				Dispatch(
+					{"Variability Chart for Defect Rate (%)"},
+					"2",
+					ScaleBox,
+					{Show Major Grid( 1 ), min(0)}
+				)
+			)
+		);
+		report(blah)[Frame Box(1)]<<Row Legend(eval(BIC_name), 
+			Color( "Value Colors" ),
+			Marker size( 2 ),
+			Marker Theme( "solid" ),
+		);
+	);
+);
+/*****************	Create Report Tables	*************************************/
+
+/***	Expression to create Report Tables	***/
+rep_expr = Expr(
+	dt_sum<<clear select;
+	dt_sum<<select rows(i);
+	fac_rows = dt_list[1]<<get selected rows;
+	fac_res = column(dt_list[1], FacID[1])[fac_rows];
+	def_res = column(dt_list[1], DefID)[fac_rows];
+	n_res = column(dt_list[1], NID)[fac_rows];
+	p_res = column(dt_list[1], p_name)[fac_rows];
+	relratio_res = column(dt_list[1], rr_name)[fac_rows];
+	lci_res = column(dt_list[1], lci_name)[fac_rows];
+	bic_res = column(dt_list[1], bic_name)[fac_rows];
+	bic_fac_res = fac_res[loc(bic_res,"BIC")];
+	If(!islist(bic_fac_res), bic_fac_res=evallist(list(bic_fac_res)));
+	If(!islist(fac_res), fac_res=evallist(list(fac_res)));
+	
+	If(rollups==2,
+		ent_rows = dt_list[2]<<get selected rows;
+		fac_res2 = column(dt_list[2], FacID[1])[ent_rows];
+		If(!islist(fac_res2), fac_res2=evallist(list(fac_res2)));
+		ent_res2 = column(dt_list[2], FacID[2])[ent_rows];
+		If(!islist(ent_res2), ent_res2=evallist(list(ent_res2)));
+		def_res2 = column(dt_list[2], DefID)[ent_rows];
+		n_res2 = column(dt_list[2], NID)[ent_rows];
+		p_res2 = column(dt_list[2], p_name)[ent_rows];
+		relratio_res2 = column(dt_list[2], rr_name)[ent_rows];
+		lci_res2 = column(dt_list[2], lci_name)[ent_rows];
+		bic_res2 = column(dt_list[2], bic_name)[ent_rows];
+		bic_fac_res2 = fac_res2[loc(bic_res2,"BIC")];
+		If(!islist(bic_fac_res2), bic_fac_res2=evallist(list(bic_fac_res2)));
+		bic_ent_res2 = ent_res2[loc(bic_res2,"BIC")];
+		If(!islist(bic_ent_res2), bic_ent_res2=evallist(list(bic_ent_res2)));
+	);
+
+	OA_report = (
+	OutlineBox(If(parmid_list[ctr]=="","Results",parm_name||" = "||parmid_list[ctr]),
+	HListBox(
+		If(rollups==2,
+			Tab Box( tool_name||" BIC Results",
+				VlistBox(
+				eval(VC2_plot),
+				Outline Box("Overall Chi Squared Results: "||parmid_list[ctr+1],
+					TableBox(
+						If(nitems(ParmID)>0,StringColBox(parm_name, evallist(list(parmid_list[ctr+1])))),
+						StringColBox("Rollup Level", evallist(list(rollup_list[ctr+1]))),
+						NumberColBox("Overall Chi Squared", matrix(OA_result[ctr+1,1]), <<set format(10,1,"Fixed Dec", "Use thousands separator")),
+						NumberColBox("df", matrix(OA_result[ctr+1,3])),
+						NumberColBox("p-value", matrix(OA_result[ctr+1,2]), <<set format(8,97)),
+						StringColBox("Overall Decision", evallist(list(OA_decision[ctr+1])))
+					)
+				),
+				Outline Box(" BIC Tools Summary: "||parmid_list[ctr+1],
+				TableBox(
+					StringColBox("BIC "||fac_ent_name, bic_fac_res2),
+					StringColBox("BIC "||tool_name, bic_ent_res2),
+					NumberColBox("BIC # Defects", matrix(bic_def_res[ctr+1]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Sample Size", matrix(bic_n_res[ctr+1]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Defect Rate (%)", matrix(bic_p_res[ctr+1]))
+				)),
+				OutlineBox(tool_name||" Comparison to BIC: "||parmid_list[ctr+1],
+				TableBox(
+					StringColBox(fac_ent_name, fac_res2),
+					StringColBox(tool_name, ent_res2),
+					NumberColBox("# Defects",matrix(def_res2), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("Total N", matrix(n_res2), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("Defect Rate (%)", matrix(p_res2)),
+					NumberColBox("Ratio of Defect Rate", matrix(relratio_res2), <<set format(10,2,"Fixed Dec")),
+					NumberColBox("LCL of Ratio", matrix(lci_res2), <<set format(10,2,"Fixed Dec")),
+					StringColBox("Comparison to BIC (accept ratio = "||char(k_cv)||")", bic_res2)
+				))
+				)
+				,
+				fac_ent_name||" BIC Results",
+				VListBox(
+				eval(VC1_plot),
+				Outline Box("Overall Chi Squared Results: "||parmid_list[ctr],
+					TableBox(
+						If(nitems(ParmID)>0,StringColBox(parm_name, evallist(list(parmid_list[ctr])))),
+						StringColBox("Rollup Level", evallist(list(rollup_list[ctr]))),
+						NumberColBox("Overall Chi Squared", matrix(OA_result[ctr,1]), <<set format(10,1,"Fixed Dec", "Use thousands separator")),
+						NumberColBox("df", matrix(OA_result[ctr,3])),
+						NumberColBox("p-value", matrix(OA_result[ctr,2]), <<set format(8,97)),
+						StringColBox("Overall Decision", evallist(list(OA_decision[ctr])))
+					)
+				),
+				Outline Box("BIC Tools Summary: "||parmid_list[ctr],
+				TableBox(
+					StringColBox("BIC "||fac_ent_name, bic_fac_res),
+					NumberColBox("BIC # Defects", matrix(bic_def_res[ctr]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Sample Size", matrix(bic_n_res[ctr]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Defect Rate (%)", matrix(bic_p_res[ctr]))
+				)),
+				OutlineBox(fac_ent_name||" Comparison to BIC: "||parmid_list[ctr],
+				TableBox(
+					StringColBox(fac_ent_name, fac_res),
+					NumberColBox("# Defects",matrix(def_res), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("Total N", matrix(n_res), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("Defect Rate (%)", matrix(p_res)),
+					NumberColBox("Ratio of Defect Rate", matrix(relratio_res), <<set format(10,2,"Fixed Dec")),
+					NumberColBox("LCL of Ratio", matrix(lci_res), <<set format(10,2,"Fixed Dec")),
+					StringColBox("Comparison to BIC (accept ratio = "||char(k_cv)||")", bic_res)
+				))
+				)
+			)
+			,//Else If rollups = 1
+			Tab Box(
+				fac_ent_name||" BIC Results",
+				VListBox(
+				eval(VC1_plot),
+				Outline Box("Overall Chi Squared Results: "||parmid_list[ctr],
+					TableBox(
+						If(nitems(ParmID)>0,StringColBox(parm_name, evallist(list(parmid_list[ctr])))),
+						StringColBox("Rollup Level", evallist(list(rollup_list[ctr]))),
+						NumberColBox("Overall Chi Squared", matrix(OA_result[ctr,1]), <<set format(10,1,"Fixed Dec", "Use thousands separator")),
+						NumberColBox("df", matrix(OA_result[ctr,3])),
+						NumberColBox("p-value", matrix(OA_result[ctr,2]), <<set format(8,97)),
+						StringColBox("Overall Decision", evallist(list(OA_decision[ctr])))
+					)
+				),
+				Outline Box("BIC Tools Summary: "||parmid_list[ctr],
+				TableBox(
+					StringColBox("BIC "||fac_ent_name, bic_fac_res),
+					NumberColBox("BIC # Defects", matrix(bic_def_res[ctr]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Sample Size", matrix(bic_n_res[ctr]), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("BIC Defect Rate (%)", matrix(bic_p_res[ctr]))
+				)),
+				OutlineBox(fac_ent_name||" Comparison to BIC: "||parmid_list[ctr],
+				TableBox(
+					StringColBox(fac_ent_name, fac_res),
+					NumberColBox("# Defects",matrix(def_res), <<set format(10,0,"Fixed Dec", "Use thousands separator")),
+					NumberColBox("Total N", matrix(n_res), <<set format(10,0,"Fixed Dec", "Fixed Dec", "Use thousands separator")),
+					NumberColBox("Defect Rate (%)", matrix(p_res)),
+					NumberColBox("Ratio of Defect Rate", matrix(relratio_res), <<set format(10,2,"Fixed Dec")),
+					NumberColBox("LCL of Ratio", matrix(lci_res), <<set format(10,2,"Fixed Dec")),
+					StringColBox("Comparison to BIC (accept ratio = "||char(k_cv)||")", bic_res)
+				))
+				)
+			)
+		)//end if
+	)
+	)
+	);
+);//end rep_expr
+
+
+BIC_summary = (
+	New Window("BIC Matching Results", 
+		<<OnClose( If(!Is Empty(dtent), close(dtent, nosave)); close(dt,nosave)),
+		OA_summary = 
+		OutlineBox("Overall Summary",
+			If(rollups==2,
+				OA_Tab = Tab Box( tool_name||" BIC Results",
+					VListBox(eval(VC2OA_plot)),
+					fac_ent_name||" BIC Results",
+					VListBox(eval(VC1OA_plot))
+				)
+				,
+				Tab Box(
+					fac_ent_name||" BIC Results",
+					VListBox(eval(VC1OA_plot))
+				)
+			)
+		)
+	)
+);//end OA_summary expression
+IF(rollups == 2, 
+	tab_expr = expr(
+		tab_num = OA_tab<<get selected; 
+		for(i=1, i<=n_parms, i++,
+			OA_Summary[i+1, OutlineBox(1),TabListBox(1)]<<set selected(tab_num);
+		);
+	);
+	OA_Tab << On Tab changed(tab_expr);
+);
+/***	Loop to create Report Tables	***/
+ctr = 1;
+n_parms = nrows(dt_sum);
+for(i=1, i<=n_parms, i++,
+	eval(rep_expr);
+	OA_summary<<append(OA_report);
+	ctr=ctr+rollups;
+);//end for
+
+OA_summary<<append(FooterBox);
+dt_sum<<clear select;
+close(dt_sum, nosave);

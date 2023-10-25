@@ -1,0 +1,870 @@
+/********************************************************************
+ *SOS Global Variables: 
+ *JMP Version: v5.1.1 - v8.0.x
+ *Author: Pdbrown 
+ *Latest updated 4/07/2014 by Siew Cheng (For JMP11- Revise the Matrix to list converter for [](0,1) )
+
+********************************************************************/
+
+::jmpver = Try(Trim(JMPVersion()), "5");
+//::jmpvernum = Num(Substr(jmpver,1,1));
+::jmpvernum = Num(Word(1, JMP Version(), "."));
+
+If( jmpver != "5", Preferences(Allow short numeric data format(0)));
+::FooterBox=Expr(VListBox( textbox(" "),textbox(" SOS Version 7.4, February 24, 2022") ));
+::NULL=.;
+::tab_create_list={};
+::DATE_STAMP = Expr(
+  Local( {_date_,_time_},
+    _date_ = Munger(Format(Today(), "mmddyyyy"), 1, 4) || Munger(Format(Today(), "mmddyyyy"), 7, -1) || "_";
+    _time_ = Substr(Format(Today(), "h:m"),1,Length(Format(Today(), "h:m"))-1);
+    _time_ = Munger(Munger(_time_,1,":",""),1," ","");
+    Eval(_date_) || Eval(_time_)
+	)	
+);
+
+PCS_GLBLS = Expr(
+{
+::Lib_Path = "$ADDIN_HOME(com.intel.sos)\libraries\";
+::Ref_Path = "$ADDIN_HOME(com.intel.sos)\Reference Files\";
+::dt = "";
+::dt1 = "";
+::file_open = .;
+::IS_EPASS=0;
+::IS_Stability=0;
+::IS_ToolMatch = 0;
+::IS_Capability = 0;
+::IS_MULTI = 0;
+::LoadLimitMatrix = Expr(
+Online_Limit_Matrix |/= Transpose(Matrix(EvalList({ Eval(xOnLCL[j]), Eval(xOnCl[j]), Eval(xOnUCL[j]), Eval(sOnLCL[j]), Eval(sOnCL[j]), Eval(sOnUCL[j]) })));
+);
+::ClearSTADiagVars = {::Response=., ::x=., ::subx=., ::Param=., ::t=., ::Col_List=., ::z=., ::subxsort=0, ::exclQ=0, ::K_Val = 3, ::savrsQ=0, ::ref_select=1, ::button={0,1,0}, ::subxQ=0; };
+::grp_head_txtexpr = Expr( If( N_z !=0, Munger(Munger( Char(z),1,"{","" ),1,"}","") || ", ","" ) );
+::warn_msg = OutlineBox("Warning Messages");
+::do_altQ=0;
+::alt_op_text = "";
+::alt_op_info = {};
+::alt_ent_col = "";
+::alt_col_offset=0;
+::alt_anl_id = "PREV";
+::alt_col_defs = {::alt_op_col="PREV_OPER", ::alt_txndate_col="PREV_OPER_DATE",  ::alt_ent_col="PREV_OPER_ENTITY"};
+::fac_col={"facility"};
+::clr_mrk_sw=0;
+::param_name_arg = "PARAMETERID";
+::col_offset = .;
+::Grp_List = {};
+::Grp_Cols = {};
+::N_Grp_Cols = .;
+::Group_ID = {};
+::N_Param_Groups=.;
+::summ_grp_tab="";
+::summ_param_tab="";
+::Ref_Param_Cols = {"ParamID_Ref", "Param_Type_Ref", "Center_Type_Ref", "Mean_Param_Center_Ref", "Mean_Param_Std_Ref", "Std_Param_Mean_Ref", "Std_Param_Std_Ref", "Tool_Name_Ref", "Data_Source_Ref"};
+::TM_RefMap_Cols = {"RefMM_Col", "RefMS_Col", "RefSM_Col", "RefSS_Col",	"RefTYP_Col", "UseTAR_Col",	"RefTOL_Col",	"ParamType_Col"};
+Thread( Expr( Eval(Parse(Char("::" || Char(Expr(_argv)) || "=NULL"))) ), Ref_Param_Cols);
+Thread( Expr( Eval(Parse(Char("::" || Char(Expr(_argv)) || "=NULL"))) ), TM_RefMap_Cols);
+::spc_pad_base = If( Munger(jmpver,1,1) == "7", 10, 24 );
+}
+
+);
+
+//"
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CA_GLBLS = Expr(
+{
+Preferences(Import Settings(End Of Line(CRLF, CR, LF), End Of Field(Tab, Comma), Strip Quotes(1), Labels(1), Column Names Start(1), Data Starts(2), Year Rule("10-90")), Export Settings(End Of Line(CRLF), End Of Field(Comma), Export Table Headers)),
+::EXE_COMPLETE={},
+::PASS_INQ = 0,
+::OP_INDX = 4000,
+::CNTRL_INDX = 3,
+::CNTRL_MODE = 0,
+::CNTRL_TABLE = "",
+::CNTRL_TABLE_NAME = "",
+::CNTRL_TABLE_PATH = "",
+::IS_UL = 0,
+::IS_CATTS = 0,
+::IS_LLSOSFMT = 0;
+::REF_PATH = "",
+::RESULTS_PATH = "",
+::CNTRL_FILE_ID = "",
+::DATA_TABLE_ID = "",
+::MIN_LOT_SAMPLE_SIZE=0,
+::MIN_LOTS_PER_LEVEL=0,
+::LL_DT = "",
+::LL_DT_NAME = "",
+::DATA_TABLE_COLNAMES ={},
+::DATE_LISTCHK_VALS = {},
+::RAW_DT = "",
+::RET=0,
+::ERR_MSG = "",
+::OP_NUM_TEMPLATE_NAME = "Op Numbers with Descriptions_rev2.jmp",
+::CNTRL_TEMPLATE_NAME = "Master_ControlFile_Template.JMP",
+::CNTRLcolname_datacols = "Column";
+::CNTRLcolname_modtype = "Modeling Type";
+::CNTRLcolname_area = "Area";
+::CNTRLcolname_coltype = "Column Type";
+::CNTRLcolname_datematch = "Date Matching";
+::CNTRLcolname_errat = "Error Checking:  Area/Column Type";
+::CNTRLcolname_outyc = "Output(Y) Computations";
+::CNTRLcolname_erryc = "Error Checking:  Computations";
+::CNTRLcolname_order = "Order";
+::CNTRLcolname_typesel = "TypeSelect";
+::COLTYPElistchk_lot = "Area Lot";
+::COLTYPElistchk_grpby = "";	 //"By Variable"
+::COLTYPElistchk_inputx = "Input (X)";
+::COLTYPElistchk_xdate = "X Date";
+::COLTYPElistchk_outputy = "Output (Y)";
+::COLTYPElistchk_ydate = "Y Date";
+::COLTYPElistchk_xydate = "";	//"X and Y Date"
+::COLTYPElistchk_smplsz = "Sample Size",
+::CNTRL_TEMPLATE_COLNAMES = Expr( Eval(EvalExpr( EvalList(Expr(Insert({
+	CNTRLcolname_datacols, CNTRLcolname_modtype, CNTRLcolname_area, CNTRLcolname_coltype,
+	CNTRLcolname_datematch, CNTRLcolname_errat}, If(IS_UL, {CNTRLcolname_outyc, CNTRLcolname_erryc},{}))
+)) ))),
+::CNTRL_TEMPLATE_COLTYPE_LISTCHK_VALS = Expr( Eval(EvalExpr( EvalList(Expr(Insert({
+	COLTYPElistchk_lot, COLTYPElistchk_grpby, COLTYPElistchk_inputx, COLTYPElistchk_xdate,
+	COLTYPElistchk_outputy, COLTYPElistchk_ydate, COLTYPElistchk_xydate}, If( !IS_UL, COLTYPElistchk_smplsz,{""} ))
+)) ))),
+//::CNTRL_FILE_COLNAMES = {"Column", "Modeling Type", "Area", "Column Type", "Date Matching", "Error Checking:  Area/Column Type"},
+//::COLTYPE_LISTCHK_VALS = {"Area Lot", "", "Input (X)", "X Date", "Output (Y)", "Y Date", "","Sample Size"},
+::MODTYPE_LISTCHK_VALS = {"Continuous", "Date", "Nominal"},
+//::OUTPUT_Y_LISTCHK_VALS = {"Min", "Max", "Median", "Mean", "Sum", "%(1)", "Std Dev", "Range", "{Mean, Std Dev}", "{Mean, Range}", "{Mean, Min}", "{Mean, Max}"},
+::OUTPUT_Y_LISTCHK_VALS = {"%(1)"},
+::CNTRL_SAVE_FLAG = Expr( Local({cmpdt},
+Choose( CNTRL_MODE,
+	cmpdt = Eval(Parse(Munger(CNTRL_TABLE_HLD,1,CNTRL_TABLE << GetName,"cmp" )));
+	If( NRow(CNTRL_TABLE) == NROW(cmpdt),
+		If( All(Matrix(Thread( EvalExpr(Expr( EvalExpr(Sum(Column(CNTRL_TABLE,_argv) << GetValues == Column(Expr(cmpdt),_argv) << GetValues) ))), Eval(cmpdt<<GetColumnNames(String))))) == 1,
+			Close(cmpdt, NoSave);0,
+			Close(cmpdt, NoSave);1
+		),
+		Close(cmpdt, NoSave);1
+	),
+	1,0)
+)),
+::CNTRL_FILE_INIT = Expr(
+	{
+  /**cntrl_file_colnames**/
+	Eval List( CNTRL_FILE_COLNAMES ), 
+
+	{
+  /** "Column" -- all col names from raw data table are placed here**/
+	{{CNTRL_FILE_COLNAMES[1]}, {Expr( SetValues( DATA_TABLE_COLNAMES ) )}}, 
+  
+  /** "Column Type" -- set listcheck on this col using coltype_listchk_vals **/
+	{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 1]}, {Eval Expr( ListCheck( Expr( Eval List( COLTYPE_LISTCHK_VALS ) ) ) )}}, 
+  
+  /**date_match_listcheck_vals**/
+	{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 2]}, {Eval Expr( ListCheck( Expr( Eval List( DATE_LISTCHK_VALS ) ) ) )}}
+  
+}
+	
+} ), //EndExpr
+CNTRL_INIT = Expr(Local( {temp=CNTRL_FILE_INIT},InsertInto(temp[2],
+	If( !IS_UL,
+		{
+			{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 3]}, {Parse(Char(EvalExpr(
+				SetFormula(
+					Match( Expr(Column(CNTRLcolname_coltype)), 
+						Expr(COLTYPElistchk_lot), If( Is Missing( Expr(Column(CNTRLcolname_area )) ), "Warning:  AREA will be set to ALL."),
+						Expr(COLTYPElistchk_outputy), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+						Expr(COLTYPElistchk_ydate), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."), 
+						Expr(COLTYPElistchk_smplsz), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+						Expr(COLTYPElistchk_inputx), If( Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."), 
+						Expr(COLTYPElistchk_xdate), If (Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."),
+						"", "Warning:  Column will be deleted."
+					)
+				)))) }}
+		},
+		
+		{
+			{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 3]}, {Parse(Char(EvalExpr(
+				SetFormula(
+					Match( Expr(Column(CNTRLcolname_coltype)), 
+						Expr(COLTYPElistchk_outputy), If(!Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+						Expr(COLTYPElistchk_ydate), If(!Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."), 
+						Expr(COLTYPElistchk_inputx), If(Is Missing(  Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."), 
+						Expr(COLTYPElistchk_xdate), If(Is Missing(  Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."),
+						"", "Warning:  Column will be deleted."
+					)
+				)))) }},
+				
+			{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 4]}, {Eval Expr( ListCheck( Expr( Eval List( OUTPUT_Y_LISTCHK_VALS ) ) ) )}},
+					
+			{{CNTRL_FILE_COLNAMES[CNTRL_INDX + 5]}, {Parse(Char(EvalExpr(
+				SetFormula(
+					Match(  Expr(Column(CNTRLcolname_coltype)),
+						Expr(COLTYPElistchk_lot), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Area Lot."),
+						Expr(COLTYPElistchk_inputx), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Input (X)."),
+						Expr(COLTYPElistchk_xdate), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for X Date."),
+						Expr(COLTYPElistchk_ydate), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Y Date."),
+						Expr(COLTYPElistchk_outputy), If( Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Error:  Enter Output (Y) Computation Method."),
+						"", If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Deleted Columns.")
+					)
+				)))) }}
+		}
+	) );
+	temp;
+));
+
+::LL_CNTRL_FILE_INIT = CNTRL_FILE_INIT;
+::UL_CNTRL_FILE_INIT = CNTRL_FILE_INIT,
+::LL_SPECIFIC_COLS = {"LOT", "LOSS_CODE", "INDATE", "OUTDATE", "MOVE_IN_QTY", "MOVE_OUT_QTY", "LOSS_CODE_QTY", "YIELD%", "LOSS%"},
+::CNTRLtypeselFMLA = Expr(Parse(Char(Expr(SetFormula(
+  If( !Is Empty( ::IS_UL ) & !IsMissing(::IS_UL) & Type(::IS_UL)=="Number",
+    Combine States(
+      If( ::IS_UL, If(	Marker Of( Row State() ) == 6 & Color Of( Row State() ) == 20, Selected State( 0 ), Selected State( 1 ) ), Selected State( 1 ) ),
+  		As Row State(
+  			Excluded( Row State() ) * 2 + Hidden( Row State() ) * 4 +
+  			Labeled( Row State() ) * 8 + Marker Of( Row State() ) * 16 +
+  			Color Of( Row State() ) * 256
+  		)
+  	)
+  )
+)))) ),
+::inputvar_colname = "Input Variable";
+::outputvar_colname = "Output Variable";
+::dates_colname = "Dates for Inputs"
+
+}
+
+); //EndExpr
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+::AddAnalysisChk = Function( {_dt, _alt_colkey}, {_cols_, i},
+
+ _fndvect_=[];
+_alt_colkey_ = EvalList(_alt_colkey);
+If( Type(Eval(_alt_colkey_)) == "List",
+	_cols_ = _dt << GetColumnNames(String);
+	_n_alt_colkey_ = NItems(_alt_colkey_);
+	_fndvect_ = J( _n_alt_colkey_, 1, 0 );
+	For( i=1, i<=_n_alt_colkey_, i++,
+	  _alt_col_vals_ = Column(_alt_colkey_[i] ) << GetValues;
+	  If( Type(_alt_col_vals_) == "List", _chk_expr_ = Expr( !All( IsMissing(_alt_col_vals_)) ), _chk_expr_ = Expr(NRow(_alt_col_vals_)) );
+	  If( ( NRow(Loc(_cols_, _alt_colkey_[i])) ) !=0 & (Eval(_chk_expr_) != 0), _fndvect_[i] = 1 );
+	);
+	_ret_ = If( All( _fndvect_ == 1 ), 1, 0 ),
+	
+	_ret = -1;
+);
+
+);
+   
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+::AnalysisSelect = Function( {_sel_},
+
+  _sel = EvalExpr( Expr(Parse(_sel_)) );
+	  If( !IsEmpty(_sel),
+		Match( Char(Arg(_sel)),
+		 "IS_Stability",
+		   If( Eval(_sel),
+		     ::alt_indx={1,2,3};
+		     ::anal_ref_cols = {"parameter_type", "parameter_mean_parameter_lcl", "parameter_mean_parameter_ucl", "parameter_mean_parameter_cl", "parameter_stddev_parameter_lcl", "parameter_stddev_parameter_ucl"};
+		     ::sos_ref_cols = {"Parameter Type", "Mean Parameter LCL", "Mean Parameter CL", "Mean Parameter UCL", "StdDev Parameter CL", "StdDev Parameter UCL" }
+		   ),
+		 "IS_ToolMatch",
+		   If( Eval(_sel),
+		     ::alt_indx={1,3};
+		     ::anal_ref_cols = {"parameter_type", "parameter_center_type", "parameter_mean_param_center", "parameter_mean_param_stdev", "parameter_stdev_param_mean", "parameter_stdev_param_stdev", "parameter_ref_tool_name", "parameter_ref_data_src"};
+		     ::sos_ref_cols = {"Parameter Type", "Center Type", "Mean Parameter Center", "Mean Parameter Std Dev", "StdDev Parameter Mean", "StdDev Parameter Std Dev", "Ref Tool Name", "Ref Data Source"}
+		   ),
+		 "IS_Capability",
+		   If( Eval(_sel),
+		     ::alt_indx={1,3};
+		     ::anal_ref_cols = {"parameter_type", "parameter_target", "parameter_lsl", "parameter_usl"};
+		     ::sos_ref_cols = {"Parameter Type", "Center Type", "Mean Parameter Center", "Mean Parameter Std Dev", "StdDev Parameter Mean", "StdDev Parameter Std Dev", "Ref Tool Name", "Ref Data Source"}
+		   )
+		)
+  );
+); //EndFunction
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::ExitOnError = Function( {opid_},
+
+	// { dt1, dt, summ_param_tab, ref_tab, ref_tab_join, sumtable, summ_grp_tab, samplesizedt }
+	// { OP_ID: 100 - Stablity, 200 - Tool Matching, 300 - Capability
+	//	01 - Initialization (including ref_tab)
+	//	02 - Setup: group table, apply limits, add columns/fmlas/group summary
+	//	03 - Analyze: step through parameter/group tables, create analysis tables, Do calculations, Create graph/report objects.
+	//	04 - Display: Create output display windows, save files, save scripts
+	//	05 - Exit: Destroy dormant tables, Clear mode's globals, return to handler
+
+	Choose( Floor( opid_/100 ),
+		If( Mod( opid_, 100) > 1,
+			Close(dt, NoSave),
+			Close( ref_tab, NoSave );
+			Close( ref_tab_join, NoSave );
+			Close( summ_param_tab, NoSave);
+			Close(dt, NoSave);
+		);
+	);
+); //EndFunction
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::CreateDialog = Expr( Dialog( Title(Char( _Title )), 
+			HList( _msgtext ),
+			HList( Button("OK") )
+		); //EndDialog
+); //EndExpr
+
+
+::nomatch_text = Expr( Expr(VList("No Matches to PARAMETERID found in reference table.",
+		" ",
+		"Please check PARMETERID choices"))
+);
+
+::NoMatch_Msg = Expr( Eval(Substitute( NameExpr(CreateDialog), Expr(_Title),Char("Error Alert"), Expr(_msgtext), nomatch_text ) ));
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::ProcessRVT = Function( {_ref_tab,_dt, _fac_col},{_param_tab, _ref_tab_inst_, _ref_tab_out_=0, ref_tab_summ, rts_row_reg, N_rts_rows, ref_row_reg, N_ref_row_reg, i, j},
+  _ref_tab_cols = _ref_tab << GetColumnNames(String);
+  If( NRow(Loc(_ref_tab_cols, _fac_col[1])) != 0,
+    If( NRow(_ref_tab) != 0,
+      Local( {
+        rvt_base_cols = EvalList({_fac_col[1], "CE_Flag", "parameter_id", "parameter_name"}),
+        rvt_pname_indx = NItems(rvt_base_cols),
+        rvt_param_col = rvt_base_cols[rvt_pname_indx],
+        rvt_grp_cols = Insert(rvt_base_cols, anal_ref_cols),
+        rvt_param_grp_cols = Insert( anal_ref_cols, rvt_param_col,1 ),
+        Facility_Ref_Grp_Map={},
+        Fac_list = {},
+        Ref_Grp_list = {},
+        Ref_Grp_col_ref = Expr(Column(_ref_tab_inst_,"REF_GRP")),
+        Ref_Grp_col_out = Expr(Column(_dt,"REF_GRP")),
+        Fac_col_ref = Expr(Column(_ref_tab_inst_,_fac_col[1])),
+        Fac_col_out = Column(_dt,_fac_col[1]),
+        Param_col_ref = Expr(Column(_ref_tab_inst_, rvt_param_col)),
+        Param_col_out = Column(_dt, param_name_arg),
+        dt_param_grp_cols = Insert( _fac_col, Char(Param[1]) )	  
+        },
+
+        _param_tab_ = _dt << Summary( Group( Eval(dt_param_grp_cols ) ) );
+        _ref_tab_inst_ = Eval(EvalExpr( _param_tab_ << Join(With(Expr(_ref_tab)), MergeSameNameColumns, Expr(SelectWithParseList(rvt_grp_cols) ),
+    By Matching Columns( Expr(Char(Param[1])) = Expr(rvt_param_col), Expr(_fac_col[1]) = Expr(_fac_col[1]) ),
+    Drop Multiples(0, 0), Include Non Matches(0, 0), OutputTableName( Expr(Char(_ref_tab<<GetName) || "_SITE_REF_GRP")) ))
+      );
+        Close(_param_tab_, NoSave);
+        ref_tab_summ = _ref_tab_inst_ << Summary( Group( Eval(rvt_param_grp_cols) ) );
+        CurrentDataTable(ref_tab_summ);
+        Summarize( ref_tab_summ_levs = By( Column(rvt_param_col) ), n_levs = Count );
+        non_ce_indxs = Loc( n_levs > 1);
+        N_non_ce_indxs = NRow(non_ce_indxs);
+        If( N_non_ce_indxs != 0,
+          _dt << NewColumn("REF_GRP",Character(16));
+          _ref_tab_inst_ << ClearSelect;
+          _ref_tab_inst_ << NewColumn("REF_GRP",Character(16));
+          CurrentDataTable(ref_tab_summ);
+          For( i=1, i<=N_non_ce_indxs, i++,
+            ref_tab_summ << SelectWhere( Column( Eval(rvt_param_col) )[] ==  ref_tab_summ_levs[non_ce_indxs[i]] );
+            rts_row_reg = ref_tab_summ << GetSelectedRows;
+            N_rts_rows = NRow(rts_row_reg);
+            If( N_rts_rows != 0,
+              For( j=1, j<=N_rts_rows, j++,
+                ref_tab_summ	 << ClearSelect;
+                ref_tab_summ << SelectRows(rts_row_reg[j]);
+                CurrentDataTable(_ref_tab_inst_);
+                ref_row_reg = _ref_tab_inst_ << GetSelectedRows;
+                N_ref_row_reg = NRow(ref_row_reg);
+                If( N_ref_row_reg != 0,
+                  Param_ref_list = Eval(Param_col_ref)[ref_row_reg];
+                  Fac_list = Eval(Fac_col_ref)[ref_row_reg];
+                  Eval(Ref_Grp_col_ref)[ref_row_reg] = "REF_GRP_" || Char(j);
+                  Ref_Grp_list = Eval(Ref_Grp_Col_ref)[ref_row_reg];
+                  InsertInto( Facility_Ref_Grp_Map, EvalList({ EvalList({Param_ref_list,Fac_list, Ref_Grp_list}) }) );
+                )
+              ) //EndFor j
+            ); //EndIf N_rts_rows
+          ); //EndFor
+          ref_tab_summ	 << ClearSelect;
+          Eval(Param_col_ref) << SetEachValue( If( Eval(Ref_Grp_col_ref)[] != "", Char( Eval(Param_col_ref)[]) || "_" || Char(Eval(Ref_Grp_col_ref)[] ), Eval(Param_col_ref)[] ) ); 
+          CurrentDataTable(_dt);
+          For( i=1, i<=NItems(Facility_Ref_Grp_Map), i++,
+            For( j=1, j<=NItems(Facility_Ref_Grp_Map[i][1]), j++,
+              out_row_reg = _dt << GetRowsWhere( Eval(Param_col_out)[] == Facility_Ref_Grp_Map[i][1][j] & Eval(Fac_col_out)[] == Facility_Ref_Grp_Map[i][2][j] ); 
+              Eval(Ref_Grp_col_out)[out_row_reg] = Facility_Ref_Grp_Map[i][3][j];
+            );
+          );
+          Eval(Param_col_out) << SetEachValue( If( Eval(Ref_Grp_col_out)[] != "", Char( Eval(Param_col_out)[] || "_" || Eval(Ref_Grp_col_out)[] ), Eval(Param_col_out)[] ) );
+        ); //EndIf N_non_ce_indxs
+        Eval(Param_col_ref) << SetName(Eval(param_name_arg));
+        rvt_param_grp_cols[1]=param_name_arg;
+        _ref_tab_out_temp = _ref_tab_inst_ << Summary( Group( Eval(Insert(rvt_param_grp_cols,"Match Flag",1)) ) );
+        _ref_tab_out_ = _ref_tab_out_temp << GetScript;
+        Close(_ref_tab_inst_, NoSave);
+        Close( ref_tab_summ, NoSave);
+      ); //EndLocal
+    ); //EndIF NRow(_ref_tab)
+    _ref_tab_out_,
+
+    /*ELSE*/
+    _ref_tab
+  ); //EndIF NRow(Loc)
+
+); //EndFunction
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::CreateDateRunIDCol = Function( {_dt, _x, _subx, _subxsort}, {_Date_X_,_subx_,_x_,_grp_list_},
+    _subx_ = Eval(_subx);
+    _x_ = Eval(_x);
+    _grp_list_ = Insert(_x_, _subx_);
+		CurrentDataTable(_dt);
+		_Date_X_ = _dt << NewColumn( "Date_RunID", Character );
+		ForEachRow( _Date_X_[] = 
+		  If( !ZeroOrMissing(Column(_dt, Char(_subx_[1]))[]),
+		    Format( Column(_dt, Char(_subx_[1]))[],"m/d/y h:m" ) || "_" || Char(Column(_dt, Char(_x_[1]))[]),
+
+		    "" || "_" || Char(Column( _dt, Char(_x_[1]))[]);
+		  );
+		);
+		If( _subxsort,
+      _grp_list_ = Insert(_subx_, _x_);
+			_Date_X_ << Set Property("Row Order Levels",(1));
+		 	Eval( EvalExpr(_dt << Sort(By(Expr(_grp_list_)), Order(Ascending), ReplaceTable)) ),
+		 	
+		 	ReverseInto(_grp_list_) 
+		);
+		EvalList({_Date_X_,_grp_list_})
+); //EndFunction
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::GetAltOpID = Function( {_dt}, {_alt_opid_, _alt_op_cnt_},
+	_subdt_alt_ = _dt << Subset( Rows(), Invisible );
+	CurrentDataTable(_subdt_alt_);
+	Summarize( _alt_opid_ = By(Column(_subdt_alt_, alt_op_col)), _alt_op_cnt_= Count );
+	Close(_subdt_alt_,NoSave);
+	EvalList({_alt_opid_, _alt_op_cnt_})
+); //EndFunction
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::Flatten2DList = Function({list_arg_},
+	{DefaultLocal},
+	NewList = {};
+	For(i = 1, i <= N Items(list_arg_), i++, 
+		For(j = 1, j <= N Items(list_arg_[i]), j++, 
+			Insert Into(NewList, list_arg_[i][j]);
+		);
+	);
+	NewList;
+); //EndFunction
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+SelectParseList=Function( {_list},{arg_expr,temp_expr},
+
+arg_expr = Char( EvalExpr( Select(Expr( Parse( Char(Eval(_list)) ) ))));
+temp_expr = Munger(Munger( arg_expr,1,"{","" ),1,"}","");
+Parse(temp_expr)
+
+); //EndFunction
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+SelectWithParseList = Eval(
+	Parse(Munger( Char(NameExpr(SelectParseList)),1,"Select","SelectWith" ))
+); //EndFunction
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+::Thread = Function( { _func, _arglist },{out_list,cntarg,i},
+
+out_list={};
+If( Type(_arglist) == "List", 
+	cntarg = NItems(_arglist),
+	If( Type(_arglist) == "Matrix",
+		cntarg = NRow(_arglist),
+
+		cntarg=1;
+		_arglist = EvalList({_arglist});
+	);
+);
+
+//  For JMP 9
+For(i=1, i<=cntarg, i++,
+	InsertInto(out_list, Eval( Substitute(NameExpr(_func), Expr(_argv), Eval(_arglist[i])) ));
+
+);
+
+
+out_list
+
+); //EndFunction
+
+
+// SearchColumn
+::SearchColumn = Function( {dt_, col_ref_, srch_str_="" }, {DefaultLocal},
+  
+  _ret_ = 0;
+  _result_ = [];
+  Try(
+    _col_type_ = col_ref_ << GetDataType;
+    If( _col_type_ == "Numeric",
+      _ret_= -1,
+    
+      _result_ = dt_ << GetRowsWhere( Contains(col_ref_[], Eval(srch_str_)) );
+      If( NRow(_result_) != 0, _ret_=1 );
+    ),
+    
+    _ret_ = -2;
+  );
+
+  EvalList({_ret_, _result_})
+
+);
+
+// Matrix to list converter
+::MatrixAsList = Function( {mat_}, {DefaultLocal},
+  If( Type(Eval(mat_)) == "List",
+    listtemp = Char(mat_),
+    
+    list_char = Eval(EvalExpr(Char(List(Expr(mat_))) ));
+    //listtemp = Munger( list_char,1,"[","");
+    //listtemp = Munger( listtemp,1,"]","");
+    If( Substr( list_char, 2, 1 ) == "[" & Substr( list_char, 3, 1 ) == "]",
+		listtemp = Char( "{}" ), 
+   		listtemp = Munger( list_char, 1, "[", "" );
+		listtemp = Munger( listtemp, 1, "]", "" );
+	);
+  );
+  Parse(listtemp);
+); //EndFunction
+
+// ConcatDataTables
+::ConcatDataTables = Function( { dt_list_ }, {firstdt, lastdt, dtlist, concat_dt_list, ii},
+
+firstdt = dt_list_[1];
+lastdt = dt_list_[NItems( Eval(dt_list_) )];
+If( NItems(dt_list_) == 1,
+  _newtempdt_ = NewTable();
+  _newtempdt_ << NewColumn( "AREA", Character );
+  InsertInto( dt_list_, _newtempdt_ );
+);
+dtlist = Remove( Eval(dt_list_),1 );
+concat_dt_list = firstdt << Concatenate( dtlist, OutputTableName( Char(firstdt << GetName) || " -- " || Char(lastdt << GetName) ), KeepFormulas );
+For( ii=1, ii<=NItems(dt_list_), ii++, Close( dt_list_[ii], NoSave ) );
+
+concat_dt_list
+); //EndFunction
+
+
+
+/////////////////////////////////////////////////////
+//
+// GetColAsTable()
+//
+/////////////////////////////////////////////////////
+::GetColAsTable = Function( {colid, dt}, 
+			Local( {header,colvals},
+			CurrentDataTable(dt);
+			header = Column( dt, Eval(colid) )<<GetName;
+			colvals = Column( dt, Eval(colid) )<<GetValues;
+			EvalExpr({Expr(header),Expr(colvals)});
+			);
+);
+
+
+/////////////////////////////////////////////////////
+//
+// GetColAsTableSub()
+//
+/////////////////////////////////////////////////////
+::GetColAsTableSub = Function( {colid, dt}, 
+			Local( {header,colvals,rowlist},
+			CurrentDataTable(dt);
+			rowlist = dt<<GetRowsWhere( Selected() );
+			header = Column( dt, Eval(colid) )<<GetName;
+			colvals = Column( dt, Eval(colid) )[rowlist];
+			EvalExpr({Expr(header),Expr(colvals)});
+			);
+);
+
+/////////////////////////////////////////////////////
+//
+// GetTableAsText()
+//
+/////////////////////////////////////////////////////
+::GetTableAsText = Function( {dt},
+				Local( {gname={""},gset={} },
+					CurrentDataTable(dt);
+					For(h=1,h<=NRow(dt),h++,
+						For(i=1,i<=NCol(dt)-1,i++,
+							gname[1] = gname[1] || Char(GetColAsTable(i,dt)[1]) || "=" || Char(GetColAsTable(i,dt)[2][h]) || ".  ";
+						);
+						InsertInto(gset,EvalList({gname}));
+						gname={""};
+					);
+				EvalList(gset)
+				);
+		);
+
+/////////////////////////////////////////////////////
+//
+// ScreenData()
+//
+/////////////////////////////////////////////////////
+::ScreenData = Function( { colID, kval }, { dt,pslo, pshi,lowerscreen,upperscreen,ExcludedCount=0},
+	
+	dt=CurrentDataTable();
+	pslo = (Col Quantile( Column(dt,colID), 0.5) - Col Quantile( Column(dt,colID), 0.25))/ 0.6745;
+	pshi = (Col Quantile( Column(dt,colID), 0.75) - Col Quantile( Column(dt,colID), 0.5))/ 0.6745;
+	lowerscreen = Col Quantile( Column(dt,colID), 0.5) - kval * pslo;
+	upperscreen = Col Quantile( Column(dt,colID), 0.5) + kval * pshi;
+
+	CurrentDataTable(dt);
+	for each row(
+		if( Or(Column(dt,colID)[] < lowerScreen, Column(dt,colID)[] > upperScreen),
+ 			rowstate()=combine states(excluded state(1),marker state(11),color state(3));
+			ExcludedCount++;
+		);
+	);
+
+	EvalExpr({Expr(lowerscreen),Expr(upperscreen),Expr(ExcludedCount)})
+);
+
+/////////////////////////////////////////////////////
+//
+// ScreenDataSub()
+//
+/////////////////////////////////////////////////////
+::ScreenDataSub = Function( { colID, kval }, { k,sdt,pslo, pshi, lowerscreen, upperscreen,ExcludedCount=0},
+	
+	sdt=CurrentDataTable();
+	rowlist = sdt<<GetRowsWhere( Selected() );
+	pslo = ( Quantile(0.5,Column(sdt,colID)[rowlist]) - Quantile( 0.25,Column(sdt,colID)[rowlist]) )/ 0.6745;
+	pshi = ( Quantile(0.75,Column(sdt,colID)[rowlist]) - Quantile( 0.5,Column(sdt,colID)[rowlist]) )/ 0.6745;
+	lowerscreen = Quantile(0.5,Column(sdt,colID)[rowlist]) - kval * pslo;
+	upperscreen = Quantile(0.5,Column(sdt,colID)[rowlist]) + kval * pshi;
+
+	CurrentDataTable(sdt);
+	For( k=1, k<=NRow(rowlist), k++,
+		If( Or(Column(sdt,colID)[rowlist[k]] < lowerScreen, Column(sdt,colID)[rowlist[k]] > upperScreen),
+			rowstate( rowlist[k] )=combine states(excluded state(1),marker state(11),color state(3),SelectedState(1) );
+			ExcludedCount++; 					
+		);
+	);
+
+	EvalExpr({Expr(lowerscreen),Expr(upperscreen),Expr(ExcludedCount)})
+
+);
+
+/////////////////////////////////////////////////////
+//
+// SavRowStatCol()
+//
+/////////////////////////////////////////////////////
+::SaveRowStatCol = Function( { colID },{ found,colnames,numcols,i },
+				found=0;
+				colnames=CurrentDataTable()<<GetColumnNames;
+				numcols = NItems( colnames );
+
+				For( i=1,i<=numcols, i++, 
+					If( Contains( colnames[i], Eval(colID) ),
+						found=1;
+					);				
+				);
+				If( !found,	dt<<AddMultipleColumns( Char(colID),1,AfterLast,RowState);
+				ForEachRow( :Row State Save[] = RowState() ),
+				Column( Char(colID) )<<CopyFromRowStates;				
+				);
+				CurrentDataTable()<<ClearRowStates;
+			);
+
+/////////////////////////////////////////////////////
+//
+// RangeCheckDataSub()
+//
+/////////////////////////////////////////////////////
+::RangeCheckDataSub = Function( { sdt, colID, low, hi, exQ }, { k,rowlist, NExcl_low=0, NExcl_hi=0 },
+	
+	CurrentDataTable(sdt);
+	rowlist = sdt<<GetRowsWhere( Selected() );
+	
+	For( k=1, k<=NRow(rowlist), k++,
+		If( !IsMissing(low),
+			If( (Column(sdt,colID)[rowlist[k]] < low) & !IsMissing( Column(sdt,colID)[rowlist[k]] ) & !Excluded(rowstate(rowlist[k])),
+			If( exQ,rowstate(rowlist[k]) = combine states(excluded state(1),marker state(11),color state(3),SelectedState(1) ));
+			NExcl_low++;
+			);
+		);
+
+		If( !IsMissing(hi),
+			If( (Column(sdt,colID)[rowlist[k]] > hi) & !IsMissing( Column(sdt,colID)[rowlist[k]] ) & !Excluded(rowstate(rowlist[k])),
+			If( exQ,rowstate(rowlist[k]) = combine states(excluded state(1),marker state(11),color state(3),SelectedState(1) ));
+			NExcl_hi++;
+			);
+		);
+	);
+	EvalExpr({Expr(NExcl_low),Expr(NExcl_hi),Expr(NExcl_hi+NExcl_low)})
+);
+
+
+/////////////////////////////////////////////////////
+//
+// CreateColumn( dt, colname, type, position)
+// 
+// This function is similar to AddMultipleColumns but
+// checks first to see if the column already exists
+//
+/////////////////////////////////////////////////////
+::CreateColumn = Function( {dt, col, type,position="AfterLast"}, {names,found=0,i},
+  CurrentDataTable(dt);
+  names = dt<<GetColumnNames(String);
+  For( i=1, i<=NItems(names), i++,
+    If( col == names[i], found=1;i=NItems(names), found=0 );
+  );
+  If( !found, Eval(EvalExpr(dt<<AddMultipleColumns( Char(col),1, Expr(Parse(position)),Expr(Parse(type)) ) )) );
+);
+	
+
+/////////////////////////////////////////////////////
+//
+// GenerateBoxPlot()
+//
+/////////////////////////////////////////////////////
+::GenerateBoxPlot = Function( {x,y,z,mswitch,cswitch,answitch},
+	Oneway(Y( eval(y) ), X( eval(x) ), Box Plots(1), Mean Lines(1), Means and Std Dev( Eval(mswitch) ), Connect Means( Eval(cswitch) ), Mean Diamonds(0), Mean Error Bars(0), Std Dev Lines(0), X Axis proportional(0), Points Jittered(1), AllPairs( Eval(answitch) ), By(Eval(z)), SendToReport(Dispatch({}, "Oneway Plot", FrameBox, Frame Size(520, 200)), Dispatch({}, "", NomAxisBox, Rotated Tick Labels(1)), Dispatch({}, "",AxisBox, ShowMajorGrid), Dispatch({}, "Oneway Means Compare", FrameBox, Frame Size(300, 200)) ));
+);
+
+/////////////////////////////////////////////////////
+//
+// GenerateVarChart()
+//
+/////////////////////////////////////////////////////
+::GenerateVarChart = Function( {x,y,z,cswitch},{v_expr},
+
+v_empt=Expr(Empty());
+v_expr = EvalExpr(
+Variability Chart(Y( Expr(y) ), X( Expr(x) ),
+
+ShowPoints(1),
+ShowRangeBars(1),
+Std Dev Chart(0),
+ShowGrandMean(0),
+ShowGroupMeans(0),
+ShowBoxPlots(0),
+ShowCellMeans( Expr(cswitch) ),
+ConnectCellMeans( Expr(cswitch) ),
+PointsJittered(1),
+StdDevChart(0),
+Expr(Expr(v_empt)),
+By( Expr(z) ), SendToReport( Dispatch({}, "Variability Chart", FrameBox, Frame Size(550, 250)), Dispatch({}, "Variability Chart", FrameBox, MarkerSize(2)), Dispatch({}, "", NomAxisBox, RotatedTickLabels(1)), Dispatch({}, "",AxisBox, ShowMajorGrid)) );
+);
+
+NameExpr(v_expr) 
+); //EndFunction
+
+
+::TrackTable = Function( {dt_, reset_=0},
+  If( reset_ == 1, tab_create_list = {} );
+	If( !IsEmpty(Eval(dt_)),
+	 If( All( (Matrix(Thread( EvalExpr(Char(_argv) == Char(Expr(dt_)) ), tab_create_list ))) == 0 ),  InsertInto(tab_create_list, Eval(dt_)) )
+  );
+);
+
+
+::CleanUP = Function( {},{i},
+  For( i=1, i<=NItems(tab_create_list), i++,
+		If( Trim(Char(tab_create_list[i])) != "" & Contains( Char(tab_create_list[i]), "UnknownTable" ) == 0,
+			Close( DataTable( tab_create_list[i] ), NoSave );
+		 );
+  );
+  tab_create_list = {};
+);
+
+::IncOP = Function( {stp_=1, indx_=0},
+  If( stp_ != 0, If( RET == 1, OP_INDX+=stp_ ) );
+  If( indx_ != 0, OP_INDX = indx_; RET=1 );
+  OP_INDX
+);
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//// Qvalues functions
+//// Reference: Nettleton et al (2006) JABES 11, 337-356
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Name: Estimate_m0(p, B)
+// Type: Function
+// Description:
+// 1. Estimates the number of true null hypotheses given a vector of p-values
+// 2. Arguments:
+//	p 				: p-values (col, matrix)
+//	B 				: number of bins
+////////////////////////////////////////////////////////////////////////////////////
+::Estimate_m0 = Function( {p, B=20}, {m, m0, bin, bin.counts, tmp, tmp2, tail.means, tmp3, index},
+	m = Nrow( p );
+	m0 = m;
+	bin = J(B+1, 1, -0.1);
+	bin[2::(B+1)] = (1::B)/B;
+	bin.counts = J(B, 1, 0);
+	
+	
+	for(i=1, i<=B, i++,
+		bin.counts[i] = sum((p>bin[i]) & (p<=bin[i+1]));
+	);
+	
+	
+	tmp = Matrix(Reverse( As List(bin.counts) ));
+	tmp2 = J(B, 1, tmp[1]);
+	for(i=2, i<=B, i++,
+		tmp2[i] = Sum( tmp[1::i] );
+	);
+	tail.means = Matrix(Reverse( As List(E Div(tmp2, Transpose(Matrix(1::B))) ) ));
+	
+	tmp3 = bin.counts - tail.means;
+	index = Min(Loc(tmp3 <= 0));
+	m0 = B * tail.means[index];
+	
+	return(m0);
+);
+
+
+
+/////////////////////////////////////////////////////////
+// Name: jabes_q(p, B)
+// Type: Function
+// Description:
+// 1. Converts p-values into q-values
+// 2. Arguments:
+//	p 				: p-values (col, matrix)
+//	B 				: number of bsins
+/////////////////////////////////////////////////////////
+::jabes_q = Function( {p, B=20}, {m, m0, k, ord, qval, tmp, tmp2},
+	m = Nrow( p );
+	m0 = Estimate_m0(p, B);
+	k = 1::m;
+	ord = Rank( p );
+	qval = p;
+	qval[ord] = E Div(p[ord]*m0, Transpose(1::m));
+	
+	tmp = Matrix(Reverse( As List(qval[ord]) ));
+	tmp2 = J(m, 1, tmp[1]);
+	for(i=2, i<=m, i++,
+		tmp2[i] = Min( tmp[1::i] );
+	);
+	qval[ord] = Matrix( Reverse( As List( tmp2 )) );
+	
+	return(qval);
+);
+
+

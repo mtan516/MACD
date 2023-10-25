@@ -1,0 +1,52 @@
+/********************************************************************
+ PCS Capability: Cpk Summary Stats
+ Orginator: Todd Jordan
+ JMP Version: v9 - v10
+ Date: 12/21/2012
+ Modified by: John Xu
+ Date: 01/11/2013
+********************************************************************/
+Clear Globals();
+
+Try(
+	Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"  ),
+	::FooterBox = V List Box( Text Box( " " ) )
+);
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sos capability functions.jsl" );
+/***  Get data table, remove excluded, create temp data table  ***/
+If( N Table() == 0,
+	::dt_orig = Open(),
+	::dt_orig = Current Data Table()
+);
+
+ :: dt_origname = dt_orig << GetName;
+dt_orig << ClearSelect;
+dt_orig << ClearColumnSelection;
+::dt = dt_orig << Subset( Rows( dt_orig << GetRowsWhere( !Excluded() ) ), AllColumns );
+dt << SetName( Char( dt_origname ) || "_" || "(Copy)" );
+Current Data Table( dt );
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+// Initialize Globals
+Initialize_capability_globals;
+::lsl = .;
+::pmt = .;
+::usl = .;
+::TOL = .;
+::TOL_type = .;
+::parameterid = "ParameterID";
+::fac_val = {};
+::fac_val2 = {};
+::ent_val = {};
+::spec_ck = 1;
+
+
+// Main routines
+
+
+Cpk_SummaryStats_MainDiag_Expr;
+
+Eval(Overall_Cpk_Expr);
+

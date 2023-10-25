@@ -1,0 +1,43 @@
+// List of variables revealed outside of SOS for usage by 1click applications
+	
+	/******** Tool Matching Objects **********/
+	::oneclick_TM_Window; // Main Window
+	::oneclick_TM_Summary_by_Parm_Entity_Box; // Summary table box
+	::oneclick_TM_Status_by_Parm_Entity_Box; // Summary table box
+	::oneclick_TM_Summary_by_Parm_Facility_Box; // Summary table box
+	::oneclick_TM_Summary_by_Parm_Box; // Summary table box
+	
+		// Usage examples (run after tool matching script)
+		oneclick_TM_Summary_by_Parm_Entity_Box << make data table("Tool Matching Summary by Parameter Entity");
+		oneclick_TM_Status_by_Parm_Entity_Box << make data table("Tool Matching Status by Parameter Entity");
+		oneclick_TM_Summary_by_Parm_Facility_Box << make data table("Tool Matching Summary by Parameter Facility");
+		oneclick_TM_Summary_by_Parm_Box << make data table("Tool Matching Summary by Parameter");
+
+	
+	/******** Stability Objects **********/
+	::oneclick_Stability_Window; // Main Window
+	::oneclick_Stability_Summary_by_Parm_Entity_Box; // Summary table box
+		
+		// Usage examples (run after stability script)
+		oneclick_Stability_Summary_by_Parm_Entity_Box << make data table("Stability Summary by Parameter Entity");
+	
+	
+	/******** Capability on Summary Stats Objects **********/
+	::oneclick_Cpk_SS_Window; // Main Window
+	::oneclick_Cpk_SS_Overall_SummaryBox; // Summary table box
+	::oneclick_Cpk_SS_by_Facility_SummaryBox; // Summary table box
+	::oneclick_Cpk_SS_by_Entity_SummaryBox; // Summary table box
+	
+		// Usage examples (run after capability on summary stats script)
+		oneclick_Cpk_SS_Overall_SummaryBox << make data table("Capability Overall Summary");
+		oneclick_Cpk_SS_by_Facility_SummaryBox << make data table("Capability Summary by Facility");
+		oneclick_Cpk_SS_by_Entity_SummaryBox << make data table("Capability Summary by Entity");
+		
+	/******** Capability Objects **********/
+	::oneclick_Cpk_Window; // Main Window
+	::oneclick_Cpk_Summary_Box; // Cpk Summary Report
+	::oneclick_Cpk_Rollup_Box; // Cpk Rollup Report
+			
+		// Usage examples (run after capability script)
+		::oneclick_Cpk_Summary_Box << make data table("Capability Summary Report");
+		::oneclick_Cpk_Rollup_Box << make data table("Capability Rollup Report");

@@ -1,0 +1,254 @@
+/*******************************************************************************************
+	Chart Report Translation Utility
+	Author: Paul Wenz
+	JMP Version: 11
+	Starting Condition: SPC++ chart report file
+	Output: New columns parsed from category column: "MONITOR SET","ENTITY","ROUTE","OPERATION","PRODUCT"
+		New columns parsed from header rows: "AREA","SITE"
+		New columns are shaded grey for easy identification
+		Column filter added for easy sorting.
+	Rev History
+		9/16/14: Removed original chart report format without 5 new columns.
+			Site column definition depends on filename, not embedded server name.
+			If unable to connect to sharepoint, gives error message and prompts for user to pick folder.
+		11/12/2014: Added option to open concatenated chart report file.  Forced column names to comply in chart load
+		6/24/2015:  Added two new options: PCS Portal link, and save txt file.
+		8/7/2015: Removed obsolete options.  open TSV file and save excel
+********************************************************************************************/
+
+/*******************************************************************************************
+	error_dialog
+	Output: Creates error message if unable to connect to sharepoint drive
+********************************************************************************************/
+error_dialog = expr(
+	db=Dialog(Title("Error"),"Unable to connect to default Sharepoint folder. Options:
+		1. Click OK to manually browse for chart report file.
+		2. Click cancel to exit. Try again after resolving connectivity issues.",
+		HList(Button("OK"),Button("Cancel"))
+	);
+	If(db["button"]==-1, throw() );
+);
+
+/*******************************************************************************************
+	Open_All_Sites_Chart_Report_File
+	Starting Condition: None
+	Output: Open concatenated Chart Report JMP file from default sharepoint file
+********************************************************************************************/
+Open_All_Sites_Chart_Report_File = expr(
+	Try( // primary path
+		All_CR_path = pick file("Select Chart Report","\\sharepoint.amr.ith.intel.com@SSL\sites\attdautopcstools\assemspcce\CE Material\4. SPC++CE! Audit Results and Presentations\e. Chart Reports\"),
+		Try( // alternate path
+			All_CR_path = pick file("Select Chart Report","\\sharepoint.amr.ith.intel.com@SSL\DavWWWRoot\sites\attdautopcstools\assemspcce\CE Material\4. SPC++CE! Audit Results and Presentations\e. Chart Reports\"),
+			// error message
+			error_dialog;
+			All_CR_path = pick file();
+		);	
+	);
+);
+
+/*******************************************************************************************
+	Make_CR_template
+	Starting Condition: None
+	Output: Make empty table with default chart report columns
+********************************************************************************************/
+Make_CR_template=expr(
+		dt = new table("template",
+			New Column( "MEASUREMENTSET", Character, Nominal ),
+			New Column( "SUBSET", Character, Nominal ),
+			New Column( "CATEGORY", Character, Nominal ),
+			New Column( "CHARTTYPE", Character, Nominal ),
+			New Column( "UNITS", Character, Nominal ),
+			New Column( "DISPLAY", Character, Nominal ),
+			New Column( "SKIP", Character, Nominal ),
+			New Column( "UCL", Character, Nominal ),
+			New Column( "CL", Character, Nominal ),
+			New Column( "LCL", Character, Nominal ),
+			New Column( "UDL", Character, Nominal ),
+			New Column( "LDL", Character, Nominal ),
+			New Column( "TRG", Character, Nominal ),
+			New Column( "MINY", Character, Nominal ),
+			New Column( "MAXY", Character, Nominal ),
+			New Column( "HOLD RULES", Character, Nominal ),
+			New Column( "DOWN RULES", Character, Nominal ),
+			New Column( "MAIL RULES", Character, Nominal ),
+			New Column( "ROW", Character, Nominal ),
+			New Column( "COL", Character, Nominal ),
+			New Column( "NOOFPOINTS", Character, Nominal ),
+			New Column( "LATEST POINT DATE", Character, Nominal),
+			New Column( "MEANUSAGE", Character, Nominal ),
+			New Column( "ALPHTRPL", Character, Nominal ),
+			New Column( "ALPHTBET", Character, Nominal ),
+			New Column( "USPECLMT", Character, Nominal ),
+			New Column( "LSPECLMT", Character, Nominal ),
+			New Column( "USGMLMT", Character, Nominal ),
+			New Column( "LSGMLMT", Character, Nominal ),
+			New Column( "SIGMA", Character, Nominal ),
+			New Column( "LAMBDA", Character, Nominal ),
+			New Column( "L", Character, Nominal ),
+			New Column( "AUDIT EXEMPTION FLAG", Character, Nominal ),
+			New Column( "AUDIT EXEMPTION CATEGORY", Character, Nominal ),
+			New Column( "AUDIT EXEMPTION COMMENTS", Character, Nominal ),
+			New Column( "AUDIT EXEMPTION DATE", Character, Nominal ),
+			New Column( "REFERENCE ENTITY FLAG", Character, Nominal ),
+		);
+);
+
+/*******************************************************************************************
+	Open_Chart_Load_File
+	Starting Condition: None
+	Output: Opens excel file containing missing, extra, or gap files created by spc++ audit
+********************************************************************************************/
+Open_Chart_Load_File = expr(
+	Try( // primary path
+		CL_path = pick file("Select Chart Load","\\sharepoint.amr.ith.intel.com@SSL\sites\attdautopcstools\assemspcce\CE Material\4. SPC++CE! Audit Results and Presentations\c. Chart Loads and Deletes\"),
+		Try( // alternate path
+			CL_path = pick file("Select Chart Load","\\sharepoint.amr.ith.intel.com@SSL\DavWWWRoot\sites\attdautopcstools\assemspcce\CE Material\4. SPC++CE! Audit Results and Presentations\c. Chart Loads and Deletes\"),
+			// error message
+			error_dialog;
+			CL_path = pick file();
+		);
+	);
+
+	dt_temp=Open(
+		CL_path,
+		//Worksheets( "Sheet1" ),
+		Use for all sheets( 1 ),
+		Concatenate Worksheets( 0 ),
+		Create Concatenation Column( 0 ),
+		Worksheet Settings(
+			1,
+			Has Column Headers( 1 ),
+			Number of Rows in Headers( 1 ),
+			Headers Start on Row( 1 ),
+			Data Starts on Row( 2 ),
+			Data Starts on Column( 1 ),
+			Data Ends on Row( 0 ),
+			Data Ends on Column( 0 ),
+			Replicated Spanned Rows( 1 ),
+			Suppress Hidden Rows( 1 ),
+			Suppress Hidden Columns( 1 ),
+			Treat as Hierarchy( 0 )
+		)
+	);
+	column(dt_temp,"LATEST POINT DATE") << data type(Character);
+	
+	Make_CR_template;
+	dt << Concatenate(dt_temp, Append to first table);
+		
+	filename=word(-1,CL_path,"/"); // get file name
+	filename2=munger(filename,1,".xls",""); // remove xls extension
+	filename3=munger(filename2,1,word(1,filename,"_")||"_",""); // remove ww prefix
+	dt << set name(filename3);
+	
+	close(dt_temp,nosave);
+);
+
+/*******************************************************************************************
+	Parse_Chart_Report
+	Starting Condition: Open Chart Report
+	Output: Addes new parse columns
+********************************************************************************************/
+Parse_Chart_Report = expr(
+	dt_name = dt << Get Name;
+	Site_string = word(1,dt_name,"_");
+	
+	// add new columns
+	dt << New Column("MONITOR SET",character,formula(If(Contains(:CATEGORY, "MON ") > 0, Trim(Substr(:CATEGORY, Contains(:CATEGORY, "MON ") + 4)), Empty())));
+	dt << New Column("ENTITY",character,formula(If(Contains(:CATEGORY, "EQP ") > 0, Trim(Word(1, Substr(:CATEGORY, Contains(:CATEGORY, "EQP ") + 4), ",")), Empty())));
+	dt << New Column("AREA",character,formula(If(Contains(:MEASUREMENTSET, "Area:") > 0, Trim(Substr(:MEASUREMENTSET, Contains(:MEASUREMENTSET, "Area:") + 5, Contains(:MEASUREMENTSET, "Server:") - Contains(:MEASUREMENTSET, "Area:") - 5)), Lag(:Area, 1))));
+	dt << Run Formulas;
+	dt << New Column("SITE",character,<< Set Each Value(Site_string));
+	dt << New Column("ROUTE",character,formula(If(Contains(:CATEGORY, "RTE ") > 0, Trim(Word(1, Substr(:CATEGORY, Contains(:CATEGORY, "RTE ") + 4), ",")), Empty())));
+	dt << New Column("OPERATION",character,formula(If(Contains(:CATEGORY, "OPE ") > 0, Trim(Word(1, Substr(:CATEGORY, Contains(:CATEGORY, "OPE ") + 4), ",")), Empty())));
+	dt << New Column("PRODUCT",character,formula(If(Contains(:CATEGORY, "PRO ") > 0, Trim(Word(1, Substr(:CATEGORY, Contains(:CATEGORY, "PRO ") + 4), ",")), Empty())));
+
+	// arrange columns
+	dt << Move Selected Columns ({"SITE","AREA","MONITOR SET"},To First);
+	dt << Move Selected Columns ({"ENTITY","ROUTE","OPERATION","PRODUCT"},After("CHARTTYPE"));
+
+	// set color for new columns
+	column(dt,"MONITOR SET") << color cells(80);
+	column(dt,"ENTITY") << color cells(80);
+	column(dt,"AREA") << color cells(80);
+	column(dt,"SITE") << color cells(80);
+	column(dt,"ROUTE") << color cells(80);
+	column(dt,"OPERATION") << color cells(80);
+	column(dt,"PRODUCT") << color cells(80);
+
+	// add special cell value in monitor set column to identify header rows
+	column(dt,"MONITOR SET") << delete property("formula");
+	for each row(if(is missing(:CATEGORY[]),:MONITOR SET[]="__HEADER ROW__"));
+
+	// add data filter
+	df = dt << data filter(add filter(columns(:AREA,:MONITOR SET,:MEASUREMENTSET,:SUBSET,:CHARTTYPE)),hierarchical);
+);
+
+/*******************************************************************************************
+	Save_Chart_Report Expression (TEXT)
+	Starting Condition: SPC++ chart report file with extra columns
+	Output: Subset column with only core columns, prompt to save as excel file
+********************************************************************************************/
+Save_Chart_Report_txt = expr(
+	dt = currentdatatable();
+	file_name = "My chart load "|| format(today(),"Monddyyyy");
+	
+	db=Dialog(
+		Title("Save Chart Load File"),
+		Text ("Program will make a subset of relevant chart report columns from the current datatable."),
+		Text ("Text file will be saved on your desktop"),
+		Text (""),
+		HList("Change Filename ",file_name = Edit Text(file_name)),
+		HList(Button("OK"),Button("Cancel"))
+	); 
+	If(db["button"]==-1, throw());
+	file_name=db["file_name"];
+
+	// Save chart report as text file with original columns + 5 new columns
+	dt_txt = dt << Subset(
+		Copy formula( 0 ),
+		All rows,
+		columns(:MEASUREMENTSET,:SUBSET,:CATEGORY,:CHARTTYPE,:UNITS,:DISPLAY,:SKIP,:UCL,:CL,:LCL,:UDL,:LDL,:TRG,:MINY,:MAXY,:HOLD RULES,:DOWN RULES,:MAIL RULES,
+			:ROW,:COL,:NOOFPOINTS,:LATEST POINT DATE,:MEANUSAGE,:ALPHTRPL,:ALPHTBET,:USPECLMT,:LSPECLMT,:USGMLMT,:LSGMLMT,:SIGMA,:LAMBDA,:L,
+			:AUDIT EXEMPTION FLAG,:AUDIT EXEMPTION CATEGORY,:AUDIT EXEMPTION COMMENTS,:AUDIT EXEMPTION DATE,:REFERENCE ENTITY FLAG),
+	);
+	
+	Preferences(Export Settings(End Of Line(CRLF), End Of Field(Tab, CSV(0)), Export Table Headers(1)));
+	dt_txt << Save("$desktop/"|| file_name ||".txt",Text);
+);
+
+
+/*******************************************************************************************
+	Main Program
+********************************************************************************************/
+
+// Dialog box
+db=Dialog(
+	Title("SPC++ Chart Report Utility"),
+	Text("Utility for saving SPC++ chart report text files.
+	 Chart Reports for each site are hosted in the PCS Portal.
+	 Resulting JMP table has a data filter.
+	 Additional gray columns contain parsed information."),
+	Text(" "), 
+	VList(
+		Text("Choose action:"),
+		rb=RadioButtons(
+		"Open Chart Report JMP Files from PCS Portal",
+		//"Open All Sites Concatenated Chart Report File (From CE Audit)",
+		//"Open Chart Load *.xls File (Created from SPC++ Audit)",
+		//"Parse Chart Report JMP Table (Using Current Data Table)",
+		"Save Current Data Table in Chart Load *.txt Format"),
+	),
+	HList(Button("OK"),Button("Cancel"))
+); 
+source = db["rb"];
+If(db["button"]==-1, throw() );
+
+// open file depending on choice
+If(
+	source == 1, web("http://mfgreports.ch.intel.com/pcsportal/FYI%20Reports/Chart%20Report/Chart%20Report%20Summary.html"),
+	//source == 2, Open_All_Sites_Chart_Report_File; Open(All_CR_path),
+	//source == 3, Open_Chart_Load_File; Parse_Chart_Report,
+	//source == 4, dt = current data table(); Parse_Chart_Report,
+	source == 2, Save_Chart_Report_txt
+);
+

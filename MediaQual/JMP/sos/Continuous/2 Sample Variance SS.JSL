@@ -1,0 +1,133 @@
+/*******************************************************************************************
+	
+	2-Sample Variance Sample Size
+	Author: Wang Fang and Siew Cheng
+	Rev: 2.1
+	Date: 10/16/2006
+	JMP Version: 5.1.1
+	Starting Condition: Input first standard deviation, delta , alpha, beta, and hypothesis type.
+	Output: Sample size is computed using F Distribution methods.
+
+
+********************************************************************************************/
+
+button = 1;
+alpha = 0.05;
+beta = 0.10;
+input_std0 = .;
+delta = .;
+hyptype="SB";
+n=.;
+lambda=.;
+
+
+/****************************** Input Dialog Box **************************************************/
+
+while(button==1,
+
+ If(hyptype=="SB",a2="SB";b2="SEB",
+    hyptype=="SEB",a2="SEB";b2="SB");
+
+
+ result=Dialog(title("2-Sample Variance Sample Size"),
+  "Provide Values for First (POR) Standard Deviation, Delta,",
+  "Hypothesis Type, Alpha, and Beta. ",
+  " ",
+  " ",
+  VList(
+    Hlist( Lineup(2,
+    "First Standard Deviation", input_std0=EditNumber(input_std0),
+    "Delta", delta=EditNumber(delta)
+	)),
+   Lineup(3,
+   "Hypothesis Type",hyptype=radiobuttons(a2,b2)," ",
+    " "," "," ",
+    " "," "," ",
+    "Alpha", alpha=EditNumber(alpha)," ",
+    "Beta", beta=EditNumber(beta)," ",
+    " "," "," ",
+    " "," "," ",
+    "Sample Size:", n=EditNumber(n)," for each group."
+	), 
+      " ",
+   HList(Button("OK"), Button("Cancel"))
+  )
+ );
+
+/****************************** Extract Results **************************************************/
+
+button = result["Button"];
+alpha=result["Alpha"];
+beta=result["Beta"];
+
+hyptype=result["hyptype"];
+ if(hyptype==1,hyptype=a2,
+    hyptype==2,hyptype=b2);
+
+
+delta = result["delta"];
+input_std0=result["input_std0"]; 
+
+ if(hyptype=="SB", input_std1 = input_std0 - result["delta"],
+    hyptype=="SEB", input_std1 = input_std0 + result["delta"] 
+	);
+
+
+/****************************** Check for Input Errors **************************************************/
+
+If (button==1,
+
+/* Error Checking for Alpha and Beta */
+  if(alpha > .4 | alpha <= 0, Dialog(Title("Error"),"","Alpha must be between 0 and .4",
+   "",Button("OK"),"");alphatest="out",Is Missing(alpha),Dialog(Title("Error"),
+   "","Please Enter a Value For Alpha, Between 0 and .4","",Button("OK"),"");
+   alphatest="missing",alphatest="OK");
+  if(beta > .4 | beta <= 0, Dialog(Title("Error"),"","Beta must be between 0 and .4",
+   "",Button("OK"),"");betatest="out",Is Missing(beta),Dialog(Title("Error"),
+   "","Please Enter a Value For Beta, Between 0 and .4","",Button("OK"),"");
+   betatest="missing",betatest="OK");
+
+/* Error Checking for Target Prop and Delta */
+
+if(alphatest=="OK" & betatest=="OK",
+
+  if(input_std0 <= 0, Dialog(Title("Error"),"","The standard deviation must be > 0",
+   "",Button("OK"),"");input_std0test="out",Is Missing(input_std0),Dialog(Title("Error"),
+   "","Please Enter a Value For First Standard Deviation, must be > 0","",Button("OK"),"");
+   input_std0test="missing",input_std0test="OK");
+
+ if(delta <= 0, Dialog(Title("Error"),"","Delta out of range",
+   "",Button("OK"),"");deltatest="out",Is Missing(delta),Dialog(Title("Error"),
+   "","Please Enter a Value For Delta","",Button("OK"),"");
+   deltatest="missing",deltatest="OK");
+
+ if(hyptype=="SB" & delta > input_std0, Dialog(Title("Error"),"","Delta must be less than First Standard Deviation for SB condition",
+   "",Button("OK"),"");deltatest="out",Is Missing(delta),Dialog(Title("Error"),
+   "","Please Enter a Value For Delta","",Button("OK"),"");
+   deltatest="missing",deltatest="OK");
+
+  );
+
+/********************************* Sample Size Algorithms *******************************************************/
+lambda=(input_std1/input_std0)^2;
+maxn=500000;
+
+if(alphatest=="OK" & betatest=="OK" & input_std0test=="OK" & deltatest=="OK",
+
+
+if(hyptype=="SB", 
+   n=1; while (lambda > (F Quantile((alpha),n,n)/F Quantile(1-beta,n,n)), n++));
+
+if(hyptype=="SEB", 
+   n=1; while (lambda < (F Quantile((1-alpha),n,n)/F Quantile(beta,n,n)), n++));
+
+ErrorMessage="N is greater than "||char(maxn)||", script terminated.  Try increasing delta.";
+if(n>maxn, Dialog(Title("Error"),"",ErrorMessage,"",Button("OK"),""));
+
+); //End if for evaluating sample size error free
+); //End if button is OK
+); //End while   
+
+show(n);
+
+

@@ -1,0 +1,1168 @@
+/*******************************************************************************************
+1-Proportion Sample Size Script
+
+Starting Condition: Input target proportion, delta, alpha, beta, and hypothesis type.
+Output: Sample size is computed using exact binomial methods.
+
+Revision History (Descending Order, Newest at the top):
+Rev 2 - Jeff Baumann - 2020WW19
+	- Add commenting and logging throughout script for easier debug in future.
+	- Adjust SE wording display and prevent decimal DPM.
+	- Update all Dialog boxes to instead be Windows as Dialog is being phased out by JMP.
+Rev 1 - Damien Chee - 2007
+	- Added clarification on instructions in dialog box
+	- Added error check for negative delta
+	- Added backward calculations from sample size to delta
+Rev 0 - Paul Wenz - 2005
+	- Initial Creation
+
+
+********************************************************************************************/
+//Log Line
+	Print("1_Proportion_Sample_Size_Script starting.");
+
+/*************************************************************
+Divider - Set Initial Values of Variables
+
+**************************************************************/
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Set initial values of variables starting.");
+
+//Set Initial Values of Variables
+	button=1;				//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+	input_p0=.;				//Default target proportion
+	delta=.;				//Default delta value
+	scale="Defect %";		//Default scale (scale can be Defect % or DPM or Yield %)
+	hyptype="SB";			//Default hypothesis test
+	alpha=0.05;				//Default alpha value
+	beta=0.10;				//Default beta value
+	n=.;					//Default sample size value
+	dec="";					//Default text for decision criteria
+	act_alpha=.;			//Default value of actual alpha as determined from iterated sample size and defect values
+	act_beta=.;				//Default value of actual beta as determined from iterated sample size and defect values
+
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Set initial values of variables completed.");
+
+/*************************************************************
+Divider - Create function for output display of decision criteria
+
+**************************************************************/
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create function for calculating decimal starting.");
+	
+	//Display_Function
+	//This function formats the output display for use in the decision criteria based on a % or DPM
+	//This Function Requires the following inputs:
+	// 	x 			: calculated sample number of defects
+	//	n 			: calculated sample size
+	//	scale		: either DPM, Defect % or Yield %
+
+	Display_Function=Function({x, n, scale}, 
+		If(
+			//if (scale is DPM)
+			scale=="DPM",
+			//then (calculate the number of defects in a million from the calculated sample defects and sample size and round for no decimals)
+			"  ("||char(round(x/n*1000000,0))||" DPM)",
+			//if (scale is Defect %)
+			scale=="Defect %",
+			//then (calculate the % defects from the calculated sample defects and sample size and round to 1 decimal)
+			"  ("||char(round(x/n*100,1))||"% Defects)",
+			//if (scale is Yield %)
+			scale=="Yield %",
+			//then (calculate the % yield from the calculated sample defects and sample size and round to 1 decimal)
+			"  ("||char(round((n-x)/n*100,1))||"% Yield)"
+		)
+	);
+
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create function for calculating decimal completed.");
+
+/*************************************************************
+Divider - Create user window and determine 1-Proportion sample size and delta results
+
+**************************************************************/
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create user window and determine 1-Proportion sample size and delta results starting.");
+
+//Dialog Box is active until the user clicks Cancel
+While(button==1,
+
+	/*************************************************************
+	Divider - Create user window and determine user inputs
+
+	**************************************************************/
+	//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create user window and determine user inputs starting.");
+
+	//RadioBox set-up for hypothesis test, depending on user choices
+	If(
+		//if (choice is SB)
+			hyptype=="SB",
+		//then (order of buttons is SB, SEB, SE)
+			a2="SB";
+			b2="SEB";
+			c2="SE",
+		//if (choice is SEB)
+			hyptype=="SEB",
+		//then (order of buttons is SEB, SB, SE)	
+			a2="SEB";
+			b2="SB";
+			c2="SE",
+		//if (choice is SE)
+			hyptype=="SE",
+		//then (order of buttons is SE, SB, SEB)	
+			a2="SE";
+			b2="SB";
+			c2="SEB"
+	);
+
+	//RadioBox set-up for scale, depending on user choices
+	If(
+		//if (choice is Defect%)
+			scale=="Defect %",
+		//then (order of buttons is Defect %, DPM, Yield%)	
+			a3="Defect %";
+			b3="DPM";
+			c3="Yield %",
+		//if (choice is DPM)
+			scale=="DPM",
+		//then (order of buttons is DPM, Defect %, Yield %)	
+			a3="DPM";
+			b3="Defect %";
+			c3="Yield %",
+		//if (choice is Yield %)
+			scale=="Yield %",
+		//then (order of buttons is Yield %, Defect %, DPM)	
+			a3="Yield %";
+			b3="Defect %";
+			c3="DPM"
+	);
+ 
+	//User Window
+	result=New Window("1-Proportion Sample Size",
+		<<modal,
+		<<Return Result,
+		vlistbox(
+			textbox("   Provide Values for Target Proportion, Hypothesis Type,"),
+			textbox("   Alpha, and Beta."),
+			textbox("   Enter either delta or sample size to calculate the other."),
+			textbox(" "),
+			textbox(" "),
+			hlistbox(
+				lineupbox(NCol(3),
+					textbox(" "), textbox("Target Proportion"), input_p0=numbereditbox(input_p0),
+					textbox(" "), textbox("Delta"), delta=numbereditbox(delta)
+				),
+				panelbox("-", scale=radiobox(Eval List({a3, b3, c3})))
+			),
+			lineupbox(NCol(4),
+				textbox(" "), textbox("Hypothesis Type"), panelbox("-", hyptype=radiobox(Eval List({a2, b2, c2}))), textbox(" "),
+				textbox(" "), textbox(" "), textbox(" "), textbox(" "),
+				textbox(" "), textbox(" "), textbox(" "), textbox(" "),
+				textbox(" "), textbox("Alpha"), alpha=numbereditbox(alpha), textbox(" "),
+				textbox(" "), textbox("Beta"), beta=numbereditbox(beta), textbox(" "),
+				textbox(" "), textbox(" "), textbox(" "), textbox(" "),
+				textbox(" "), textbox(" "), textbox(" "), textbox(" "),
+				textbox(" "), textbox("Sample Size:"), n=numbereditbox(n), textbox(" "),
+				textbox(" "), textbox("Decision Criteria"), dec=texteditbox(dec), textbox(" ")
+			),
+			textbox(" "),
+			hlistbox(spacerbox(Size(150, 5)), Button Box("OK"), Button Box("Cancel"))
+		)
+	);
+
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=result["Button"];
+	input_p0=result["input_p0"]; 
+	delta=result["delta"];
+	scale=result["scale"];
+	hyptype=result["hyptype"];
+	alpha=result["Alpha"];
+	beta=result["Beta"];
+	n=result["n"];
+
+	//Set hypothesis value based on user choise
+	If(
+		//if (hypothesis value is first choice)
+		hyptype==1,
+		//then (set hypothesis type to value of a2)
+		hyptype=a2,
+		//if (hypothesis value is second choice)
+		hyptype==2,
+		//then (set hypothesis type to value of b2)		
+		hyptype=b2,
+		//if (hypothesis value is third choice)
+		hyptype==3,
+		//then (set hypothesis type to value of c2)		
+		hyptype=c2
+	);
+
+	//Set scale value based on user choise
+	If(
+		//if (scale value is first choice)
+		scale==1,
+		//then (set scale value of a3)		
+		scale=a3,
+		//if (scale value is second choice)
+		scale==2,
+		//then (set scale value of b3)
+		scale=b3,
+		//if (scale value is third choice)
+		scale==3,
+		//then (set scale value of c3)
+		scale=c3
+	);
+
+	//Convert proportion to decimal based on the scale
+	If(
+		//if (scale is Defect %)
+		scale=="Defect %",
+		//then (divide by 100)
+		p0=input_p0/100,
+		//if (scale is DPM)
+		scale=="DPM",
+		//then (divide by 1,000,000)
+		p0=input_p0/1000000,
+		//if (scale is Yield %)
+		scale=="Yield %",
+		//then (divide by 100 and subtract from 1)
+		p0=1-input_p0/100
+	);
+	
+	//Determine p1 the shifted proportion distribution mean value away from the input p0 proportion based on the scale and hypothesis test 
+	If(
+		//if (scale is not DPM and SB hypothesis test)
+		scale!="DPM" & hyptype=="SB",
+		//then (divide delta by 100 and subract from p0)
+		p1 = p0 - delta/100,
+		//if (scale is DPM and SB hypothesis test)
+		scale=="DPM" & hyptype=="SB", 
+		//then (divide delta by 1,000,000 and subtract from p0)
+		p1 = p0 - delta/1000000,
+		//if (scale is not DPM and SEB hypothesis test)
+		scale!="DPM" & hyptype=="SEB", 
+		//then (divide delta by 100 and add to p0)
+		p1 = p0 + delta/100,
+		//if (scale is DPM and SEB hypothesis test)
+		scale=="DPM" & hyptype=="SEB", 
+		//then (divide delta by 1,000,000 and add to p0)
+		p1 = p0 + delta/1000000, 
+		//if (scale is not DPM and SE hypothesis test and delta is input)
+		scale!="DPM" & hyptype=="SE" & !Is Missing(delta), 
+		//then (divide delta by 100 and add or subtract depending on condition)
+		If(
+			//if (absolute value adding delta is less than absolute value subtracting delta)
+			abs(0.5 - (p0 + delta/100))< abs(0.5 - (p0 - delta/100)),
+			//then (divide delta by 100 and add to p0)
+			p1 = p0 + delta/100, 
+			//else (divide delta by 100 and subtract from p0)
+			p1 = p0 - delta/100
+		),
+		//if (scale is DPM and SE hypothesis test and delta is input)
+		scale=="DPM" & hyptype=="SE" & !Is Missing(delta), 
+		//then (divide delta by 1,000,000 and add or subtract depending on condition)
+		If(
+			//if (absolute value adding delta is less than absolute value subtracting delta)
+			abs(0.5 - (p0 + delta/1000000))< abs(0.5 - (p0 - delta/1000000)),
+			//then (divide delta by 1,000,000 and add to p0)
+			p1 = p0 + delta/1000000, 
+			//else (divide delta by 1,000,000 and subtract from p0)
+			p1 = p0 - delta/1000000
+		),
+		//if (SE hypothesis test and delta is missing)
+		hyptype=="SE" & Is Missing(delta),
+		//then (set p1 to null)
+		p1=.
+	);
+
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("1_Proportion_Sample_Size_Script: Ending Script, Cancel chosen.");
+		Print("1_Proportion_Sample_Size_Script: Create user window and determine user inputs completed.");
+		Print("1_Proportion_Sample_Size_Script: Create user window and determine 1-Proportion sample size results completed.");
+		Print("1_Proportion_Sample_Size_Script completed.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+	//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create user window and determine user inputs completed.");
+
+	/*************************************************************
+	Divider - Error checking for Alpha, Beta, Target Proportion, and Delta
+
+	**************************************************************/
+	//Log Line
+	Print("1_Proportion_Sample_Size_Script: Error checking for alpha, beta, target proportion, and delta starting.");
+
+	//Alpha error checking
+	If(
+		//if (alpha is greater than 0.4 or less than or equal to 0 or missing)
+			alpha > 0.4 | alpha <= 0 | Is Missing(alpha), 
+		//then (show error window and set alphatest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a value for Alpha between 0 and 0.4"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set alphatest variable
+			alphatest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of alpha."),
+		//else (set alphatest variable)
+			//Set alphatest variable
+			alphatest="OK"
+	);
+
+	//Beta error checking
+	If(
+		//if (beta is greater than 0.4 or less than or equal to 0 or missing)
+			beta > 0.4 | beta <= 0 | Is Missing(beta), 
+		//then (show error window and set betatest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a value for Beta between 0 and 0.4"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set betatest variable
+			betatest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of beta."),
+		//else (set betatest variable)
+			//Set betatest variable
+			betatest="OK"
+	);
+
+	//Target Proportion error checking
+	If(
+		//if (scale is not DPM and target proportion is not between 0 and 100, or is missing)
+			scale!="DPM" & (input_p0 <= 0 | input_p0 >= 100 | Is Missing(input_p0)), 
+		//then (show error window and set potest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Target Proportion must be 0% < p < 100%"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set potest variable
+			potest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of target proportion."),
+		//if (scale is DPM and target proportion is not between 0 and 1,000,000, or is missing)
+			scale=="DPM" & (input_p0 <= 0 | input_p0 >= 1000000 | Is Missing(input_p0)), 
+		//then (show error window and set potest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Target Proportion must be 0 DPM < p < 1,000,000 DPM"),
+					textbox(""),
+					hlistbox(spacerbox(Size(225,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set potest variable
+			potest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of target proportion."),
+		//else (set potest variable)
+			potest="OK"
+	);
+	
+	//Delta error checking
+	If(
+		//if (p1 is not from 0 to 1 or delta is less than or equal to 0)
+			p1 < 0 | p1 > 1 | delta <= 0, 
+		//then (show error window and set deltatest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Delta out of range"),
+					textbox(""),
+					hlistbox(spacerbox(Size(50,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set deltatest variable
+			deltatest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of delta."),
+		//if (delta is missing)
+			Is Missing(delta),
+		//then (set deltatest variable and log line)
+			//Set deltatest variable
+			deltatest="missing";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Delta is missing."),
+		//else (set deltatest variable)
+			deltatest="OK"
+	); 
+	
+	//Sample Size error checking
+	If(
+		//if (sample size is less than 1)
+			n < 1, 
+		//then (show error window and set ntest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Sample size must be >= 1"),
+					textbox(""),
+					hlistbox(spacerbox(Size(100,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set ntest variable
+			ntest="out";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Error with value of sample size."),
+		//if (sample size is missing)
+			Is Missing(n),
+		//then (set ntest variable and log line)
+			//Set ntest variable
+			ntest="missing";
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Sample Size is missing."),
+		//else (set ntest variable)
+			ntest="OK"
+	);
+
+	//Error check that either delta or sample size is missing to be calculated
+	If(
+		//if (both delta and sample size are missing)
+			deltatest=="missing" & ntest=="missing",
+		//then (show error window and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a value for either Delta or Sample Size."),
+					textbox(""),
+					hlistbox(spacerbox(Size(175,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Both delta and sample size are missing."),
+	);
+	
+	//Error check that one of either the delta or sample size is missing to be calculated
+	If(
+		//if (both delta and sample size are input)
+		deltatest=="OK" & ntest =="OK",
+		//then (show error window and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Either Delta or Sample Size must be blank."),
+					textbox(""),
+					hlistbox(spacerbox(Size(175,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Neither delta nor sample size are missing."),
+	);
+
+	//Log Line
+	Print("1_Proportion_Sample_Size_Script: Error checking for alpha, beta, target proportion, and delta completed.");
+	
+	/*************************************************************
+	Divider - Sample Size Algorithms
+
+	**************************************************************/
+	//Sample Size Algorithms
+	If(
+		//if (all input variables are ok with delta provided and sample size missing)
+			alphatest=="OK" & betatest=="OK" & potest=="OK" & deltatest=="OK" & ntest=="missing",
+		//then (perform sample size calculations)
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Calculate sample size starting.");
+			
+			//Default variables
+			x=0;				//Default defects for use in Binomial Distribution internal function
+			n=1;				//Default sample size
+			searching=1;		//Default searching flag for iteration continuation
+			maxiterations=0;	//Default max iterations flag
+			maxn=500000;		//Default max sample size
+			ErrorMessage="N is greater than "||char(maxn)||", script terminated.  Try increasing delta."; 
+
+			//Sample Size for SB
+			If(
+				//if (hypothesis test of SB is chosen)
+					hyptype=="SB",
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate sample size for SB.");
+			
+					//While searching flag is 1
+					While(searching==1,
+						//Find sample size n with acceptable alpha for given x
+						//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+							//p0 is determined from user inputs 
+							//n is defaulted at 1 and incremented
+							//x is set initially at 0 defects and possibly incremented
+						//Once the result is less than or equal to defined alpha then stop iterations
+						While(
+							Binomial Distribution(p0, n, x)>alpha, 
+							n++
+						); 
+						//Test for acceptable beta, if not increase x
+						If(
+							//if (1 - Binomial distribution with p1 is less than beta)
+							1-Binomial Distribution(p1, n, x)<beta, 
+							//then (set searching flag to 0)
+							searching=0, 
+							//else (increment x)
+							x++
+						); 
+						//End search if sample size n becomes greater than max allowable n
+						If(
+							//if (sample size is greater than maxn)
+							n>maxn, 
+							//then (set searching flag to 0 and maxiterations flag to 1, redefault other variables, and show error window and log line)
+							searching=0;
+							maxiterations=1;
+							n=.; 
+							x=.; 
+							dec=""; 
+							act_alpha=.; 
+							act_beta=.; 
+							//Show error window
+							New Window("Error",
+								<<Modal,
+								vlistbox(
+									textbox(""),
+									textbox(ErrorMessage),
+									textbox(""),
+									hlistbox(spacerbox(Size(300,5)), Button Box("OK")),
+									textbox("")
+								)
+							);
+							//Log Line
+							Print("1_Proportion_Sample_Size_Script: Calculate sample size for SB ended due to sample size greater than max sample size allowed.");
+						);
+					);  //End Search
+					
+					//Update decision box with results in user window if applicable
+					If(
+						//if (maxiterations flag is still at 0)
+						maxiterations==0,
+						//then (run Display_Function with the determined x and n from the searching iterations and update decision box)
+						//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+							//Definitions of each variable are shown in the function itself
+						p=Display_Function(x, n, scale);
+						//Update decision box with display info
+						If(
+							//if (scale is DPM or Defect %)
+							scale!="Yield %", 
+							//then (update decision box)
+							dec="Conclude SB if x <= "||char(x)||p, 
+							//else (update decision box)
+							dec="Conclude SB if x >= "||char(n-x)||p
+						);
+						//Determine the actual alpha and actual beta based on the iterated sample size and defect values
+						act_alpha=Binomial Distribution(p0, n, x);
+						act_beta=1-Binomial Distribution(p1, n, x);
+					);
+			); //End If (Sample Size for SB)
+
+			//Sample Size for SEB
+			If(
+				//if (hypothesis test of SEB is chosen)
+					hyptype=="SEB",
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate sample size for SEB.");
+								
+					//While searching flag is 1
+					While(searching==1,
+						//Find sample size n with acceptable beta for given x
+						//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+							//p1 is determined based on user inputs 
+							//n is defaulted at 1 and incremented
+							//x is set initially at 0 defects and possibly incremented
+						//Once the result is less than or equal to defined beta then stop iterations
+						While(
+							Binomial Distribution(p1, n, x)>beta,
+							n++
+						);
+						//Test for acceptable alpha, if not increase x
+						If(
+							//if (1 - Binomial distribution with p0 is less than alpha)
+							1-Binomial Distribution(p0, n, x)<alpha,
+							//then (set searching flag to 0)
+							searching=0, 
+							//else (increment x)
+							x++
+						);
+						//End search if sample size n becomes greater than max allowable n						
+						If(
+							//if (sample size is greater than maxn)
+							n>maxn, 
+							//then (set searching flag to 0 and maxiterations flag to 1, redefault other variables, and show error window and log line)
+							searching=0;
+							maxiterations=1;
+							n=.; 
+							x=.; 
+							dec=""; 
+							act_alpha=.; 
+							act_beta=.; 
+							//Show error window
+							New Window("Error",
+								<<Modal,
+								vlistbox(
+									textbox(""),
+									textbox(ErrorMessage),
+									textbox(""),
+									hlistbox(spacerbox(Size(300,5)), Button Box("OK")),
+									textbox("")
+								)
+							);
+							//Log Line
+							Print("1_Proportion_Sample_Size_Script: Calculate sample size for SEB ended due to sample size greater than max sample size allowed.");
+						);
+					);  //End Search
+					
+					//Update decision box with results in user window if applicable
+					If(
+						//if (maxiterations flag is still at 0)
+						maxiterations==0,
+						//then (run Display_Function with the determined x and n from the searching iterations and update decision box)
+						//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+							//Definitions of each variable are shown in the function itself
+						p=Display_Function(x, n, scale);
+						//Update decision box with display info
+						If(
+							//if (scale is DPM or Defect %)
+							scale!="Yield %", 
+							//then (update decision box)
+							dec="Conclude SEB if x <= "||char(x)||p, 
+							//else (update decision box)
+							dec="Conclude SEB if x >= "||char(n-x)||p
+						);
+						//Determine the actual alpha and actual beta based on the iterated sample size and defect values
+						act_alpha=1-Binomial Distribution(p0, n, x);
+						act_beta=Binomial Distribution(p1, n, x);
+					);
+			); //End If (Sample Size for SEB)
+
+			//Sample Size for SE under Case 1 which is similar to SEB with alpha/2
+			If(
+				//if (hypothesis test of SE is chosen and p0 is less than p1)
+					hyptype=="SE" & p0 < p1,
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate sample size for SE under case 1 scenario.");
+					
+					//While searching flag is 1
+					While(searching==1,
+						//Find sample size n with acceptable beta for given x
+						//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+							//p1 is determined based on user inputs 
+							//n is defaulted at 1 and incremented
+							//x is set initially at 0 defects and possibly incremented
+						//Once the result is less than or equal to defined beta then stop iterations
+						While(
+							Binomial Distribution(p1, n, x)>beta,
+							n++
+						);
+						//Test for acceptable alpha, if not increase x						
+						If(
+							//if (1 - Binomial Distribution with p0 is less than 1/2 alpha)
+							1-Binomial Distribution(p0, n, x)<alpha/2, 
+							//then (set searching flag to 0)
+							searching=0,
+							//else (increment x)
+							x++
+						);
+						//End search if sample size n becomes greater than max allowable n
+						If(
+							//if (sample size is greater than maxn)
+							n>maxn, 
+							//then (set searching flag to 0 and maxiterations flag to 1, redefault other variables, and show error window and log line)
+							searching=0;
+							maxiterations=1;
+							n=.; 
+							x=.; 
+							xlow=.; 
+							dec=""; 
+							act_alpha=.; 
+							act_beta=.; 
+							//Show error window
+							New Window("Error",
+								<<Modal,
+								vlistbox(
+									textbox(""),
+									textbox(ErrorMessage),
+									textbox(""),
+									hlistbox(spacerbox(Size(300,5)), Button Box("OK")),
+									textbox("")
+								)
+							);
+							//Log Line
+							Print("1_Proportion_Sample_Size_Script: Calculate sample size for SE under case 1 scenario ended due to sample size greater than max sample size allowed.");
+						);
+					);  //End Search
+
+					//Update decision box with results in user window if applicable
+					If(
+						//if (maxiterations flag is still at 0)
+							maxiterations==0,
+						//then (determine the low value of x and run Display_Function with the determined x, xlow, and n from searching iterations and update decision box)
+							//Default xlow variable
+							xlow=1; 
+							//Using determined sample size n and alpha/2 determine the low value of x
+							While(
+								Binomial Distribution(p0, n, xlow)<alpha/2,
+								xlow++
+							);
+							//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+								//Definitions of each variable are shown in the function itself
+							plow=Display_Function(xlow, n, scale);
+							p=Display_Function(x, n, scale);
+							//Update decision box with display info
+							If(
+								//if (scale is DPM or Defect %)
+								scale!="Yield %", 
+								//then (update decision box)
+								dec="Conclude SE if "||char(xlow)||plow||" <= x <= "||char(x)||p,
+								//else (update decision box) 
+								dec="Conclude SE if "||char(n-x)||p||" <= x <= "||char(n-xlow)||plow
+							);
+							//Determine the actual alpha and actual beta based on the iterated sample size and defect values
+							act_alpha=2*(1-Binomial Distribution(p0, n, x));
+							act_beta=Binomial Distribution(p1, n, x);
+					);
+			); //End If (Sample Size for SE case 1)
+
+			//Sample Size for SE under Case 2 which is similar to SB with alpha/2
+			If(
+				//if (hypothesis test of SE is chosen and p0 is greater than p1)
+					hyptype=="SE" & p0 > p1,
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate sample size for SE under case 1 scenario.");
+					
+					//While searching flag is 1
+					While(searching==1,
+						//Find sample size n with acceptable alpha for given x
+						//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+							//p0 is determined from user inputs 
+							//n is defaulted at 1 and incremented
+							//x is set initially at 0 defects and possibly incremented
+						//Once the result is less than or equal to defined alpha/2 then stop iterations
+						While(
+							Binomial Distribution(p0, n, x)>alpha/2,
+							n++
+						);
+						//Test for acceptable beta, if not increase x	
+						If(
+							//if (1 - Binomial Distribution with p1 is less than beta)
+							1 -Binomial Distribution(p1, n, x)<beta, 
+							//then (set searching flag to 0)
+							searching=0, 
+							//else (increment x)
+							x++
+						); 
+						//End search if sample size n becomes greater than max allowable n
+						If(
+							//if (sample size is greater than maxn)
+							n>maxn, 
+							//then (set searching flag to 0 and maxiterations flag to 1, redefault other variables, and show error window and log line)
+							searching=0;
+							maxiterations=1;
+							n=.; 
+							x=.; 
+							xhi=.; 
+							dec=""; 
+							act_alpha=.; 
+							act_beta=.; 
+							//Show error window
+							New Window("Error",
+								<<Modal,
+								vlistbox(
+									textbox(""),
+									textbox(ErrorMessage),
+									textbox(""),
+									hlistbox(spacerbox(Size(300,5)), Button Box("OK")),
+									textbox("")
+								)
+							);
+							//Log Line
+							Print("1_Proportion_Sample_Size_Script: Calculate sample size for SE under case 2 scenario ended due to sample size greater than max sample size allowed.");
+						);
+					);  //End Search
+					
+					//Update decision box with results in user window if applicable
+					If(
+						//if (maxiterations flag is still at 0)
+							maxiterations==0,
+						//then (determine the high value of x and run Display_Function with the determined x, xhi, and n from searching iterations and update decision box)
+							//Default xhi variable
+							xhi=n;
+							//Using determined sample size n and alpha/2 determine the high value of x
+							While(
+								1-Binomial Distribution(p0, n, xhi)<alpha/2, 
+								xhi--
+							); 
+							//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+								//Definitions of each variable are shown in the function itself
+							phi=Display_Function(xhi+1, n, scale);
+							p=Display_Function(x+1, n, scale);
+							//Update decision box with display info
+							If(
+								//if (scale is DPM or Defect %)
+								scale!="Yield %", 
+								//then (update decision box)
+								dec="Conclude SE if "||char(x+1)||p||" <= x <= "||char(xhi+1)||phi,
+								//else (update decision box)
+								dec="Conclude SE if "||char(n-(xhi+1))||phi||" <= x <= "||char(n-(x+1))||p
+							);
+							//Determine the actual alpha and actual beta based on the iterated sample size and defect values
+							act_alpha=2*Binomial Distribution(p0, n, x);
+							act_beta=1-Binomial Distribution(p1, n, x)
+					);
+			); //End If (Sample Size for SE case 2)
+		
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Actual alpha = "||char(act_alpha));
+			Print("1_Proportion_Sample_Size_Script: Actual beta = "||char(act_beta));
+			Print("1_Proportion_Sample_Size_Script: Calculate sample size completed.");
+	); // End If (//Sample Size Algorithms)
+
+	/*************************************************************
+	Divider - Delta Algorithms
+
+	**************************************************************/
+	//Delta Algorithms
+	If(
+		//if (all input variables are ok with delta missing and sample size provided)
+			alphatest=="OK" & betatest=="OK" & potest=="OK" & deltatest=="missing" & ntest=="OK",
+		//then (perform delta calculations)
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Calculate delta starting.");
+			
+			//Default variables
+			x=0;			//Default defects for use in Binomial Distribution internal function
+			p1=p0;			//Set p1 equal to p0 (will be empty value without this due to delta being empty)
+
+			//Search for delta for SEB
+			If(
+				//if (hypothesis test of SEB is chosen)
+					hyptype=="SEB",
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate delta for SEB.");
+					
+					//Find defects x with acceptable alpha for given n
+					//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+						//p0 is determined from user inputs 
+						//n is determined from user inputs
+						//x is set initially at 0 defects and incremented
+					//Once the result is less than or equal to defined alpha then stop iterations
+					While(
+						1-Binomial Distribution(p0, n, x)>alpha,
+						x++
+					);
+					
+					//Test for acceptable beta, if not increase p1
+					If(
+						//if (scale is DPM)
+						scale=="DPM",
+						//then (while binomial distribution with p1 is greater than beta increment p1 by 0.000001)
+						While(
+							Binomial Distribution(p1, n, x)>beta, 
+							p1=p1+0.000001
+						),
+						//else (in % case, while binomial distribution with p1 is greater than beta increment p1 by 0.0001)
+						While(
+							Binomial Distribution(p1, n, x)>beta,
+							p1=p1+0.0001
+						)
+					);
+					
+					//Set delta to the difference between p0 and p1
+					delta=p1-p0;
+					
+					//Run Display_Function with the determined x and given n and scale
+					//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+							//Definitions of each variable are shown in the function itself
+					p=Display_Function(x, n, scale);
+					
+					//Update decision box with display info
+					If(
+						//if (scale is DPM or Defect %)
+						scale!="Yield %", 
+						//then (update decision box)
+						dec="Conclude SEB if x <= "||char(x)||p, 
+						//else (update decision box)
+						dec="Conclude SEB if x >= "||char(n-x)||p
+					);
+					//Determine the actual alpha and actual beta based on the iterated defect value and sample size
+					act_alpha=1-Binomial Distribution(p0, n, x);
+					act_beta=Binomial Distribution(p1, n, x);
+			); //End If (Search for delta for SEB)
+
+			//Search for delta for SB
+			If(
+				//if (hypothesis test of SB is chosen)
+					hyptype=="SB",
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate delta for SB.");
+					
+					//Find defects x with acceptable alpha for given n
+					//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+						//p0 is determined from user inputs 
+						//n is determined from user inputs
+						//x is set initially at 0 defects and incremented
+					//Once the result is greater than or equal to defined alpha then stop iterations
+					While(
+						Binomial Distribution(p0, n, x)<alpha,
+						x++
+					);
+					//Subtract 1 from x
+					x--;
+					
+					//Test for acceptable beta, if not decrease p1
+					If(
+						//if (scale is DPM)
+						scale=="DPM",
+						//then (while binomial distribution with p1 is greater than beta decrease p1 by 0.000001)
+						While(
+							1-Binomial Distribution(p1, n, x)>beta,
+							p1=p1-0.000001
+						),
+						//else (in % case, while binomial distribution with p1 is greater than beta decrease p1 by 0.0001)
+						While(
+							1-Binomial Distribution(p1, n, x)>beta,
+							p1=p1-0.0001
+						)
+					);
+					
+					//Set delta to the difference between p1 and p0
+					delta=p0-p1;
+					
+					//Run Display_Function with the determined x and given n and scale
+					//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+							//Definitions of each variable are shown in the function itself
+					p=Display_Function(x,n,scale);
+					
+					//Update decision box with display info
+					If(
+						//if (scale is DPM or Defect %)
+						scale!="Yield %", 
+						//then (update decision box)
+						dec="Conclude SB if x <= "||char(x)||p,
+						//else (update decision box)
+						dec="Conclude SB if x >= "||char(n-x)||p
+					);
+					//Determine the actual alpha and actual beta based on the iterated defect value and sample size
+					act_alpha=Binomial Distribution(p0, n, x);
+					act_beta=1-Binomial Distribution(p1, n, x);
+			); //End If (Search for delta for SB)
+
+			//Search for delta for SE
+			If(
+				//if (hypothesis test of SE is chosen)
+					hyptype=="SE",
+				//then (perform analysis)
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate delta for SE.");
+					
+					//Find defects x with acceptable alpha/2 for given n
+					//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+						//p0 is determined from user inputs 
+						//n is determined from user inputs
+						//x is set initially at 0 defects and incremented
+					//Once the result is less than or equal to defined alpha/2 then stop iterations
+					While(
+						1-Binomial Distribution(p0, n, x)>alpha/2,
+						x++
+					);
+					
+					//Test for acceptable beta, if not increase p1
+					If(
+						//if (scale is DPM)
+						scale=="DPM",
+						//then (while binomial distribution with p1 is greater than beta increment p1 by 0.000001)
+						While(
+							Binomial Distribution(p1, n, x)>beta, 
+							p1=p1+0.000001
+						),
+						//else (in % case, while binomial distribution with p1 is greater than beta increment p1 by 0.0001)
+						While(
+							Binomial Distribution(p1, n, x)>beta,
+							p1=p1+0.0001
+						)
+					);
+					
+					//Set delta1 to the difference between p0 and p1
+					delta1=p1-p0;
+					
+					//Determine the actual alpha1 and actual beta1 based on the iterated defect value and sample size
+					act_alpha1=1-Binomial Distribution(p0, n, x);
+					act_beta1=Binomial Distribution(p1, n, x);
+										
+					//Set x1 equal to the iterated defect value x
+					x1=x;
+					
+					//Re-Default variables
+					p1=p0;
+					x=0;
+					
+					//Find defects x with acceptable alpha/2 for given n
+					//Binomial Distribution computes cumulative probability of obtaining less than or equal to x defects in sample size n when true defect rate is p
+						//p0 is determined from user inputs 
+						//n is determined from user inputs
+						//x is set initially at 0 defects and incremented
+					//Once the result is greater than or equal to defined alpha then stop iterations
+					While(
+						Binomial Distribution(p0, n, x)<alpha/2,
+						x++
+					);
+					//Subtract 1 from x					
+					x--;
+					
+					//Test for acceptable beta, if not decrease p1
+					If(
+						//if (scale is DPM)
+						scale=="DPM",
+						//then (while binomial distribution with p1 is greater than beta decrease p1 by 0.000001)
+						While(
+							1-Binomial Distribution(p1, n, x)>beta,
+							p1=p1-0.000001
+						),
+						//else (in % case, while binomial distribution with p1 is greater than beta decrease p1 by 0.0001)
+						While(
+							1-Binomial Distribution(p1, n, x)>beta,
+							p1=p1-0.0001
+						)
+					);
+					
+					//Set delta2 to the difference between p1 and p0
+					delta2=p0-p1;
+					
+					//Determine the actual alpha2 and actual beta2 based on the iterated defect value and sample size
+					act_alpha2=Binomial Distribution(p0, n, x);
+					act_beta2=1-Binomial Distribution(p1, n, x);
+					
+					//Set x2 equal to the iterated defect value x
+					x2=x;
+					
+					//Determine delta based on the larger delta1 and delta2 values
+					If(
+						//if (delta1 is greater than delta2)
+						delta1>delta2, 
+						//then (delta is delta1)
+						delta=delta1, 
+						//else (delta is delta2)
+						delta=delta2
+					);
+					
+					//Determine the low x value based on the minimum of the iterated defect x1 and x2 values
+					xlow=minimum(x1, x2)+1;
+					
+					//Determine the high x value based on the maximum of the iterated defect x1 and x2 values
+					xhi=maximum(x1, x2);
+										
+					//Display_Function is a function requiring these inputs: Display_Function(x, n, scale)
+							//Definitions of each variable are shown in the function itself
+					plow=Display_Function(xlow, n, scale);
+					phi=Display_Function(xhi, n, scale);
+					
+					//Update decision box with display info
+					If(
+						//if (scale is DPM or Defect %)
+						scale!="Yield %",
+						//then (update decision box)
+						dec="Conclude SE if "||char(xlow)||plow||" <= x <= "||char(xhi)||phi, 
+						//else (update decision box)
+						dec="Conclude SE if "||char(n-xhi)||phi||" <= x <= "||char(n-xlow)||plow
+					);
+					
+					//Determine the actual alpha and actual beta based on alpha1 and alpha2 and beta1 and beta2
+					act_alpha=act_alpha1+act_alpha2;
+					act_beta=minimum(act_beta1, act_beta2);
+			); //End If (Search for delta for SE)
+			
+			//Set Delta based on scale
+			If(
+				//if (scale is DPM)
+				scale=="DPM",
+				//then (multiply delta by 1,000,000 and round to only 3 digits past the decimal)
+				delta=Round(delta*1000000,3),
+				//else (multiply delta by 100)
+				delta=delta*100
+			);
+			
+			//Show error window if iterated defects are below 0 and not possible
+			If(
+				//if (iterated defects are below 0 and not the SE hypothesis test)
+					x<0 & hyptype!="SE",
+				//then (show error window, set delta to empty, and log line)
+					//Show error window
+					New Window("Error",
+						<<Modal,
+						vlistbox(
+							textbox(""),
+							textbox("Delta out of range"),
+							textbox(""),
+							hlistbox(spacerbox(Size(50,5)), Button Box("OK")),
+							textbox("")
+						)
+					);
+					//Set Delta to empty
+					delta=.;
+					//Log Line
+					Print("1_Proportion_Sample_Size_Script: Calculate delta ended with iterated defects x below 0 and out of range.");
+			);
+
+			//Log Line
+			Print("1_Proportion_Sample_Size_Script: Actual alpha = "||char(act_alpha));
+			Print("1_Proportion_Sample_Size_Script: Actual beta = "||char(act_beta));
+			Print("1_Proportion_Sample_Size_Script: Calculate delta completed.");
+	); //End If (Delta Algorithms)
+
+); //End while   
+
+//Log Line
+	Print("1_Proportion_Sample_Size_Script: Create user window and determine 1-Proportion sample size and delta results completed.");
+	
+//Log Line
+	Print("1_Proportion_Sample_Size_Script completed.");
+		
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

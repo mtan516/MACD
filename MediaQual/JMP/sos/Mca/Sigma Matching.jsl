@@ -1,0 +1,908 @@
+/*************************************************************
+MCA Sigma Matching
+Author: Damien Chee
+Rev: 1.5
+Date: June 24, 2010
+
+Rev History:
+1.0 - Initial draft
+1.1	- Changed #parts >4 will perform t-test
+	- Added variability charts
+	- t-test: added summary table details
+1.2 - t-test: Removed Std Dev column from Summary Table
+	- Added Sample Size report
+	- F-test: Spell out Confidence Limit 
+	- Added note that defines R 
+	- Added F-test using pseudo sigma for reproducibility
+1.3 - Added variability chart with centered by part data
+	- Minimize Unequal Variance test
+	- Rename 'Samples' to 'Measurements'
+	- Rename 'Mean' to 'Avg Std Dev'
+	- Rename 'Test for Means result' to 'Avg Std Dev Result'
+	- Change conclusion to 'Sigmas are matched' or 'Sigmas are not matched'
+	- Replace 'std dev calculation method' with 'experiment type'
+	- Make POR appear first in charts
+	- Combine summary statistics and test results in 1 outline box
+	- Exclude any additional tools from file in the charts
+	- Put note in dialog box that crossed model is assumed
+1.4 - Fixed bug on running both single part
+	- Limt to 1 response column
+1.5 - Fix compatibility with JMP8	
+3.0 - Fixed compatibility with JMP10
+		Also compatible with JMP9, but not validated with JMP8
+		by Todd Jordan
+
+
+**************************************************************/
+
+/* Initiation */
+Clear Globals();
+Try( Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox = V List Box( Text Box( " " ) ) );
+If( N Table() == 0,
+	::dt = Open(),
+	::dt = Current Data Table()
+);
+Current Data Table( dt );
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+Try( ::jmpver = JMP Version(), ::jmpver = "6 lower" );
+If( jmpver == " 6.0.3",
+	jmpver = "6 lower"
+);
+
+/* Variables */
+::analysismethod = "";
+::PORstdmethod = "";
+::NEWstdmethod = "";
+::dtcurrent = "";
+::conclu = "";
+::toollist = {};
+::partlist = {};
+::runlist = {};
+::pseudoconclu = "";
+::conclu = "";
+::pseudoPORstd = 0;
+::pseudoNEWstd = 0;
+::a = 0;
+::srepcalc = 0;
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* PARTS COUNT */
+p_count = Expr(
+	Eval( Substitute( Expr( Summarize( ::n_tool = by( txxl ) ) ), Expr( txxl ), Eval( tool ) ) );
+	If( N Items( n_tool ) == 1,
+		Dialog( title( "Error" ), "There is only 1 Tool in the selected column", " ", "Script will end", " " );
+		button = -1;
+	, 
+		button = 5;
+		While( button == 5 & button != -1,
+			::tooldlg = Dialog(
+				title( "Sigma Matching Analysis" ),
+				Lineup( 2, "POR Tool", PORtool = Combo Box( n_tool ), "NEW Tool", NEWtool = Combo Box( n_tool ) ),
+				" ",
+				HList( Button( "OK" ), Button( "Cancel" ) )
+			);
+			:: button = tooldlg["Button"];
+			::PORTool = n_tool[tooldlg["PORtool"]];
+			::NEWTool = n_tool[tooldlg["NEWtool"]];
+			If( button != -1,
+				If( PORTool == NEWTool,
+					Dialog( title( "Error" ), "POR Tool is the same as NEW Tool" );
+					button = 5;
+				)
+			);
+		); /*close while */
+		tcol = Column( Tool[1] );
+		slcmd = Expr( dt << select where( txx == PORTl ) );
+		/* Subset out POR tool data */
+		:: bxx = Char(
+			Substitute( Name Expr( slcmd ), Expr( txx ), Parse( ":" || Char( Tool[1] ) ), Expr( PORTl ), Eval( PORTool ) )
+		);
+		Eval( Parse( bxx ) );
+
+		:: dtPOR = dt << Subset( Output Table( "POR tool data" ) );
+		Current Data Table( dtPOR );
+		/*eval(substitute(expr(Summarize(::partPOR = by (part))), expr(part), eval(part)));
+		::n_partPOR= NItems(partPOR);*/
+
+		:: dtPORpart1 = Eval( Substitute( Expr( dtPOR << Summary( Group( pxxx ) ) ), Expr( pxxx ), Eval( part ) ) );
+		Current Data Table( dtPORpart1 );
+		::PORpartcol = Column( N Col( dtPORpart1 ) );
+		::dtPORpart2 = Eval(
+			Substitute( Expr( dtPORpart1 << Summary( Group( pxxx ) ) ), Expr( pxxx ), Eval( PORpartcol ) )
+		);
+		Current Data Table( dtPORpart2 );
+		If( Column( 1 )[1] == 0,
+			dtPORpart2 << Delete Rows( 1 )
+		);
+		For( a = 1, a <= N Rows( dtPORpart2 ), a++,
+			Insert Into( toollist, If( a == 1, PORTool, "" ) );
+			Insert Into( partlist, Column( 2 )[a] );
+			Insert Into( runlist, Column( 1 )[a] );
+		);
+		Close( dtPORpart2, No Save );
+		Close( dtPORpart1, No Save );
+
+		:: n_partPOR = 0;
+		For( a = 1, a <= N Items( partlist ), a++,
+			n_partPOR = n_partPOR + partlist[a]
+		);
+
+		/* Subset out NEW tool data */
+		:: cxx = Char(
+			Substitute( Name Expr( slcmd ), Expr( txx ), Parse( ":" || Char( Tool[1] ) ), Expr( PORTl ), Eval( NEWTool ) )
+		);
+		Eval( Parse( cxx ) );
+
+		:: dtNEW = dt << Subset( Output Table( "NEW tool data" ) );
+		Current Data Table( dtNEW );
+		/*eval(substitute(expr(Summarize(::partNEW = by (part))), expr(part), eval(part)));
+		::n_partNEW= NItems(partNEW);*/
+
+		:: dtNEWpart1 = Eval( Substitute( Expr( dtNEW << Summary( Group( pxxx ) ) ), Expr( pxxx ), Eval( part ) ) );
+		Current Data Table( dtNEWpart1 );
+		::NEWpartcol = Column( N Col( dtNEWpart1 ) );
+		::dtNEWpart2 = Eval(
+			Substitute( Expr( dtNEWpart1 << Summary( Group( pxxx ) ) ), Expr( pxxx ), Eval( NEWpartcol ) )
+		);
+		Current Data Table( dtNEWpart2 );
+		If( Column( 1 )[1] == 0,
+			dtNEWpart2 << Delete Rows( 1 )
+		);
+		For( a = 1, a <= N Rows( dtNEWpart2 ), a++,
+			Insert Into( toollist, If( a == 1, NEWTool, "" ) );
+			Insert Into( partlist, Column( 2 )[a] );
+			Insert Into( runlist, Column( 1 )[a] );
+		);
+		Close( dtNEWpart2, No Save );
+		Close( dtNEWpart1, No Save );
+
+		:: n_partNEW = -n_partPOR;
+		For( a = 1, a <= N Items( partlist ), a++,
+			n_partNEW = n_partNEW + partlist[a]
+		);
+
+		/* Prepare Sample size report */
+		 :: ssreport = Table Box(
+			String Col Box( "Tool", toollist ),
+			Number Col Box( "#Parts", partlist ),
+			Number Col Box( "#Measurements per Part", runlist )
+		);
+
+		/* Determine analysis method */
+		If( n_partNEW > 4 & n_partPOR > 4,
+			analysismethod = "t-test",
+			analysismethod = "f-test"
+		);
+
+		If( analysismethod == "t-test",
+			PORstdmethod = "ttest";
+			NEWstdmethod = "ttest";
+		,
+			If( n_partPOR == 1,
+				PORstdmethod = "std",
+				PORstdmethod = "pool"
+			);
+			If( n_partNEW == 1,
+				NEWstdmethod = "std",
+				NEWstdmethod = "pool"
+			);
+		);
+
+		If( analysismethod == "t-test",
+			ttest,
+			ftest
+		);
+	);
+); /* END p_count */
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Prompt Repeatability or Reproducibility */
+ :: repprompt = Expr(
+	 :: rprompt = Dialog(
+		title( "Repeatability or Reproducibility data?" ),
+		"Select experiment type",
+		::srepcalc = RadioButtons( "Repeatability", "Reproducibility" ),
+		" ",
+		HList( Button( "OK" ), Button( "Cancel" ) )
+	);
+	:: button = rprompt["Button"];
+	::srepcalc = rprompt["srepcalc"];
+); /* END repprompt */
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Calculate single part std dev */
+calcsing = Expr(
+	Current Data Table( dtcurrent );
+	::dist = Distribution(
+		Stack( 1 ),
+		Continuous Distribution( Column( respcol ), Quantiles( 0 ), Horizontal Layout( 1 ), Vertical( 0 ) )
+	);
+	:: rdist = dist << report;
+	:: dtb = rdist[Table Box( 1 )] << get as matrix;
+	::singstd = dtb[2];
+	::nobs = dtb[6];
+	//Close( dtb, no save );
+	:: pgraph = rdist["Moments"][1][Table Box( 1 )];
+); /* END calcsing */
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Calculate pool repeatability std dev */
+ :: calcrpet = Expr(
+	Current Data Table( dtcurrent );
+	:: dist = Oneway(
+		Y( respcol ),
+		X( partcol ),
+		Quantiles( 0 ),
+		Means( 1 ),
+		Means and Std Dev( 0 ),
+		t Test( 0 ),
+		UnEqual Variances( 0 ),
+		Plot Actual by Quantile( 0 ),
+		Plot Quantile by Actual( 0 ),
+		Box Plots( 1 ),
+		Mean Lines( 1 ),
+		Mean CI Lines( 0 ),
+		Mean Diamonds( 1 ),
+		Connect Means( 0 ),
+		X Axis proportional( 0 ),
+		Points Jittered( 1 ),
+		Std Dev Lines( 0 ),
+		invisible
+	);
+	:: rdist = dist << report;
+	//:: dtb = rdist[Table Box( 1 )] << make data table( "Summary of Fit" );
+	:: dtb = rdist[Table Box( 1 )] << get as matrix;
+	//::RMS = Column( dtb, 2 )[3];
+	::RMS = dtb[3];
+	//::nobs = Column( dtb, 2 )[5];
+	::nobs = dtb[5];
+	//Close( dtb, no save );
+	:: SOFtable = rdist["Summary of Fit"][1][Table Box( 1 )];
+	::pgraph = rdist[1];
+); /* END calcrpet */
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Prompt for factor columns */
+promptrepro = Expr(
+	button = 5;
+	While( button == 5,
+		::rprodlg = Column Dialog(
+			title( "Select Reproducibility Factors" ),
+			xcols = ColList( "Factors", MinCol( 1 ), DataType( Nominal ) ),
+			" ",
+			"Note: Crossed model is assumed",
+			" "
+		);
+		::button = rprodlg["Button"];
+		::xfact = rprodlg["xcols"];
+
+		 :: aloop = .;
+		For( aloop = 1, aloop <= N Items( xfact ), aloop++,
+			If( xfact[aloop] == tool[1] | xfact[aloop] == part[1] | xfact[aloop] == y[1],
+				button = 5
+			)
+		);
+		If( button == 5,
+			Dialog( title( "Error" ), "Factors cannot be the same as Tool, Part or Response columns" )
+		);
+	);
+); /* END promptrepro */
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Calculate reproducibility std dev */
+ :: calcrpro = Expr(
+	If( button != -1, 
+	/* Generate interaction list */
+		 :: repfac = {};
+		repfac[1] = part[1];
+		For( m = 1, m <= N Items( xfact ), m++,
+			Insert Into( repfac, xfact[m] )
+		);
+		::nfac = N Items( repfac );
+		::repfacint = {};
+		For( k = 1, k <= nfac, k++,
+			Insert Into( repfacint, Parse( ":Name(\!"" || Char( repfac[k] ) || "\!") & Random" ) );
+			If( k > 1,
+				j = N Items( repfacint ) - 1;
+				For( pr = 1, pr <= j, pr++,
+					Insert Into( repfacint, Parse( ":Name(\!"" || Char( repfac[k] ) || "\!")*" || Char( repfacint[pr] ) ) )
+				);
+			);
+		);
+	
+	/* Run fit model */
+		ftcmd = Expr(
+			ft = Fit Model(
+				y( resp ),
+				effects( faccom ),
+				Personality( Standard Least Squares ),
+				Method( EMS ),
+				Emphasis( Effect Leverage ),
+				Run Model
+			)
+		);
+		Eval( Substitute( Name Expr( ftcmd ), Expr( resp ), Column( y ), Expr( faccom ), Eval( repfacint ) ) );
+	
+	/* Get std dev */
+		:: ftr = ft << report;
+		::seatable = ftr["Variance Component Estimates"][1];
+		::VC_rpt = (ftr["Variance Component Estimates"][1] << report);
+
+		:: varcol2 = seatable[columnbox( "Var Comp Est" )];
+		::varcol3 = seatable[columnbox( "Component" )];
+		::sigma = 0;
+		For( i = 2, (varcol3 << get( i )) != "Total", i++,
+			Add To( sigma, varcol2 << get( i ) )
+		);
+		sigma = Sqrt( sigma );
+	);
+); /* END calcrepro */
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Perform ttest */
+::ttest = Expr(
+	::dtcur = "";
+	::sumcmd = Expr( dtcur << Summary( Group( txx, pxx ), Std Dev( resp ) ) );
+
+	::dtjoin = dtPOR << Concatenate( dtNEW );
+	::srtcmd2 = Expr( dtjoin << Sort( By( txxx ), Order( oxxx ), Replace Table ) );
+	If( PORTool > NewTool,
+		Eval( Substitute( Name Expr( srtcmd2 ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Descending ) ) ),
+		Eval( Substitute( Name Expr( srtcmd2 ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Ascending ) ) )
+	);
+	Column( Char( tool[1] ) ) << set property( "row order levels", (1) );
+
+	/* Generate save centered */
+	Current Data Table( dtjoin );
+	/*** Make sure factors are nominal ***/
+	Column( dtjoin, part[1] ) << ModelingType( Nominal );
+	Column( dtjoin, part[1] ) << DataType( Character );
+	Column( dtjoin, Tool[1] ) << ModelingType( Nominal );
+	Column( dtjoin, Tool[1] ) << DataType( Character );
+
+	::cen = dtjoin << New Column( "Combined part", Character, Nominal );
+	cen << formula( Eval( Substitute( Expr( txxx || pxxx ), Expr( txxx ), tool[1], Expr( pxxx ), part[1] ) ) );
+	cen << eval formula;
+
+	::centplotcmd = Expr( Oneway( Y( resp ), X( pxxx ), Box Plots( 0 ), Mean Diamonds( 0 ), save centered ) );
+	::centplot = Eval( Substitute( Name Expr( centplotcmd ), Expr( resp ), Eval( y ), Expr( pxxx ), Eval( cen ) ) );
+
+	::cencol = Column( N Col( dtjoin ) );
+	::cenname = Char( y[1] ) || " centered by " || Char( part[1] );
+	cencol << Set Name( cenname );
+
+	::dtsum = Eval(
+		Substitute( Expr( dtjoin << Summary( Group( txx, pxx ), Std Dev( resp ) ) ),
+			Expr( resp ), Eval( Column( y ) ),
+			Expr( pxx ), Eval( Column( part ) ),
+			Expr( txx ), Eval( tcol )
+		)
+	);
+	dtsum << Set Name( "t-test data" );
+
+	Current Data Table( dtsum );
+	srtcmd = Expr( dtsum << Sort( By( txxx ), Order( oxxx ), Replace Table ) );
+
+	If( PORTool > NewTool,
+		Eval( Substitute( Name Expr( srtcmd ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Descending ) ) ),
+		Eval( Substitute( Name Expr( srtcmd ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Ascending ) ) )
+	);
+
+	Column( Char( tool[1] ) ) << set property( "row order levels", (1) );
+	::stdresp = Eval( Column( N Col( dtsum ) ) );
+	::owaycmd = Expr(
+		::oway = Oneway(
+			Y( resp ),
+			X( txxx ),
+			Means( 1 ),
+			Means and Std Dev( 1 ),
+			t Test( 0 ),
+			UnEqual Variances( 1 ),
+			Plot Actual by Quantile( 0 ),
+			Plot Quantile by Actual( 0 ),
+			Box Plots( 1 ),
+			X Axis proportional( 0 ),
+			Std Dev Lines( 0 ),
+			Mean Diamonds( 0 ),
+			Connect Means( 0 ),
+			Quantiles( 0 ),
+			Mean Error Bars( 0 ),
+			Std Dev Lines( 0 ),
+			Mean CI Lines( 0 ),
+			Mean Diamonds( 1 ),
+			Points Jittered( 1 )
+		)
+	);
+
+	dtfit = Eval( Substitute( Name Expr( owaycmd ), Expr( resp ), Eval( stdresp ), Expr( txxx ), Eval( tcol ) ) );
+	::rdtfit = dtfit << report;
+	rdtfit[frame box( 1 )] << Row Legend( Eval( tcol ), color( 1 ), Marker( 1 ), Window( 1 ) );
+
+	::brownbox = rdtfit["Tests that the Variances are Equal"][3][Table Box( 1 )];
+	::meansbox = rdtfit["Means and Std Deviations"][1][Table Box( 1 )];
+	
+	//::dtbrown = brownbox << make data table( "Brown-Forsythe" );
+	::dtbrown = brownbox<<get as matrix;
+	//::brown = Column( dtbrown, 5 )[2];
+	::brown = dtbrown[2,4];
+	//Close( dtbrown, no save );
+	If( brown < 0.05,
+		::brownresult = "SD",
+		::brownresult = "SE"
+	);
+
+	If( brown < 0.05,
+		::anv = rdtfit["Tests that the Variances are Equal"][4];
+		//::dtanv = rdtfit["Tests that the Variances are Equal"][4][Table Box( 1 )] << make data table( "Welch ANOVA" );
+		::dtanv = rdtfit["Tests that the Variances are Equal"][4][Table Box( 1 )] << get as matrix;
+		//::anvp = Column( dtanv, 4 )[1];
+		::anvp = dtanv[4];
+		//Close( dtanv, no save );
+	,
+		::anv = rdtfit["Oneway Anova"][2];
+		//::dtanv = rdtfit["Oneway Anova"][2][Table Box( 1 )] << make data table( "t-test" );
+		::dtanv = rdtfit["Oneway Anova"][2][Number Col Box( 4 )] << get as matrix;
+		If(JMPVerNum < 9,
+		//::anvp = Column( dtanv, 4 )[4],  // JMP 5-8
+		::anvp = dtanv[2],  // JMP 5-8
+		//::anvp = Column( dtanv, 6 )[4];  // JMP 9
+		::anvp = dtanv[2];  // JMP 9 and 10
+		);
+		//Close( dtanv, no save );
+	);
+	If( anvp < 0.05,
+		::anvpresult = "SW";
+		::conclu = "Sigmas are not matched";
+	,
+		::anvpresult = "SEB";
+		::conclu = "Sigmas are matched";
+	);
+	::bplot = rdtfit[1];
+	bplot[axisbox( 1 )] << show Major Grid( 1 );
+
+	//::dtstdsum = meansbox << make data table( "Std Dev Table" );
+	::dtstdsum = meansbox << get as matrix;
+	If( meansbox[string col box(1)][1] == PORTool,
+		::PORstd = dtstdsum[1,3];
+		::NEWstd = dtstdsum[2,3];
+		::PORmean = dtstdsum[1,3];
+		::NEWmean = dtstdsum[2,2];
+		::n_partPOR = dtstdsum[1,1];
+		::n_partNEW = dtstdsum[2,1];
+	, 
+		::PORstd = dtstdsum[2,3];
+		::NEWstd = dtstdsum[1,3];
+		::PORmean = dtstdsum[2,2];
+		::NEWmean = dtstdsum[1,2];
+		::n_partPOR = dtstdsum[2,1];
+		::n_partNEW = dtstdsum[1,1];
+	);
+	//Close( dtstdsum, no save );
+
+	/* Variability chart */
+	vchrtcmd = Expr(
+		Variability Chart(
+			Y( resp ),
+			X( txxx, pxxx ),
+			Connect Cell Means( 0 ),
+			Show Group Means( 1 ),
+			Show Grand Mean( 0 ),
+			Show Grand Median( 0 ),
+			XBar Control Limits( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			Show Box Plots( 0 ),
+			Mean Diamonds( 0 ),
+			Mean of Std Dev( 0 ),
+		)
+	);
+
+	Current Data Table( dtjoin );
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+
+	::vchrt = Eval(
+		Substitute( Name Expr( vchrtcmd ),
+			Expr( resp ), Eval( y ),
+			Expr( txxx ), Eval( tcol ),
+			Expr( pxxx ), Eval( Column( part ) )
+		)
+	);
+	vchrt << show group mean( 1 );
+	::rvchrt = vchrt << report;
+	rvchrt[axisbox( 1 )] << show major grid( 1 );
+	rvchrt[frame box( 1 )] << Row Legend( Eval( tcol ), color( 1 ), Marker( 1 ), Window( 1 ) );
+	::vchrt = rvchrt[1];
+
+	::vxchrt = Eval(
+		Substitute( Name Expr( vchrtcmd ),
+			Expr( resp ), Eval( cencol ),
+			Expr( txxx ), Eval( tcol ),
+			Expr( pxxx ), Eval( Column( part ) )
+		)
+	);
+	::rvxchrt = vxchrt << report;
+	rvxchrt[axisbox( 1 )] << show major grid( 1 );
+	rvxchrt[frame box( 1 )] << Row Legend( Eval( tcol ), color( 1 ), Marker( 1 ), Window( 1 ) );
+	::vxchrt = rvxchrt[1];
+
+	/* Generate report */
+	 :: ttestreport = New Window( "Sigma Matching",
+		V List Box(
+			H List Box( vchrt, vxchrt ),
+			Outline Box( "Box Plots", bplot ),
+			Outline Box( "Means & Std Dev", meansbox ),
+			varbx = Outline Box( "Tests that the Variances are Equal", brownbox ),
+			Outline Box( "Test for Means", anv ),
+			Outline Box( "Sample Size Report", ssreport ),
+			Outline Box( "Summary",
+				Outline Box( "Summary statistics",
+					Table Box(
+						String Col Box( "Tool", {PORTool, NEWTool} ),
+						Number Col Box( "Avg Std Dev", {PORmean, NEWmean} ),
+						Number Col Box( "#parts", {n_partPOR, n_partNEW} )
+					)
+				),
+				Outline Box( "t-test",
+					Table Box(
+						Number Col Box( "t-test p-value", {anvp} ),
+						String Col Box( "Test for Avg Std Dev result", {anvpresult} ),
+						String Col Box( "Conclusion", {conclu} )
+					)
+				)
+			)
+		)
+	);
+	ttestreport << Append( FooterBox );
+	varbx << close;
+
+	Close( dtsum, no save );
+	Close( dtjoin, no save );
+	Close( dtNEW, no save );
+	Close( dtPOR, no save );
+//vchrt << close window;
+); /* END ttest */
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* Perform f-test */
+:: ftest = Expr(
+	/* Calculate std dev */
+	If( n_partPOR != 1 | n_partNEW != 1,
+		repprompt
+	);
+	If( srepcalc == 2,
+		promptrepro
+	);
+	/* Calculate POR std dev */
+	If( button != -1,
+		If( n_partPOR == 1,
+			Eval(
+				Substitute( Name Expr( calcsing ), Expr( dtcurrent ), Eval( dtPOR ), Expr( respcol ), Eval( Column( y ) ) )
+			);
+			::PORstd = singstd;
+			::nPOR = nobs;
+			::PORdisp = Outline Box( "POR Tool - " || PORTool,
+				Text Box( "Method: Single part std dev" ),
+				Outline Box( "Moments", pgraph )
+			);
+		,
+			If( srepcalc == 1,
+				Eval(
+					Substitute( Name Expr( calcrpet ),
+						Expr( dtcurrent ), Eval( dtPOR ),
+						Expr( respcol ), Eval( Column( y ) ),
+						Expr( partcol ), Eval( Column( part ) )
+					)
+				);
+				::PORstd = RMS;
+				::nPOR = nobs;
+				::PORdisp = Outline Box( "POR Tool - " || PORTool,
+					Text Box( "Method: Repeatability pool std dev" ), 
+				/*outlinebox("by Part", pgraph),*/
+					Outline Box( "Summary of Fit", SOFtable )
+				);
+			,
+				Current Data Table( dtPOR );
+				Eval(
+					Substitute( Name Expr( calcrpet ),
+						Expr( dtcurrent ), Eval( dtPOR ),
+						Expr( respcol ), Eval( Column( y ) ),
+						Expr( partcol ), Eval( Column( part ) )
+					)
+				);
+				::pseudoPORstd = RMS;
+				::pseudonPOR = nobs;
+				Current Data Table( dtPOR );
+				Eval(
+					Substitute( Name Expr( calcsing ),
+						Expr( dtcurrent ), Eval( dtPOR ),
+						Expr( respcol ), Eval( Column( y ) )
+					)
+				);
+				Current Data Table( dtPOR );
+				calcrpro;
+				If( button != -1,
+					::PORstd = sigma;
+					::nPOR = nobs;
+					::PORdisp = Outline Box( "POR Tool - " || PORTool,
+						Text Box( "Method: Reproducibility std dev" ),
+						Outline Box( "Variance Component Estimates", seatable ),
+						Outline Box( "Summary of Fit", SOFtable )
+					);
+				);
+			)
+		);
+		If( n_partPOR == 1 & srepcalc == 2,
+			pseudoPORstd = PORstd
+		);
+	);
+
+	/* Calculate NEW std dev */
+	If( button != -1,
+		If( n_partNEW == 1,
+			Eval(
+				Substitute( Name Expr( calcsing ), Expr( dtcurrent ), Eval( dtNEW ), Expr( respcol ), Eval( Column( y ) ) )
+			);
+			::NEWstd = singstd;
+			::nNEW = nobs;
+			::NEWdisp = Outline Box( "NEW Tool - " || NEWTool,
+				Text Box( "Method: Single part std dev" ),
+				Outline Box( "Moments", pgraph )
+			);
+		,
+			If( srepcalc == 1,
+				Eval(
+					Substitute( Name Expr( calcrpet ),
+						Expr( dtcurrent ), Eval( dtNEW ),
+						Expr( respcol ), Eval( Column( y ) ),
+						Expr( partcol ), Eval( Column( part ) )
+					)
+				);
+				::NEWstd = RMS;
+				::nNEW = nobs;
+				::NEWdisp = Outline Box( "NEW Tool - " || NEWTool,
+					Text Box( "Method: Repeatability pool std dev" ), 
+			/*outlinebox("by Part", pgraph),*/
+					Outline Box( "Summary of Fit", SOFtable )
+				);
+			,
+				Current Data Table( dtNEW );
+				Eval(
+					Substitute( Name Expr( calcrpet ),
+						Expr( dtcurrent ), Eval( dtNEW ),
+						Expr( respcol ), Eval( Column( y ) ),
+						Expr( partcol ), Eval( Column( part ) )
+					)
+				);
+				::pseudoNEWstd = RMS;
+				::pseudonNEW = nobs;
+				Eval(
+					Substitute( Name Expr( calcsing ),
+						Expr( dtcurrent ), Eval( dtNEW ),
+						Expr( respcol ), Eval( Column( y ) )
+					)
+				);
+				calcrpro;
+				If( button != -1,
+					::NEWstd = sigma;
+					::nNEW = nobs;
+					::NEWdisp = Outline Box( "NEW Tool - " || NEWTool,
+						Text Box( "Method: Reproducibility std dev" ),
+						Outline Box( "Variance Component Estimates", seatable ),
+						Outline Box( "Summary of Fit", SOFtable )
+					);
+				);
+			)
+		);
+		If( n_partNEW == 1 & srepcalc == 2,
+			pseudoNEWstd = NEWstd
+		);
+	);
+
+	/* Combine POR & New data into 1 table */
+	If( button != -1,
+		::dtjoin = dtPOR << Concatenate( dtNEW );
+		Current Data Table( dtjoin );
+		srtcmd = Expr( dtjoin << Sort( By( txxx ), Order( oxxx ), Replace Table ) );
+
+		If( PORTool > NewTool,
+			Eval( Substitute( Name Expr( srtcmd ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Descending ) ) ),
+			Eval( Substitute( Name Expr( srtcmd ), Expr( txxx ), Eval( tcol ), Expr( oxxx ), Expr( Ascending ) ) )
+		);
+
+		Column( Char( tool[1] ) ) << set property( "row order levels", (1) );
+
+	/* Generate save centered */
+	/*** Make sure factors are nominal ***/
+		Column( dtjoin, part[1] ) << ModelingType( Nominal );
+		Column( dtjoin, part[1] ) << DataType( Character );
+		Column( dtjoin, Tool[1] ) << ModelingType( Nominal );
+		Column( dtjoin, Tool[1] ) << DataType( Character );
+		::cen = dtjoin << New Column( "Combined part", Character, Nominal );
+		cen << formula( Eval( Substitute( Expr( txxx || pxxx ), Expr( txxx ), tool[1], Expr( pxxx ), part[1] ) ) );
+		cen << eval formula;
+
+		 :: centplotcmd = Expr( Oneway( Y( resp ), X( pxxx ), Box Plots( 0 ), Mean Diamonds( 0 ), save centered ) );
+		::centplot = Eval( Substitute( Name Expr( centplotcmd ), Expr( resp ), Eval( y ), Expr( pxxx ), Eval( cen ) ) );
+
+		Current Data Table( dtjoin );
+		::cencol = Column( N Col( dtjoin ) );
+		::cenname = Char( y[1] ) || " centered by " || Char( part[1] );
+		cencol << Set Name( cenname );
+
+	/* Set-up variability chart */
+		vchrtcmd = Expr(
+			Variability Chart(
+				Y( resp ),
+				X( txxx, pxxx ),
+				Connect Cell Means( 0 ),
+				Show Group Means( 1 ),
+				Show Grand Mean( 0 ),
+				Show Grand Median( 0 ),
+				XBar Control Limits( 0 ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				Show Box Plots( 0 ),
+				Mean Diamonds( 0 ),
+				Mean of Std Dev( 0 ),
+			)
+		);
+
+		Current Data Table( dtjoin );
+		dt << ClearSelect;
+		dt << ClearColumnSelection;
+		::vchrt = Eval(
+			Substitute( Name Expr( vchrtcmd ),
+				Expr( resp ), Eval( y ),
+				Expr( txxx ), Eval( tcol ),
+				Expr( pxxx ), Eval( Column( part ) )
+			)
+		);
+		::rvchrt = vchrt << report;
+		rvchrt[axisbox( 1 )] << show major grid( 1 );
+		rvchrt[frame box( 1 )] << Row Legend( Eval( tcol ), color( 1 ), Marker( 1 ), Window( 1 ) );
+		::vchrt = rvchrt[1];
+		:: vxchrt = Eval(
+			Substitute( Name Expr( vchrtcmd ),
+				Expr( resp ), Eval( cencol ),
+				Expr( txxx ), Eval( tcol ),
+				Expr( pxxx ), Eval( Column( part ) )
+			)
+		);
+		::rvxchrt = vxchrt << report;
+		rvxchrt[axisbox( 1 )] << show major grid( 1 );
+		rvxchrt[frame box( 1 )] << Row Legend( Eval( tcol ), color( 1 ), Marker( 1 ), Window( 1 ) );
+		::vxchrt = rvxchrt[1];
+	);
+
+
+
+	/* Ftest */
+	If( button != -1, 
+		:: fratio = NEWstd / PORstd;
+		::lcl = Root( fratio ^ 2 / F Quantile( 0.95, nNEW - n_partNEW, nPOR - n_partPOR ), Empty() );
+		If( lcl < 1,
+			conclu = "SEB",
+			conclu = "SD"
+		);
+		::ucl = Root( fratio ^ 2 / F Quantile( 0.05, nNEW - n_partNEW, nPOR - n_partPOR ), Empty() );
+		If( conclu == "SD",
+			If( ucl > 2,
+				conclu = "SW",
+				conclu = "TE"
+			)
+		);
+		::conclux = If( conclu == "SW",
+			"Sigmas are not matched",
+			"Sigmas are matched"
+		);
+
+	/* Pseuso f-test */
+		 :: pseudofratio = pseudoNEWstd / pseudoPORstd;
+		::pseudolcl = Root( pseudofratio ^ 2 / F Quantile( 0.95, nNEW - n_partNEW, nPOR - n_partPOR ), Empty() );
+		If( pseudolcl < 1,
+			pseudoconclu = "SEB",
+			pseudoconclu = "SD"
+		);
+		::pseudoucl = Root( pseudofratio ^ 2 / F Quantile( 0.05, nNEW - n_partNEW, nPOR - n_partPOR ), Empty() );
+		If( pseudoconclu == "SD",
+			If( pseudoucl > 2,
+				pseudoconclu = "SW",
+				pseudoconclu = "TE"
+			)
+		);
+		::pseudoconclux = If( pseudoconclu == "SW",
+			"Sigmas are not matched",
+			"Sigmas are matched"
+		);
+
+	/* Prepare report */
+		ftestreport = New Window( "Sigma Matching",
+			H List Box( vchrt, vxchrt ),
+			V List Box(
+				Outline Box( "Std Dev Calculations", H List Box( PORdisp, NEWdisp ) ),
+				Outline Box( "Sample Size Report", ssreport ),
+				Outline Box( "Summary",
+					Outline Box( "Summary statistics",
+						Table Box(
+							String Col Box( "Tool", {PORTool, NEWTool} ),
+							Number Col Box( "Std Dev", {PORstd, NEWstd} ),
+							If( srepcalc == 2,
+								Number Col Box( "Pseudo Std Dev", {pseudoPORstd, pseudoNEWstd} )
+							),
+							Number Col Box( "#parts", {n_partPOR, n_partNEW} ),
+							Number Col Box( "#total observations", {nPOR, nNEW} )
+						)
+					),
+					If( srepcalc == 2,
+						Outline Box( "F-test (using pseudo sigma)",
+							Table Box(
+								Number Col Box( "R", {pseudofratio} ),
+								Number Col Box( "95% Lower Confidence Limit", {pseudolcl} ),
+								Number Col Box( "95% Upper Confidence Limit", {pseudoucl} ),
+								String Col Box( "Results", {pseudoconclu} ),
+								String Col Box( "Conclusion", {pseudoconclux} )
+							)
+						)
+					),
+					Outline Box( "F-test",
+						Table Box(
+							Number Col Box( "R", {fratio} ),
+							Number Col Box( "95% Lower Confidence Limit", {lcl} ),
+							Number Col Box( "95% Upper Confidence Limit", {ucl} ),
+							String Col Box( "Results", {conclu} ),
+							String Col Box( "Conclusion", {conclux} )
+						)
+					)
+				)
+			)
+		);
+
+		:: T1 = Text Box(
+			"1) Conclude SEB if 95% Lower confidence of R <= 1
+2) Conclude TE if 95% Upper confidence of R < 2
+ 
+R = Ratio of POR Sigma/New Sigma
+"
+		);
+
+		ftestreport << Append( Outline Box( "Guidelines", T1 ) );
+		ftestreport << Append( FooterBox );
+
+		Close( dtPOR, no save );
+		Close( dtNEW, no save );
+		Close( dtjoin, no save );
+	//vchrt << close window;
+	);
+); /* END ftest */
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* MAIN BODY */
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+:: dlg = Column Dialog(
+	title( "Sigma Matching Analysis" ),
+	yCols = ColList( "Y, Response (Required)", MinCol( 1 ), Max col( 1 ), DataType( Numeric ) ),
+	Tool = ColList( "Tool (Required)", Max col( 1 ), MinCol( 1 ), DataType( Nominal ) ),
+	Part = ColList( "Part (Required)", Max col( 1 ), MinCol( 1 ), DataType( Nominal ) ),
+	" "
+);
+
+:: button = Dlg["Button"];
+::Y = dlg["ycols"];
+::Tool = dlg["Tool"];
+::part = dlg["Part"];
+
+/*** Make sure factors are nominal ***/
+Column( dt, part[1] ) << ModelingType( Nominal );
+Column( dt, part[1] ) << DataType( Character );
+Column( dt, Tool[1] ) << ModelingType( Nominal );
+Column( dt, Tool[1] ) << DataType( Character );
+
+If( button != -1, p_count );

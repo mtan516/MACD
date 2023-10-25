@@ -1,0 +1,348 @@
+/**************************************************************************************
+	
+MTBX 2 Sample Comparison
+
+
+Author: Prabhneet Arora
+Rev 2
+JMP Version : 14.3.0
+JMP 14 and 12 compatible
+Date: 06/05/2020
+- Bug fixes corrected for script termination when NULL aplha entered
+- Fixed relabelling on output window for level table
+
+Author: Ai Lin Ong
+Rev 1: 1.04
+Date: 03/08/2006
+JMP Version: 5.1.1
+Starting Condition: User inputs Alpha,  data type, hypothesis type, output format,
+	               target MTBx, test length (n) and event (x) for both POR and NEW.
+	Output: The script will output both the estimated mtbx,  confidence limit for the ratio, 
+	              and decision based upon the confidence interval and hypothesis.  
+	
+	SOS Revision History
+	v1.04: 1. File sosglbls.jsl created to hold global variables that might apply to all scripts. Include added. 
+***************************************************************************************/
+clear globals();
+/* Set Initial Values of Variables*/
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"),
+	::FooterBox=VListBox(textbox(" "))
+    );
+//Include("c:\Program Files\SOS1\libraries\sosglbls.jsl");
+button = 1;
+alpha = .05;
+alphar=0.5;
+datatype="# of Failures";
+hyptype="SB";
+xpor=.;
+xporc=.;
+npor=.;
+xnew=.;
+xnewc=.;
+nnew=.;
+xpormod=.;
+xnewmod=.;
+mtbxpor=.;
+mtbxnew=.;
+mtbxratio=.;
+label="";
+MTBx="";
+porlabel="POR";
+newlabel="NEW";
+scale1="cycles";
+scale=".";
+ot1="";
+or1=.;
+ot2="";
+or2=.;
+or3=.;
+or4=.;
+or5=.;
+or6=.;
+
+While(button==1,
+dtest="error";d1test="error";d2test="error";d3test="error";d4test="error";d5test="error";d6test="error";d1="";d2=""; d3=""; decision=".";
+If(datatype=="# of Failures",a1="# of Failures";b1="# of Assists",
+    datatype=="# of Assists",a1="# of Assists";b1="# of Failures");
+ If(hyptype=="SB",a2="SB";b2="SEB";c2="SE",
+    hyptype=="SEB",a2="SEB";b2="SB";c2="SE",
+    hyptype=="SE",a2="SE";b2="SB";c2="SEB"); 
+
+result=Dialog(title("2 Sample MTBx Analysis"),
+
+vlist(
+"Provide Values for number of events and Test Length.", " ",
+  Lineup(4, 
+	"Hypothesis Type",hyptype=combobox(a2,b2,c2)," ", " ",
+	" "," "," "," ",
+	" ","Sample 1","Sample 2"," ",
+	"Entity Label", porlabel=EditText(porlabel), newlabel=EditText(newlabel), " ",
+	" "," "," "," ",
+	"Number of Events", xpor=EditNumber(xpor), xnew=EditNumber(xnew), datatype=combobox(a1,b1),
+	"Test Length", npor=EditNumber(npor), nnew=EditNumber(nnew), scale1=EditText(scale1),
+	" "," "," "," ",
+	"Alpha", alpha=EditNumber(alpha)," "," ",
+	" "," "," "," "
+	),
+
+   HList(Button("OK"), Button("Cancel"))
+  )
+ );
+
+button = result["Button"];
+alpha=result["Alpha"];
+conf=100*(1-alpha);
+xpor=result["xpor"];
+xnew=result["xnew"];
+npor=result["npor"];
+nnew=result["nnew"];
+porlabel=result["porlabel"];
+newlabel=result["newlabel"];
+scale1=result["scale1"];
+datatype=result["datatype"];
+ if(datatype==1,datatype=a1,
+    datatype==2,datatype=b1;);
+If(datatype=="# of Failures",MTBx="MTBF",
+    datatype=="# of Assists",MTBx="MTBA");
+if(xpor==0, xpormod=0,
+   xpor!=0, xpormod=modulo(xpor,floor(xpor)));
+if(xnew==0, xnewmod=0,
+   xnew!=0, xnewmod=modulo(xnew,floor(xnew)));
+npormod=modulo(npor,floor(npor));
+nnewmod=modulo(nnew,floor(nnew));
+ if( label=="< optional >", titlesuffix="", 
+     IsMissing(label),      titlesuffix="",
+     label!="< optional >", titlesuffix="for "||label);
+
+ if( porlabel=="POR", titlesuffixpor="POR", 
+     IsMissing(porlabel), titlesuffixpor="POR", 
+     porlabel!="POR", titlesuffixpor=porlabel);
+
+ if( newlabel=="NEW", titlesuffixnew="NEW", 
+     IsMissing(newlabel), titlesuffixnew="NEW", 
+     newlabel!="NEW", titlesuffixnew=newlabel);
+
+hyptype=result["hyptype"];
+ if(hyptype==1,hyptype=a2,
+    hyptype==2,hyptype=b2,
+    hyptype==3,hyptype=c2);
+
+
+
+/* Error Checking */
+If (button==1,
+	
+	if(npor < 2, Dialog(Title("Error"), "", "POR Test Length must be a positive integer > 1", "", Button("OK"), "");errortest="error",
+	Is Missing(npor), Dialog(Title("Error"), "", "Please Enter a positive integer for POR Test Length", "", Button("OK"), ""); errortest="error",
+	   npormod > 0, Dialog(Title("Error"), "", "POR Test Length must be a positive integer", "", Button("OK"), "");errortest="error",d1test="OK");
+	if(nnew < 2, Dialog(Title("Error"), "", "NEW Test Length must be a positive integer > 1", "", Button("OK"), "");errortest="error",
+	Is Missing(nnew), Dialog(Title("Error"), "", "Please Enter a positive integer for NEW Test Length", "", Button("OK"), ""); errortest="error",
+	   nnewmod > 0, Dialog(Title("Error"), "", "NEW Test Length must be an integer", "", Button("OK"), "");errortest="error",d2test="OK"); 	
+	if(xpor<0| xnew<0 , Dialog(Title("Error")," Event(X) must be equal or greater than 0"," ",button("OK"));errortest="error", 
+		xpormod!=0 |xnewmod!=0, Dialog(Title("Error"), "", "Event must be a positive integer", "", Button("OK"), "");errortest="error" , d3test="OK"); 
+	if(npor<xpor| nnew<xnew , Dialog(Title("Error"),"Test length(N) must be greater than Event(X) "," ",button("OK"));errortest="error", d4test="OK");
+	if(alpha<=0| alpha>0.4 | Is Missing (alpha), Dialog(Title("Error"),"Alpha must be between 0 to 0.4"," ",button("OK"));errortest="error", d5test="OK");
+	if( IsMissing(xpor) |  IsMissing(xnew)|IsMissing(npor) |IsMissing(nnew) & button3==1, 
+		Dialog(Title("Error"),"Missing Value!", " ",button("OK"));errortest="error", d6test="OK");
+);
+
+If (d1test=="OK" & d2test=="OK" &d3test=="OK" &d4test=="OK" &d5test=="OK"&d6test=="OK" ,
+
+/*new mtbx*/
+If( xnew== 0,  mtbxnew= nnew / -Log( alphar); xnewc=0.6931, mtbxnew= nnew /xnew; xnewc=xnew);
+If( xnew==0 | xpor==0, note="NOTE: Since there were no observed failures, Sample MTBx was estimated by 50% 1-Sided LCL.",
+	xnew!=0 & xpor!=0, note="     ");
+
+	L2siden=(2 * nnew) / ChiSquare Quantile(1 - ( alpha / 2), 2 * (xnew + 1), 0);
+	U2siden= (2 * nnew) / ChiSquare Quantile(( alpha / 2), 2 * xnew, 0);
+	L1siden= (2 *  nnew) / ChiSquare Quantile(1 -  alpha, 2 * (xnew + 1), 0);
+	U1siden= (2 * nnew) / ChiSquare Quantile( alpha, 2 * xnew, 0);
+	If( xpor== 0,  mtbxpor= npor / -Log( alphar);xporc=0.6931, mtbxpor= npor /xpor;xporc=xpor);
+	L2sideo=(2 * npor) / ChiSquare Quantile(1 - ( alpha / 2), 2 * (xpor + 1), 0);
+	U2sideo= (2 * npor) / ChiSquare Quantile(( alpha / 2), 2 * xpor, 0);
+	L1sideo= (2 *  npor) / ChiSquare Quantile(1 -  alpha, 2 * (xpor + 1), 0);
+	U1sideo= (2 * npor) / ChiSquare Quantile( alpha, 2 * xpor, 0);
+	mtbxratio=mtbxnew/mtbxpor;
+	lwr2sider=xpor / npor / (( xnew + 1) / nnew) / F Quantile(1 -  alpha / 2, 2 * (xnew + 1), 2 *  xpor, 0);
+	up2sider=( xpor + 1) / npor / (xnew /  nnew) / F Quantile( alpha / 2, 2 * xnew, 2 * (xpor + 1), 0);
+	lwr1sider=xpor / npor / (( xnew + 1) / nnew) / F Quantile(1 -  alpha, 2 * (xnew + 1), 2 *  xpor, 0);
+	up1sider= (xpor + 1) / npor / (xnew /  nnew) / F Quantile( alpha , 2 * xnew, 2 * (xpor + 1), 0);
+	L2siden=round(L2siden,0);
+	U2siden=round(U2siden,0);
+	L1siden=round(L1siden,0);
+	U1siden=round(U1siden,0);
+	L2sideo=round(L2sideo,0);
+	U2sideo=round(U2sideo,0);
+	L1sideo=round(L1sideo,0);
+	U1sideo=round(U1sideo,0);
+	mtbxnew=round(mtbxnew,0);
+	mtbxpor=round(mtbxpor,0);
+	lwr1sider=round(lwr1sider,3);
+	lwr2sider=round(lwr2sider,3);
+	up2sider=round(up2sider,3);
+	up1sider= round(up1sider,3);
+	mtbxratio=round(mtbxratio, 3);
+
+If(hyptype=="SB",
+		if (xnew>0 & xpor>0 & lwr1sider>1, 
+			decision=MTBx||" for "|| titlesuffixnew ||" is SB to "||MTBx||" for "||titlesuffixpor;
+			d2=" Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL "; or1=char(L1sideo)||" "||scale1; 
+			or2=char(L1siden)||" "||scale1; or3= lwr1sider; ot2=char(conf)||"% One Sided UCL "; 
+			or4=" "; or5=" "; or6=up1sider,
+		xnew>0 & xpor>0 & lwr1sider<=1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEW to "||MTBx||" for "||  titlesuffixpor;
+			d2=" Do Not Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL "; 
+			or1=char(L1sideo)||" "||scale1; or2=char(L1siden)||" "||scale1; or3= lwr1sider; 
+			ot2=char(conf)||"% One Sided UCL "; or4=" "; or5=" ";or6=up1sider,
+		xnew==0& xpor==0, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEW to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="      Warning: Ensure minimum s/s is met";
+			ot1=char(conf)||"% One Sided LCL"; or1=char(L1sideo)||" " ||scale1;
+			or2=char(L1siden)||" "||scale1; or3=""; ot2="";or4=""; or5=""; or6="",
+		xnew==0 & xpor>0 & lwr1sider>1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SB to "||MTBx||" for "||  titlesuffixpor;
+			d2=" Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL "; or1=char(L1sideo)||" "||scale1; 
+			or2=char(L1siden)||" "||scale1; or3=lwr1sider; ot2=""; or4=""; or5=""; or6="",
+		xnew==0 & xpor>0 & lwr1sider<=1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEW to "||MTBx||" for "||  titlesuffixpor;
+			d2=" Do Not Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL "; or1=" ";or2=" ";
+			or3= lwr1sider;ot2=""; or4=""; or5=""; or6="",
+		xnew>0 & xpor==0, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEW to "||MTBx||" for "||  titlesuffixpor;
+			d2=" Do Not Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% One Sided LCL"; or1=char(L1sideo)||" "||scale1;
+			or2=char(L1siden)||" "||scale1; or3=" "; ot2=char(conf)||"% One Sided UCL"; or4=""; or5=""; or6=up1sider);
+		nullh=MTBx||" for "||  titlesuffixnew ||" <= "||MTBx||" for "||  titlesuffixpor;
+		alth=MTBx||" for "||  titlesuffixnew  ||"  >   "||MTBx||" for "||  titlesuffixpor;
+		 );
+
+
+If(hyptype=="SE",
+		if (xnew!=0 & xpor!=0 &(lwr2sider>1| up2sider<1),
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SD to "||MTBx||" for "||  titlesuffixpor;
+			d2="Reject the Null Hyp";d3="";ot1=char(conf)||"% Two Sided LCL  "; or1=char(L2sideo)||" "||scale1; 				or2=char(L2siden)||" "||scale1; or3=lwr2sider;
+			ot2=char(conf)||"% Two Sided UCL "; or4=char(U2sideo)||" "||scale1; or5=char(U2siden)||" "||scale1; 				or6=up2sider,
+		xnew!=0 & xpor!=0 ,
+			decision=MTBx||" for "|| titlesuffixnew ||" is SE to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% Two Sided LCL  "; or1=char(L2sideo)||" "||scale1; or2=char(L2siden)||" "||scale1; 				or3=lwr2sider; ot2=char(conf)||"% Two Sided UCL "; or4=char(U2sideo)||" "||scale1; 
+			or5=char(U2siden)||" "||scale1; or6=up2sider,
+		xnew==0 & xpor==0,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SE to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="      Warning: Ensure minimum s/s is met";
+			ot1=char(conf)||"% One Sided "||MTBx ||" LCL"; or1=char(L1sideo)||" "||scale1; 
+			or2=char(L1siden)||" "||scale1; or3=.; ot2=" "; or4=" "; or5=" ";or6=" ",
+		xnew==0 &xpor>0 & (lwr2sider>=1), 
+			decision=MTBx||" for "|| titlesuffixnew ||" is SD to "||MTBx||" for "||  titlesuffixpor;
+			d2="Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% Two Sided LCL"; or1=char(L2sideo)||" "||scale1; or2=char(L2siden)||" "||scale1; 					or3=lwr2sider; ot2=""; or4=""; or5="";or6="",
+		xnew==0 &xpor>0 & lwr2sider<1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SE to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% Two Sided LCL"; or1=char(L2sideo)||" "||scale1; or2=char(L2siden)||" "||scale1; 					or3=lwr2sider; ot2=""; or4=""; or5="";or6="",
+		xnew!=0 & xpor==0 & up2sider<1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SD to "||MTBx||" for "||  titlesuffixpor;
+			d2="Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% Two Sided LCL  "; or1=char(L2sideo)||" "||scale1; 
+			or2=char(L2siden)||" "||scale1; or3=.;
+			ot2=char(conf)||"% Two Sided UCL  "; or4=""; or5=""; or6=up2sider,
+		xnew!=0 &xpor==0 & up2sider>=1, 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SE to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="";
+			ot1=char(conf)||"% Two Sided LCL  "; or1=char(L2sideo)||" "||scale1; 
+			or2=char(L2siden)||" "||scale1; or3="";
+			ot2=char(conf)||"% Two Sided UCL  "; or4=""; or5=""; or6=up2sider);
+		nullh=MTBx||" for "||  titlesuffixnew  ||" = "||MTBx||" for "||  titlesuffixpor;
+		alth=MTBx||" for "||  titlesuffixnew  ||"  <>   "||MTBx||" for "||  titlesuffixpor );
+
+
+If(hyptype=="SEB",
+		if (xnew!=0 & xpor>0 & up1sider<1,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SW to "||MTBx||" for "||  titlesuffixpor;
+			d2="Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL  "; or1=char(L1sideo)||" "||scale1; 				or2=char(L1siden)||" "||scale1; or3=lwr1sider; ot2=char(conf)||"% One Sided UCL  "; 
+			or4=" "; or5=" ";or6=up1sider,
+		xnew!=0 & xpor==0 & up1sider<1,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SW to "||MTBx||" for "||  titlesuffixpor;
+			d2="Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL  "; or1=char(L1sideo)||" "||scale1; 				or2=char(L1siden)||" "||scale1; or3=""; ot2=char(conf)||"% One Sided UCL  "; 
+			or4=""; or5="";or6=up1sider,
+		xnew!=0 & xpor>0 & up1sider>=1,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEB to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL  "; or1=char(L1sideo)||" "||scale1; 			or2=char(L1siden)||" "||scale1; or3=lwr1sider; ot2=char(conf)||"% One Sided UCL  "; 
+			or4=" "; or5=" ";or6=up1sider,
+		xnew!=0 & xpor==0 &up1sider>=1,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEB to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="";ot1=char(conf)||"% One Sided LCL  "; or1=char(L1sideo)||" "||scale1; 			or2=char(L1siden)||" "||scale1; or3=""; ot2=char(conf)||"% One Sided UCL  "; 
+			or4=""; or5="";or6=up1sider,
+		xnew==0 & xpor==0,
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEB to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp"; d3="      Warning: Ensure minimum s/s is met";
+			ot1=char(conf)||"% One Sided LCL"; or1=char(L1sideo)||" "||scale1; 
+			or2=char(L1siden)||" "||scale1; or3=" "; ot2=""; or4=""; or5="";or6="",
+		xnew==0 &xpor>0 , 
+			decision=MTBx||" for "||  titlesuffixnew  ||" is SEB to "||MTBx||" for "||  titlesuffixpor;
+			d2="Do Not Reject the Null Hyp";d3="Note: Ensure minimum s/s is met";
+			ot1=char(conf)||"% One Sided LCL "; or1=char(L1sideo)||" "||scale1; 
+			or2=char(L1siden)||" "||scale1;or3=lwr1sider;
+			ot2=""; or4=" ";or5=" ";or6=" ");
+		nullh=MTBx||" for "||  titlesuffixnew  ||" >= "||MTBx||" for "||  titlesuffixpor;
+		alth=MTBx||" for "||  titlesuffixnew  ||"  <   "||MTBx||" for "||  titlesuffixpor );
+
+
+If(hyptype=="SE",nulldesc=("Statistically Equal (SE)"); altdesc=("Statistically Different (SD)"));
+If(hyptype=="SEB",nulldesc=("Statistically Equal or Better (SEB)"); altdesc=("Statistically Worse (SW)"));
+If(hyptype=="SB",nulldesc=("Statistically Equal or Worse (SEW)"); altdesc=("Statistically Better (SB)"));
+
+
+output=new window("2 Sample "|| MTBx || " Analysis "||titlesuffix,
+       outlinebox("Hypotheses "||titlesuffix,
+ 	 hlistbox(
+   		vlistbox(tb1=textbox("Null Hypothesis:"),
+			tb2=textbox("Alternative Hypothesis:")),
+		   textbox("    "),
+  		 vlistbox(tb3=textbox(nullh),
+            			tb4=textbox(alth)),
+		textbox("    "),
+		vlistbox(tb3a=textbox(nulldesc),
+			tb3a=textbox(altdesc))
+		)
+ 	 ), 
+
+ OutlineBox("Sample "||MTBx || " and Confidence Intervals "||titlesuffix,
+	TableBox(
+	// 	Parallel lines || make text appear in the same row in the StringColBox
+		StringColBox("Level",{porlabel,newlabel, "Ratio ("||porlabel||" / "||newlabel||")"}),
+		NumberColBox("Total "||datatype,{xpor,xnew}),
+		Textbox("     "),
+		StringColBox("Test Length",{char(npor)||" "||scale1,char(nnew)||" "||scale1}),
+		Textbox("     "),
+		StringColBox("Sample "||MTBx,{char(mtbxpor)||" "||scale1,char(mtbxnew)||" "||scale1,char(mtbxratio)}),
+		Textbox("     "),
+		StringColBox(char(ot1),{char(or1), char(or2), char(or3)}),
+		Textbox("     "),
+		StringColBox(char(ot2),{char(or4), char(or5), char(or6)})
+		),
+		vlistbox(tb7=textbox(note))
+ ),
+ 
+
+Outlinebox ("Test Results "||titlesuffix,
+	TableBox(
+		NumberColBox("Alpha", {alpha}),
+		StringColBox("   ",{"     "}),
+		StringColBox("Decision     ",{d2||": "||decision})
+		
+	),
+	vlistbox(textbox(d3))
+)
+
+
+);
+
+output << Append( FooterBox );
+  ));
+
+
+
+
+
+

@@ -1,0 +1,64 @@
+Clear Globals();
+Close All( data tables, no save );
+
+//configure POR sample per lot and future sample plans
+PORSample_PerLot = 13;
+Plans = 3;
+SamplePlan1 = 0.8;
+SamplePlan2 = 0.5;
+SamplePlan3 = 0.2;
+
+//open source file and create sample flag based on new sample plans
+dt = Open( "PLS_placement_raw_data.jmp" );
+dt << Sort( By( :LOT, :READING_ID ), Order( Ascending, Ascending ), replace table( 1 ) );
+StartRowIndex = dt << Get Rows Where( :READING_ID == 1 );
+
+//set selected flag per lot based on sample plans
+For( i = 1, i <= Plans, i++,
+	dt << New Column( "SampleFlag" || Char( i ), numeric );
+	SampleQYT_PerLot = Floor( PORSample_PerLot * As Global( "SamplePlan" || Char( i ) ) );
+	For( j = 1, j <= N Rows( StartRowIndex ), j++,
+		RandReadinIDlist = Random Index( PORSample_PerLot, SampleQYT_PerLot );
+		EndRows = If( j == N Rows( StartRowIndex ),
+			N Rows( dt ),
+			StartRowIndex[j + 1] - 1
+		);
+		For( k = StartRowIndex[j], k <= EndRows, k++,
+			For(
+				n = 1;
+				set = 0;, n <= N Rows( RandReadinIDlist ) & set == 0, n++,
+				If( dt:READING_ID[k] == RandReadinIDlist[n],
+					Column( dt, "SampleFlag" || Char( i ) )[k] = 1;
+					set = 1;
+				)
+			)
+		);
+	);
+);	
+
+For( i = 1, i <= Plans, i++,
+	dt << New Column( "SampleValue" || Char( i ), numeric, formula( If( Column( "SampleFlag" || Char( i ) ) == 1, :RAW_VALUE ) ) )
+);
+
+Clear Globals();
+Close All( data tables, no save );
+
+
+/*Verify random index feature
+Clear Globals();
+Close All( data tables, no save );
+
+n1 = 13;
+n2 = 3;
+DOE = New Table( "DOE", Add Rows( n2 * 100000 ), New Column( "RandomValue", Numeric, "Continuous", Format( "Best", 12 ) ) );
+
+
+For( j = 1, j <= n2, j++,
+	DOE:RandomValue[n2 * (j - 1)] = Random Index( n1, n2 )[j]
+);
+
+DOE << Summary( Group( :RandomValue ), output table( "Summary" ) );
+		
+Clear Globals();
+Close All( data tables, no save );
+*/

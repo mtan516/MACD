@@ -1,0 +1,830 @@
+/*******************************************************************************************
+	MCA Reproducibility: Multiple parts
+	Author: Ana Solis Guevara 
+	Editor: Damien Chee and Paul Wenz
+	Rev: Version 1.3.9
+	Date: 5/2/2011
+	JMP Version: 5.1 to 9
+	Starting Condition: 
+		Users inputs Response, Factors, Part, and two out of three values (USL, LSL and Process Mean). 
+		This version is conditioned to multiple parts and factors.
+
+	Output:
+		Oneway analysis of response (by part and centered by part)
+		Variability Chart of response vs MCA structure marked by part
+		Variance Component Analysis
+		Summary of fit to get pseudo sigma estimation
+		Output Report: Reproducibility Report (Parameter, Process Mean, Sigma(ms), LSL, USL, Pseudo Sigma(ms), 				
+		               Pseudo_P/T, P/T Ratio(%), Statistical Evaluation) and Guidelines to evaluate P/T.
+	SOS Revision History
+	v1.1:
+		Changes:
+		6/15/2006 
+		Error checking improvement
+		Global footer box added
+	v1.2:
+		Enable analysis for > 2 factors
+
+	v1.2.1: 
+		Forced part and MCA factor columns to be nominal.	 
+	v1.3: (edited by Damien Chee)
+		2/20/2007
+		Enable "by" function
+	v1.3.1 (edited by Damien Chee)
+		8/7/2007
+		Fixed bug when column names are same as variable names
+		Fixed bug when error input of spec limits
+		Fixed bug of duplicate columns created with join function
+		Enable script to be used with JMP 7
+		
+	v1.3.4	
+		added row legend color and marker for rbiv[1]
+	
+	v1.3.5
+		compatabile with JMP 8 by not closing fit model dialog box at end
+	v1.3.6
+		moved overall summary to top.  don't minimize original window.
+	v1.3.7	
+		Added new varcomp summary table	
+	v1.3.8
+		changed title on oneway charts
+	v1.3.9
+		added wait statement to work in JMP 9
+	v2.9.1 (edited by Todd Jordan)
+		Added code to identify if parts = 1 and correctly display and compute variance components
+		Added code to check if repeatability sigma was not estimable and display warning message
+		Updated error checking
+	v2.9.2 (Todd Jordan)
+		Corrected a bug with the repeatability sigma check
+	v2.9.3 (Todd Jordan)
+		Corrected code to close Fit Model windows for JMP 9,10
+	v3.1 (Todd Jordan)
+		Corrected code to close Fit Model.
+	v4.0 (Sherstin Mortensen)
+		Added the P/T ratio using process sigma for CPPs
+		Added "% Metro Variation of Total" box for automotive reporting
+	v6.1(Mary Anne Patel)
+		Corrected code to close Means/Anova/Summary of Fit for the Oneway plots in the Reproducibility summary
+	  
+
+*******************************************************************************************/
+Clear Globals();
+
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox = V List Box(Text Box(" ")));
+
+
+
+If(N Table() == 0, 	::dt1 = Open(),	::dt1 = Current Data Table());
+//dt1 << MinimizeWindow;
+::dt1name = dt1 << GetName;
+dt1 << ClearSelect;
+dt1 << ClearColumnSelection;
+::dt = dt1 << Subset(Rows(dt1 << GetRowsWhere(!Excluded())), AllColumns);
+dt << SetName(Char(dt1name) || "_" || "(Copy)");
+Current Data Table(dt);
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+
+/////////////////////////////// Process Varcomp Expression ///////////////////////////////////////////////
+Process_varcomp = Expr(
+	vctable << Make data table(); Wait(0.1);
+	vc_data = Current Data Table();
+
+	// Update total var comp by deleting part var comp
+	If(n_parts>1,Column(vc_data, 2)[N Rows(vc_data)] = Column(vc_data, 2)[N Rows(vc_data)] - Column(vc_data, 2)[1]);
+	Wait(0.1);
+	// Delete Part Varcomp
+	if(n_parts>1,vc_data << Delete Rows(1));
+	// Update Percent total
+	For Each Row(Column(vc_data, 3)[] = 100 * Column(vc_data, 2)[] / Column(vc_data, 2)[N Rows(vc_data)]);
+	// add sqrt varcomp
+	vc_data << New Column("Sigma", Numeric, Continous, Formula(If(:Var Comp Est > 0, Root(:Var Comp Est, Empty()), 0)), eval formula);
+	vc_data << New Column("Source",
+		Character,
+		Nominal,
+		Formula(If(:Component == "Residual", "Repeatability", :Component == "Total", "Total", Reverse(Word(2, Reverse(:Component), "&")))),
+		eval formula
+	);
+	vc_data << Move Selected Columns({"Source"}, to First);
+	Column(vc_data, "Source") << Delete Property("formula");
+	vc_data << Delete Columns("Component");
+	vc_data << Select All Rows;
+
+	// Make var comp outline box
+	vc_ob = Outline Box("Variance Components",
+		Table Box(
+			String Col Box(GetColAsTableSub(1, vc_data)[1], GetColAsTableSub(1, vc_data)[2]),
+			Number Col Box("Variance Component", GetColAsTableSub(2, vc_data)[2]),
+			per_col1 = Number Col Box(GetColAsTableSub(3, vc_data)[1], GetColAsTableSub(3, vc_data)[2]),
+			Plot Col Box(GetColAsTableSub(3, vc_data)[1], GetColAsTableSub(3, vc_data)[2]),
+			Number Col Box(GetColAsTableSub(4, vc_data)[1], GetColAsTableSub(4, vc_data)[2])
+		)
+	);
+	per_col1 << Set Format(5, 2);
+
+	// make var comp summary outline box
+	vc_data << New Column("Category",
+		character,
+		nominal,
+		formula(If(:Source == "Repeatability", "Repeatability", :Source == "Total", "Total", "Reproducibility")),
+		eval formula
+	);
+	vc_data << New Column("Order", numeric, nominal, formula(If(:Source == "Repeatability", 2, :Source == "Total", 3, 1)), eval formula);
+	vc_data_summ = vc_data << Summary(
+		Group(:Order, :Category),
+		Sum(:Var Comp Est),
+		Sum(:Percent of Total),
+		statistics column name format("column")
+	);
+	vc_data_summ << New Column("Sigma", Numeric, Continous, Formula(If(:Var Comp Est > 0, Root(:Var Comp Est, Empty()), 0)), eval formula);
+		
+	// make var comp summary outline box
+	vc_ob2 = Outline Box("Variance Component Summary",
+		Table Box(
+			//String Col Box(GetColAsTableSub(2, vc_data_summ)[1], GetColAsTableSub(2, vc_data_summ)[2]),
+			String Col Box("Source", GetColAsTableSub(2, vc_data_summ)[2]),
+			//Number Col Box(GetColAsTableSub(4, vc_data_summ)[1], GetColAsTableSub(4, vc_data_summ)[2]),
+			Number Col Box("Variance Component", GetColAsTableSub(4, vc_data_summ)[2]),
+			per_col2 = Number Col Box(GetColAsTableSub(5, vc_data_summ)[1], GetColAsTableSub(5, vc_data_summ)[2]),
+			Plot Col Box(GetColAsTableSub(5, vc_data_summ)[1], GetColAsTableSub(5, vc_data_summ)[2]),
+			Number Col Box(GetColAsTableSub(6, vc_data_summ)[1], GetColAsTableSub(6, vc_data_summ)[2])
+		)
+	);
+	per_col2 << Set Format(5, 2);
+	close(vc_data_summ,nosave);
+	close(vc_data,nosave);
+	
+	// Make Sample Size Outline box
+	SS_ob2 = Outline Box("Sample Size Summary", Table Box(Number Col Box("Total Observations", {SOFtable_SS}), ));
+);
+/////////////////////////////// End Expression ///////////////////////////////////////////////
+
+//Guidelines to evaluate P/T;
+::T1 = Text Box("Guidelines to evaluate P/T:
+1) P/T Ratio (%) <= 30%, the measurement system is capable
+
+");
+//Guidelines to evaluate P/T;
+::T2 = Text Box("Note: Variance Component Analysis Based on a Crossed Model");
+
+Try(::jmpver = JMP Version(), ::jmpver = "6 lower");
+If(jmpver == " 6.0.3",
+	jmpver = "6 lower"
+);
+
+//Variables and Vectors//;
+::Pmeanlist = {};
+::psigmalist = {};
+::sigmalist = {};
+::cnamelist = {};
+::USLlist = {};
+::LSLlist = {};
+::PTlist = {};
+::PTRlist = {};
+::MVTlist = {};
+::Pseudosigmalist = {};
+::PSeudoPTlist = {};
+::PseudoPTRlist = {};
+::statlist = {};
+::collistg = {};
+::n = 0;
+::a = 0;
+::z = {};
+::button = 1;
+::order = 0;
+::SPEC = 0;
+::error = 1;
+::USLl = {};
+::LSLl = {};
+::Pmeanl = {};
+::Psigmal = {};
+::xcen = {};
+::yCols = "";
+::xCols = "";
+::bCols = "";
+::Part = "";
+::a = .;
+::LSL = .;
+::USL = .;
+::PMean = .;
+::PSigma = .;
+::i = .;
+::b = .;
+::m = .;
+::k = .;
+::pr = .;
+::cx = .;
+::tb = "";
+::ftcmd = "";
+::ft = "";
+::ftr = "";
+::PT = .;
+::PTR = .;
+::MVT = .;
+::bivcmd1 = "";
+::bivcmd = "";
+::biv = "";
+::biv1 = "";
+::rr = .;
+::pseudo_PT = .;
+::pseudo_PTR = .;
+::n_factors = .;
+::n_levels = 1;
+::n_parts=0;
+::df_warn=0;
+/****************************** Input Dialog Box *******************************************/
+
+::dlg = Column Dialog(
+	title("Reproducibility Analysis"),
+	yCols = ColList("Y, Response (Required)", MinCol(1), DataType(Numeric)),
+	xcols = ColList("X, Factors (Required)", MinCol(1), DataType(Nominal)),
+	Part = ColList("Part (Required)", Max col(1), MinCol(1), DataType(Nominal)),
+	bcols = ColList("By", MaxCol(1))
+);
+::button = Dlg["Button"];
+::Y = dlg["ycols"];
+::X = dlg["xcols"];
+::p = dlg["Part"];
+::bcol = dlg["bcols"];
+If(button == -1, Close(dt, no save);throw());
+
+/****  Warning for 0 Degrees of freedom  ****/
+n_levels=1;
+n_factors = nitems(X);
+for(i=1, i<=n_factors, i++,
+summarize(fby = by(X[i]), fcount = count);
+n_levels=n_levels*nitems(fby);
+);
+summarize(fby = by(p[1]), fcount = count);
+n_parts = nitems(fby);
+n_levels=n_levels*nitems(fby);
+
+if(bcol != {},
+		summarize(fby = by(bcol[1]), fcount = count);
+		n_levels=n_levels*nitems(fby);
+);
+
+if(n_levels>=nrows(dt1), 
+	df_warning = newwindow("WARNING!", modal, 
+		Vlistbox(
+			TextBox("Warning!   Repeatability sigma is not estimable."),
+			TextBox("Either you have no replicates, or you included replicate as a Factor."),
+			TextBox("Consider checking your 'X, Factors' selection."),
+			Hlistbox(
+				warn_b=Button Box("OK"),
+				warn_b=Button Box("Cancel")
+			)
+			)
+		);
+		df_warn=df_warning["Button"];
+);
+
+If(df_warn == -1, close(dt, nosave);throw());
+
+If(button == 1,
+	For(a = 1, a <= N Items(Y), a++,
+		::s_button = 2;
+		While(s_button == 2,
+			::dtxt = "Enter values for " || Char(Y[a]);
+			::dlg2 = Dialog(
+				title(dtxt),
+				VList(
+					"Two-Sided Spec Limits: Input LSL and USL",
+					"",
+					"One-Sided Spec Limits: Input Process Mean and LSL or USL",
+					"",
+					HList("LSL: ", LSL = EditNumber(), " Process Mean: ", PMean = EditNumber(), " USL: ", USL = EditNumber()),
+					" ",
+					"          - OR -", 
+					" ",
+					"No Spec Limits: Input Process Sigma ",
+					" ",
+					HList("Process Sigma: ", PSigma = EditNumber()),
+					" ",
+					HList(Button("OK"), Button("Cancel"))
+				)
+			);
+			USL = dlg2["USL"];
+			LSL = dlg2["LSL"];
+			PMean = dlg2["PMean"];
+			PSigma = dlg2["PSigma"];
+			s_button = dlg2["button"];
+
+			/* Error Checking for SPEC Limits */
+			If(s_button == 1,
+				If(
+					!Is Missing(LSL) & !Is Missing(USL),
+						If(LSL > USL,
+							Dialog("The LSL must be less than USL", "", Button("OK"));
+							s_button = 2;
+						,
+							Insert Into(z, 1)
+						),
+					!Is Missing(LSL) & !Is Missing(PMean),
+						If(LSL > PMean,
+							Dialog("LSL must be less than Process Mean", "", Button("OK"));
+							s_button = 2;
+						,
+							Insert Into(z, 2)
+						),
+					!Is Missing(USL) & !Is Missing(PMean),
+						If(Pmean > USL,
+							Dialog("USL must be greater than Process Mean", "", Button("OK"));
+							s_button = 2;
+						,
+							Insert Into(z, 3)
+						),
+					!Is Missing(PSigma),
+						Insert Into(z, 4),
+					Dialog("You must provide either two of the Spec Limit values or the Process Sigma", "", Button("OK"));
+					s_button = 2;
+				)
+			);
+			If(s_button == -1,
+				a = N Items(Y) + 1;
+				button = -1;
+			);
+			If(s_button == 1,
+				Insert Into(USLl, USL);
+				Insert Into(LSLl, LSL);
+				Insert Into(Pmeanl, PMean);
+				Insert Into(Psigmal, PSigma)
+			);
+		);
+	)
+);
+
+If(s_button == -1, 	Close(dt, no save);throw());
+
+/* End of user input & begin calculations algorithm */
+
+If(button == 1,  
+	If(bcol != {},
+		Column(bcol) << Data Type(Character)
+	);
+
+/*** Make sure factors are nominal ***/
+	Column(dt, p[1]) << ModelingType(Nominal);
+	For(i = 1, i <= N Items(X), i++,
+		Column(dt, X[i]) << ModelingType(Nominal)
+	);
+
+/*get combination list*/
+	::dtswrk = "";
+	::dtswrk2 = "";
+	If(N Items(y) > 1,
+		::stkcol = ":Name(\!"" || Char(y[1]) || "\!")";
+		For(a = 2, a <= N Items(y), a++,
+			stkcol = stkcol || ", :Name(\!"" || Char(y[a]) || "\!")"
+		);
+		::stkcmd = "dtswrk = dt << Stack(columns(" || stkcol || "), Source Label Column(\!"pna198\!"), Stacked Data Column(\!"Stk198\!"))";
+		Eval(Parse(stkcmd));
+		If(bcol != {},
+			dtswrk2 = dtswrk << Summary(Group(:pna198, Column(Char(bcol[1]))), Std Dev(:Stk198), statistics column name format("column")),
+			dtswrk2 = dtswrk << Summary(Group(:pna198), Std Dev(:Stk198), statistics column name format("column"))
+		);
+	, 
+/* if 1 variable*/
+		dtswrk = New Table();
+		Current Data Table(dt);
+		If(bcol == {}, 
+			dtswrk2 = dt << Summary(Group, Std Dev(Column(Char(y[1]))))
+		,
+			dtswrk2 = dt << Summary(Group(Column(Char(bcol[1]))), Std Dev(Column(Char(y[1]))))
+		);
+		dtswrk2 << add multiple Columns("pna198", 1, before first, character);
+		::necl = Column(1);
+		For(a = 1, a <= N Row(dtswrk2), a++,
+			necl[a] = Char(y[1])
+		);
+		Column(N Col(dtswrk2)) << Set Name("Stk198");
+	);
+		
+	dtswrk2 << Select Where(Is Missing(Stk198));
+	::missr = dtswrk2 << get selected rows;
+	Try(dtswrk2 << Delete Rows());
+
+	::pnamelist = Column(dtswrk2, "pna198") << get values;
+	//stdlist= column(dtswrk2, "stk198") << get values;
+	If(bcol != {},
+		toollist = Column(dtswrk2, Char(bcol[1])) << get values
+	);
+
+	Close(dtswrk2, no save);
+	Close(dtswrk, no save);
+
+	::zlist = {};
+	For(a = 1, a <= N Items(pnamelist), a++,
+		b = 1;
+		While(pnamelist[a] != Char(y[b]), b++);
+		Insert Into(zlist, z[b]);
+		Insert Into(pmeanlist, pmeanl[b]);
+		Insert Into(psigmalist, psigmal[b]);
+		Insert Into(usllist, usll[b]);
+		Insert Into(lsllist, lsll[b]);
+		Insert Into(xcen, b);
+	);
+
+/* Generate interaction list */
+	::repfac = {};
+/*  Enter code to see if # parts = 1 and exclude if so */
+	if(n_parts > 1, repfac[1] = p[1]);
+	For(m = 1, m <= N Items(x), m++,
+		Insert Into(repfac, x[m])
+	);
+
+	::nfac = N Items(repfac);
+	repfacint = {};
+	For(k = 1, k <= nfac, k++,
+		Insert Into(repfacint, Parse(":Name(\!"" || Char(repfac[k]) || "\!") & Random"));
+		If(k > 1,
+			j = N Items(repfacint) - 1;
+			For(pr = 1, pr <= j, pr++,
+				Insert Into(repfacint, Parse(":Name(\!"" || Char(repfac[k]) || "\!")*" || Char(repfacint[pr])))
+			);
+		);
+	);
+
+/* get save centered data */
+	::dtmast = "";
+	::dtsub = "";
+	::xcurr = pnamelist[1];
+	::dtjname = dt << Get Name();
+	dt << clear selected columns;
+	::cenlist = {};
+	::xcount = 0;
+	dt << New Column("seq198uence", continuous, numeric);
+	:seq198uence << set each value(Count(1, N Row(dt), N Row(dt), 1));
+
+	For(a = 1, a <= N Items(pnamelist), a++,
+		Current Data Table(dt);
+		If(bcol != {},
+			::slcmd = "dt<<Select where(:" || Char(bcol[1]) || "== \!"" || toollist[a] || "\!");";
+			Eval(Parse(slcmd));
+			dtsub = dt << Subset(
+				Output Table("Subset"),
+				columns(Column(Char(p[1])), Column(pnamelist[a]), Column("seq198uence"), Column(Char(bcol[1])))
+			);
+		,
+			dtsub = dt << Subset(Output Table("Subset"), columns(Column(Char(p[1])), Column("seq198uence"), Column(pnamelist[a])))
+		);
+
+		Current Data Table(dtsub);
+		::dcen = Oneway(Y(Column(pnamelist[a])), X(Column(Char(p[1]))), Box Plots(1), Mean Diamonds(0), save centered);
+		dcen << close window;
+		Column(dtsub, N Col(dtsub)) << Set Name("cen198tered");
+
+		If(a == 1,
+			dtmast = dtsub;
+			xcount++;
+		,
+			If(xcurr == pnamelist[a],
+				::dtmast2 = dtmast << Concatenate(dtsub);
+				Close(dtsub, no save);
+				Close(dtmast, no save);
+				dtmast = dtmast2;
+				xcount++;
+			,
+				::dtcollist = {};
+				For(b = 1, b <= N Col(dt), b++,
+					Insert Into(dtcollist, Column(dt, b))
+				);
+
+				If(jmpver == "6 lower",
+					::dt2temp = dt << Join(
+						With(dtmast),
+						Select(Eval List(dtcollist)),
+						SelectWith(:cen198tered),
+						By Matching Columns(:seq198uence = :seq198uence),
+						Drop Multiples(0, 0),
+						Include Non Matches(1, 1)
+					),
+					::dt2temp = dt << Join(
+						With(dtmast),
+						Select(Eval List(dtcollist)),
+						SelectWith(:cen198tered),
+						By Matching Columns(:seq198uence = :seq198uence),
+						Drop Multiples(0, 0),
+						Name("Include non-matches")(1, 1)
+					)
+				);
+				Close(dtmast, no save);
+				dtmast = dtsub;
+				Close(dt, no save);
+				dt = dt2temp;
+				::cenname = xcurr || " centered by " || Char(p[1]);
+				Column(dt, "cen198tered") << Set Name(cenname);
+				For(cx = 1, cx <= xcount, cx++,
+					Insert Into(cenlist, Column(dt, N Col(dt)) << get name())
+				);
+				xcurr = pnamelist[a];
+			)
+		);
+	);
+	dtcollist = {};
+	For(b = 1, b <= N Col(dt), b++,
+		Insert Into(dtcollist, Column(dt, b))
+	);
+
+	If(jmpver == "6 lower",
+		dt2temp = dt << Join(
+			With(dtmast),
+			Select(Eval List(dtcollist)),
+			SelectWith(:cen198tered),
+			By Matching Columns(:seq198uence = :seq198uence),
+			Drop Multiples(0, 0),
+			Include Non Matches(1, 1)
+		),
+		dt2temp = dt << Join(
+			With(dtmast),
+			Select(Eval List(dtcollist)),
+			SelectWith(:cen198tered),
+			By Matching Columns(:seq198uence = :seq198uence),
+			Drop Multiples(0, 0),
+			Name("Include non-matches")(1, 1)
+		)
+	);
+	
+	Close(dtmast, no save);
+	Close(dt, no save);
+	dt = dt2temp;
+	cenname = xcurr || " centered by " || Char(p[1]);
+	Column(dt, "cen198tered") << Set Name(cenname);
+	For(cx = 1,
+		cx <= If(N Items(pnamelist),
+			xcount,
+			xcount - 1
+		), cx++,
+		Insert Into(cenlist, Column(dt, N Col(dt)) << get name())
+	);
+	dt << Set name(dtjname);
+	dt << delete columns("seq198uence");
+
+/*loop for sequence*/
+	::yseq = .;
+	For(yseq = 1, yseq <= N Items(pnamelist), yseq++, 
+
+		//*****Generate the model*****;
+		Current Data Table(dt);
+		If(bcol == {},
+			ftcmd =
+			"ft = Fit Model (y( Column(pnamelist[yseq])),effects(eval(repfacint)), Personality(Standard Least Squares), Method(EMS), Emphasis(Effect Leverage), Run Model)",
+			ftcmd =
+			"ft = Fit Model (y( Column(pnamelist[yseq])),effects(eval(repfacint)), Personality(Standard Least Squares), Method(EMS), Emphasis(Effect Leverage), Where ("
+			 || ":Name (\!"" || Char(bcol[1]) || "\!") == \!"" || toollist[yseq] || "\!"), Run Model);"
+		);
+		Eval(Parse(ftcmd));
+		::ftr = ft << report;
+		::seatable = ftr["Variance Component Estimates"][1];
+		::VC_rpt = (ftr["Variance Component Estimates"][1] << report);
+
+		::varcol2 = seatable[columnbox("Var Comp Est")];
+		::varcol3 = seatable[columnbox("Component")];
+		::sigma = 0;
+		if(n_parts ==1, vc_start=1, vc_start=2);
+		For(i = vc_start, (varcol3 << get(i)) != "Total", i++,
+			Add To(sigma, varcol2 << get(i))
+		);
+		sigma = Sqrt(sigma);
+		Insert Into(sigmalist, sigma);
+
+		//P/T computation according with SPEC LIMITS definition;
+		If(
+			Zlist[yseq] == 1, PT = (6 * sigmalist[yseq] / (USLlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 2, PT = (3 * sigmalist[yseq] / (PMeanlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 3, PT = (3 * sigmalist[yseq] / (USLlist[yseq] - PMeanlist[yseq])),
+			Zlist[yseq] == 4, PT = (sigmalist[yseq] / PSigmalist[yseq])
+		);
+		If(PT > 0.001,
+			PTR = Round((PT * 100), 1),
+			PTR = PT * 100
+		);
+		If(PT^2 > 0.001,
+			MVT = Round( ( PT^2 * 100 ), 1 ),
+			MVT = PT^2 * 100
+		);
+		::stat = If(PT < 0.30,
+			"Capable",
+			"Not Capable"
+		);
+		Insert Into(PTlist, PT);
+		Insert Into(statlist, stat);
+		Insert Into(PTRlist, PTR);
+		Insert Into(MVTlist, MVT);
+		Current Data Table(dt);
+
+/* Calculations for Pseudo PT */
+		Current Data Table(dt);
+		If(bcol == {},
+			bivcmd =
+			"biv = Oneway(Y(column(pnamelist[yseq])), x (column(P[1])), Quantiles(0), Means(1), Means and Std Dev(0), t Test(0), UnEqual Variances(0), Plot Actual by Quantile(0), Plot Quantile by Actual(0), Box Plots(1), Mean Lines(1), Mean CI Lines(0), Mean Diamonds(0), Connect Means(0), X Axis proportional(0), Points Jittered(1), invisible);";
+			bivcmd1 =
+			"biv1 = Oneway(Y(column(cenlist[yseq])), x (column(P[1])), Quantiles(0), Means(1), Means and Std Dev(0), t Test(0), UnEqual Variances(0), Plot Actual by Quantile(0), Plot Quantile by Actual(0), Box Plots(1), Mean Lines(1), Mean CI Lines(0), Mean Diamonds(0), Connect Means(0), X Axis proportional(0), Points Jittered(1), invisible);";
+		,
+			bivcmd =
+			"biv = Oneway(Y(column(pnamelist[yseq])), x (column(P[1])), Quantiles(0), Means(1), Means and Std Dev(0), t Test(0), UnEqual Variances(0), Plot Actual by Quantile(0), Plot Quantile by Actual(0), Box Plots(1), Mean Lines(1), Mean CI Lines(0), Mean Diamonds(0), Connect Means(0), X Axis proportional(0), Points Jittered(1), invisible, Where ("
+			 || ":Name (\!"" || Char(bcol[1]) || "\!") == \!"" || toollist[yseq] || "\!"));";
+			bivcmd1 =
+			"biv1 = Oneway(Y(column(cenlist[yseq])), x (column(P[1])), Quantiles(0), Means(1), Means and Std Dev(0), t Test(0), UnEqual Variances(0), Plot Actual by Quantile(0), Plot Quantile by Actual(0), Box Plots(1), Mean Lines(1), Mean CI Lines(0), Mean Diamonds(0), Connect Means(0), X Axis proportional(0), Points Jittered(1), invisible, Where ("
+			 || ":Name (\!"" || Char(bcol[1]) || "\!") == \!"" || toollist[yseq] || "\!"));";
+		);
+
+		::wdw = New Window("Oneway Analysis",
+			Eval(Parse(bivcmd));
+			::rbiv = biv << report;
+			::dtb = rbiv[Table Box(1)] << get as matrix;
+			//current data table(dtb);
+			::RMS = dtb[3];
+			biv << Means (0);
+			//Close(dtbsum, no save);
+		);
+
+		If(
+			Zlist[yseq] == 1, Pseudo_PT = (6 * rms / (USLlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 2, Pseudo_PT = (3 * rms / (PMeanlist[yseq] - LSLlist[yseq])),
+			Zlist[yseq] == 3, Pseudo_PT = (3 * rms / (USLlist[yseq] - PMeanlist[yseq])),
+			Zlist[yseq] == 4, Pseudo_PT = ( rms / PSigmalist[yseq] )
+		);
+
+		If(Pseudo_PT > 0.001,
+			Pseudo_PTR = Round((Pseudo_PT * 100), 1),
+			Pseudo_PTR = Pseudo_PT * 100
+		);
+
+		Insert Into(pseudosigmalist, RMS);
+		Insert Into(pseudoPTlist, Pseudo_PT);
+		Insert Into(PseudoPTRlist, Pseudo_PTR);
+
+
+		/* Set-up report */
+		::cname = pnamelist[yseq];
+		If(bcol != {},
+			cname = cname || " (" || toollist[yseq] || ")"
+		);
+		Insert Into(collistg, cname);
+
+		::VCTable = ftr["Variance Component Estimates"][1][Table Box(1)];
+		::SOFtable = rbiv["Summary of Fit"][1][Table Box(1)];
+		::SOFtable_SS = rbiv["Summary of Fit"][1][Table Box(1)][2][5];
+		
+		::reprrep = Table Box(
+			String Col Box("Parameter", {collistg[yseq]}),
+			Number Col Box("LSL", {LSLlist[yseq]}),
+			Number Col Box("Process Mean", {Pmeanlist[yseq]}),
+			Number Col Box("USL", {USLlist[yseq]}),
+			Number Col Box("Process Sigma", {Psigmalist[yseq]}),
+			Number Col Box("Pseudo Sigma(ms)", {pseudosigmalist[yseq]}),
+			Number Col Box("Pseudo P/T Ratio (%)", {PseudoPTRlist[yseq]}),
+			Number Col Box("Sigma(ms)", {sigmalist[yseq]}),
+			Number Col Box("P/T Ratio (%)", {PTRlist[yseq]}),
+			String Col Box("Statistical Evaluation", {statlist[yseq]})
+		);
+		::mvtrep = Table Box(
+			String Col Box("Parameter", {collistg[yseq]}),
+			Number Col Box("% Metrology Variation of Total", {MVTlist[yseq]})
+		);
+
+		rbiv[1][Frame Box(1)] << row legend(Column(Char(p[1])), Color(1), Marker(1));
+		::dist = rbiv[1];
+		dist_title = rbiv[Outlinebox(1)] << Get Title;
+		
+		dist_title_1 = munger(dist_title,1,"Oneway Analysis of ","");
+		dist_title_2 = munger(dist_title_1,1,"By","vs.");
+		
+		dist_box = Outlinebox(dist_title_2,dist);
+		
+		Eval(Parse(bivcmd1));
+		::rbiv1 = biv1 << report;
+		biv1 << Means (0);
+		rbiv1[1][Frame Box(1)] << row legend(Column(Char(p[1])), Color(1), Marker(1));
+		::dist1 = rbiv1[1];
+		dist1_title = rbiv1[Outlinebox(1)] << Get Title;
+		
+		dist1_title_1 = munger(dist1_title,1,"Oneway Analysis of ","");
+		dist1_title_2 = munger(dist1_title_1,1,"By","vs.");
+	
+		dist1_box = Outlinebox(dist1_title_2,dist1);
+
+		/* Varibility chart set-up */
+		::varfact = "VC = Variability Chart(Y( column(pnamelist[yseq])), X( :" || Char(x[1]);
+		::varfact1 = "VC1 = Variability Chart(Y( column(cenlist[yseq])), X( :" || Char(x[1]);
+
+		If(N Items(x) > 1,
+			For(rr = 2, rr <= N Items(x), rr++,
+				varfact = varfact || ", :" || Char(x[rr]);
+				varfact1 = varfact1 || ", :" || Char(x[rr]);
+			)
+		);
+
+		varfact = varfact || "), Connect Cell Means (0),Std Dev Chart(0)";
+		varfact1 = varfact1 || "), Connect Cell Means (0),Std Dev Chart(0)";
+
+		If(bcol != {},
+			varfact = varfact || ", Where (" || ":Name (\!"" || Char(bcol[1]) || "\!") == \!"" || toollist[yseq] || "\!")";
+			varfact1 = varfact1 || ", Where (" || ":Name (\!"" || Char(bcol[1]) || "\!") == \!"" || toollist[yseq] || "\!")";
+		);
+		varfact = varfact || ");";
+		varfact1 = varfact1 || ");";
+		Eval(Parse(varfact));
+		::varc = vc << report;
+		varc[FrameBox(1)] << Row Legend(Column(P[1]), Color(1), Marker(1));
+		varc[Outline Box(1)][AxisBox(1)] << show Major Grid(1);
+
+		//Report(VC)[Outline Box(1)][AxisBox(2)] <<show Major Grid(1);
+		Eval(Parse(varfact1));
+		::varc1 = vc1 << report;
+
+		varc1[FrameBox(1)] << Row Legend(Column(P[1]), Color(1), Marker(1));
+		varc1[Outline Box(1)][AxisBox(1)] << show Major Grid(1);
+		//Report(VC1)[Outline Box(1)][AxisBox(2)] <<show Major Grid(1);
+		If(bcol != {},
+			dist[Text Box(1)] << delete;
+			dist1[Text Box(1)] << delete;
+			varc[Text Box(1)] << delete;
+			varc1[Text Box(1)] << delete;
+		);
+		wait(1); // in order to work in JMP 9	
+		Process_varcomp; // New for version 1.3.7
+
+/* Generate report */
+		If(yseq == 1,
+			::Reproducibility = New Window("Reproducibility Analysis",
+				tb = Outline Box(cname,
+					H List Box(dist_box, dist1_box),
+					H List Box(varc, varc1),
+					H List Box(vc_ob, VListBox(vc_ob2, SS_ob2)),
+					H List Box(Outline Box("Reproducibility Report", reprrep), ob1 = Outline Box("% Metrology Variation of Total", mvtrep)),
+					Text Box(" ")
+				)
+			);
+			ob1 << outlinecloseorientation( "Horizontal" );
+			ob1 << close;
+			,
+			Reproducibility << Append(
+				tb = Outline Box(cname,
+					H List Box(dist_box, dist1_box),
+					H List Box(varc, varc1),
+					H List Box(vc_ob, VListBox(vc_ob2, SS_ob2)),
+					H List Box(Outline Box("Reproducibility Report", reprrep), ob1 = Outline Box("% Metrology Variation of Total", mvtrep)),
+					Text Box(" ")
+				)
+			);
+			ob1 << outlinecloseorientation( "Horizontal" );
+			ob1 << close;
+		);
+
+		//If(N Items(pnamelist) > 1, tb << close);
+		varc << close window;
+		varc1 << close window;
+		wdw << close window;
+		ft << close window;
+		model dialog[1]<<close window;
+		rbiv1 << close window;
+
+	// Close model window
+		If( (Jmpvernum == 8) ,
+		 /* then */ wait(0);
+		 	Try(
+					i = 0;
+					While(1,
+						model dialog[i + 1];
+						i++;
+					),
+					model dialog[i] << close window
+			);
+		);	// end if
+			
+	); /* close for yseq loop */
+
+/* Summary Report */
+	::sumbox = Table Box(
+		String Col Box("Parameter", collistg),
+		Number Col Box("LSL", LSLlist),
+		Number Col Box("Process Mean", Pmeanlist),
+		Number Col Box("USL", USLlist),
+		Number Col Box("Process Sigma", Psigmalist),
+		Number Col Box("Pseudo Sigma(ms)", pseudosigmalist),
+		Number Col Box("Pseudo P/T Ratio (%)", PseudoPTRlist),
+		Number Col Box("Sigma(ms)", sigmalist),
+		Number Col Box("P/T Ratio (%)", PTRlist),
+		String Col Box("Statistical Evaluation", statlist)
+	);
+	::MVTbox = Table Box(
+		String Col Box("Parameter", collistg),
+		Number Col Box("% Metrology Variation of Total", MVTlist)
+	);
+	sumbox << Table Style(Bordered);
+	MVTbox << Table Style(Bordered);
+	Reproducibility << Prepend(HListBox(
+		Outline Box("Overall Reproducibility Evaluation Summary Table", sumbox, Text Box(" ")),
+		ob = Outline Box("% Metrology Variation of Total", MVTbox, Text Box(" "))
+	));
+	ob << outlinecloseorientation( "Horizontal" );
+	ob << Close(1);
+	Reproducibility << Append(Outline Box("Guidelines", V List Box(t1, "", t2)), Text Box(" "));
+	Reproducibility << Append(FooterBox);
+	
+	Currentdatatable(dt1);
+);//close if

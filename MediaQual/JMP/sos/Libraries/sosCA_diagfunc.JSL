@@ -1,0 +1,259 @@
+ /**********************************************************
+ * SOS Commonality  DIALOG Function Library
+ * This file contains dialog related functions and expressions
+ * called by SOS Commonality Analysis scripts
+ *
+ * JMP Version: 5.1.1 - 7.0
+ * 
+ * $Author: Pdbrown $
+ * $Revision: 7 $
+ * $Version:$
+ * $Date: 12/23/08 1:14p $
+ * $Modtime: 12/23/08 1:12p $
+ * $Archive: /SOSdev/SOS2/LIBRARIES/sosCA_diagfunc.JSL $
+ *
+ * $History: sosCA_diagfunc.JSL $
+ * 
+ * *****************  Version 7  *****************
+ * User: Pdbrown      Date: 12/23/08   Time: 1:14p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Add dynamic dialog box: DIAG_Cntrl. Replaces DIAG_Cntrl_LL and
+ * DIAG_Cntrl_UL
+ * 
+ * *****************  Version 6  *****************
+ * User: Pdbrown      Date: 2/26/08    Time: 10:01a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix CAErrChk
+ * 
+ * *****************  Version 5  *****************
+ * User: Pdbrown      Date: 2/25/08    Time: 3:56p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update
+ * 
+ * *****************  Version 4  *****************
+ * User: Pdbrown      Date: 1/25/08    Time: 7:47a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Max of 6 cols can be assigned to "Group By" field in manual dialog
+ * 
+ * *****************  Version 3  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 5:05p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Replace PASS_INQ with IS_LLSOSFMT (see sosCAfunc.jsl).
+ * Default button[1] = 1.
+ * 
+ * *****************  Version 2  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 4:56a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * LL and UL Control Select dialogs added
+ **********************************************************/
+ 
+::EvalDialog = Function( {dlg_}, {DefaultLocal},
+    _dlg_list_ = Eval(dlg_);
+    InsertInto( _dlg_list_, EvalExpr(_button_ = Expr(_dlg_list_["Button"])), 1 );
+    RemoveFrom( _dlg_list_, NItems(_dlg_list_) );
+    EvalExpr( EvalList(Expr(_dlg_list_)) )
+);
+
+
+::DIAG_MultTableAlert = Expr(
+  Dialog(
+    Title("Commonality Analysis Alert"),
+    _insert_,
+    "",
+    "",
+    "Select ONE table from the list below.",
+    VList( _dtsel_ = ListBox(_dt_list_ ), Button("OK"), Button("Cancel"))
+  );
+); //EndExpr
+
+
+::UserTableSelect = Function( {}, {DefaultLocal},
+  _button_ = 0;
+  _err_msg_ = "";
+  _insert_ = Expr("Multiple data tables are open!");
+  _cont_ = 0;
+  _ntries_= 1;
+  _dt_list_ = {};
+  For( i=1, i<=NTable(), i++, InsertInto(_dt_list_, DataTable(i)<<GetName) );
+  While( _cont_ == 0,
+    If( i > 2, Eval(EvalDialog(DIAG_MultTableAlert)), _dtsel_ = _dt_list_; _button_=1 );  //{_button_, _dtsel_}
+    If( _button_ != -1,
+      Match( NItems(_dtsel_),
+       0,
+         _insert_ = Expr("No selection was made!"),
+       1,
+         _cont_ = 1,
+       _insert_ = Expr("More than one table was selected!")
+      ),
+
+      _cont_ = 1;
+      _dtsel_ = {"NULL"};
+      _err_msg_ = "Exiting";
+    );
+  ); //EndWhile
+
+  EvalList({_button_, _dtsel_[1], _err_msg_})
+);
+
+
+
+
+::DIAG_LLUserInput = Function( {},
+
+EvalList(CA_COREVARS);
+IncOP(2);
+If( !IS_LLSOSFMT,
+	RET = 0;
+	While( RET == 0,
+  Result=ColumnDialog( Title("Commonality Analysis [Lot Level]"),
+    Response = ColList( "Response Variables (Required)",MinCol(1),DataType(Numeric), Columns( ) ),
+    Y_Date_ID = ColList( "Date for Response Variables (Optional)",MaxCol(1),DataType(Numeric) ),
+    x = ColList( "Input Variables (Required)",MinCol(1) ),
+    X_Date_ID = ColList( "Dates for Input Variables (Optional)",DataType(Numeric) ),
+    Grp_Cols_orig = ColList( "Group By (Optional)",MaxCol(6), DataType(Character) ),
+    Run_ID = ColList( "Lot or Run ID (Optional)",MaxCol(1),Columns(:LOT) ),
+    Sample_Size = ColList( "Sample Size (Optional)",MaxCol(1),DataType(Numeric) ),
+    "Choose Method of Mapping Dates to Input Variables",
+    HList( date_methodQ=RadioButtons("No Date Mapping --- (No Date Columns Required)",
+                "Map Single Date to ALL Input Variables  --- (One Date Column Required)",
+                "Manual Date Mapping --- (At Least One Date Column Required)")
+    ), //EndHList
+    VList( 
+       HList( "Exclude Lots with Sample Size Less Than --- (Sample Size Column Required):", N_Lot_Excl = EditNumber() ),
+       HList( "Exclude Input Variable Levels with # Lots Less Than:", N_X_Excl = EditNumber() ),
+       HList( "NOTE: Analysis will run on a COPY of the data table." )
+
+    ) //EndVList
+
+  ); //EndColumnDiag
+
+  EvalList( Result );
+  button[1] = Result["Button"];
+  Eval(CAErrChk_Expr);
+ ),
+
+  button[1] = 1
+);
+
+); //EndFunction
+
+
+::CAErrChk_Expr = Expr(
+	If( !IsMissing(N_Lot_Excl) & NItems(Sample_Size) == 0, 
+		ERR_MSG= Expr(Expr(
+			VList("Invalid Entry! \!"Sample Size Column\!" must be defined for low sample size lots to be excluded.",
+				" ",
+				" ",
+				"Press OK to continue with NO exclusions or CANCEL to go back.")
+			)),
+	
+		If( date_methodQ > 1 & date_methodQ < 4,
+			If( N_X_Dates==0, 
+				ERR_MSG= Expr(Expr(
+					VList("Invalid Entry! At least one date column must be entered in the \!"Dates for Input Variable\!" box.",
+						" ",
+						" ",
+						"Press OK to continue with NO date mapping or CANCEL to go back."
+					))),
+					
+				::fnd=0;
+				For( xdcnt=1, xdcnt<=Eval(N_X_Dates), xdcnt++,
+					If( Column(RAW_DT, X_Date_ID[xdcnt]) << GetModelingType != "Continuous", Column(RAW_DT, X_Date_ID[xdcnt]) << SetModelingType("Continuous") );
+					If( (!Contains(Char(Column(RAW_DT, X_Date_ID[xdcnt]) << GetFormat), "/" ) | !Contains(Char(Column(RAW_DT, X_Date_ID[xdcnt]) << GetFormat), ":" )), fnd=xdcnt; xdcnt=N_X_Dates; );
+				); //EndFor
+				If( fnd != 0,
+					x_date_name = Char(X_Date_ID[fnd]);			
+					ERR_MSG= Expr(Expr(VList( HList("Invalid Entry! \!"Input Variable Date\!" Column: ", x_date_name, "must contain date values."),
+					" ",
+					" ",
+					"Press OK to continue with NO date mapping or CANCEL to go back."))),
+					
+					If( date_methodQ == 2 & N_X_Dates>1,
+						x_date_name = Char(X_Date_ID[1]);
+						ERR_MSG= Expr(Expr(
+							VList("Invalid Entry! More than one date column selected.",
+								" ",
+								" ",
+								HList("Press OK to continue using the FIRST date selected - (", x_date_name, ") or CANCEL to go back.")
+							)));
+					) //EndIf
+				) //EndIf				
+			) //EndIf N_X_Dates
+		); //EndIf date_method
+	);
+
+	If( N_Inputs != 0,
+		For( xcnt=1, xcnt<=N_Inputs, xcnt++,
+			If( Contains(UpperCase(Column(RAW_DT, x[xcnt]) << GetName), "OPERATOR") | Contains(UpperCase(Column(RAW_DT, x[xcnt]) << GetName), "SHIFT"),Column(RAW_DT, x[xcnt]) << SetModelingType("Nominal") );			
+		); //EndFor
+	); //EndIf
+	
+	If( ERR_MSG != "", Eval(Substitute(NameExpr(ErrDiag_Expr),Expr(_errmsg),ERR_MSG)), RET=1);
+	ERR_MSG="";
+
+); //EndExpr
+
+
+::ErrDiag_Expr = Expr(
+ErrDiag = Dialog( Title("Error Alert!"),
+	 _errmsg,
+	" ",
+	HList(Button("OK"), Button("CANCEL"))
+);
+button[5]=ErrDiag["Button"];
+
+If( button[5] == -1, button[1] = 0, If(date_methodQ == 2 & N_X_Dates == 0, date_methodQ=1);RET=1 );
+);
+
+::DIAG_Cntrl = Expr(
+  Dialog(
+    Title(_title_),
+    "Select method for defining analysis parameters",
+    "",
+    HList( _cntrlsel_=RadioButtons(_radbutt_) ),
+    "",
+    HList(Button("OK"), Button("Cancel") );
+  );
+
+
+); //EndExpr
+
+
+::DIAG_Cntrl_LL = Expr(
+  Dialog(
+    Title("Lot Level Commonality Analysis"),
+    "Select method for defining analysis parameters",
+    "",
+    HList( _cntrlsel_=RadioButtons(_radbutt_) ),
+    "",
+    HList(Button("OK"), Button("Cancel") );
+  );
+
+
+); //EndExpr
+
+
+
+::DIAG_Cntrl_UL = Expr(
+  Dialog(
+    Title("Unit Level to Lot Level Data Prep"),
+    "Select method for defining analysis parameters",
+    "",
+    HList( _cntrlsel_=RadioButtons("Open Existing Control File","Create New Control File") ),
+    "",
+    HList(Button("OK"), Button("Cancel") );
+  );
+); //EndExpr
+
+
+::DIAG_ERRAlert = Expr(
+  If( !IS_CATTS,
+    Dialog(
+    	Title("Error Alert"),
+    	"",
+    	ERR_MSG,
+    	"",
+    	Button("OK")
+  	)
+  );
+); //EndExpr

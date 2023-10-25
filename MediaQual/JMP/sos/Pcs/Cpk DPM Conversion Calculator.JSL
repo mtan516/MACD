@@ -1,0 +1,247 @@
+/*******************************************************************************************
+	
+	CPK/DPM Conversion Calculator
+	Author: Tan, Siew Cheng
+	Editor: Tan, Siew Cheng
+	Rev: Version 0
+	Date: 7/17/2006
+	JMP Version: 5.1.1
+	Starting Condition:  
+
+SOS Revision History
+	v0: Able to compute Defect rate by input Capability indices or compute CPK by input Defect rate
+	
+		
+*******************************************************************************************/
+clear globals();
+average=.;
+std=.;
+usl=.;
+lsl=.;
+dpm=.;
+dpm1=.;
+button=1;
+cpu=.;
+cpl=.;
+cpucal=.;
+cplcal=.;
+input=.;
+cpkcal1=.;
+cpkcal=.;
+dtype=.;
+spec=.;
+scale="%";
+speclist="One-Sided";
+dpmcal1=.;
+dpmcal=.;
+
+
+while(button==1,
+
+ result=Dialog(title("CPK/DPM Conversion Calculator"),
+
+   "Choose an option: ",
+    type=Radiobuttons("Compute DPM from Capability Indices","Compute CPK/DPM from Summary Statistics","Compute CPK from DPM"),
+   HList(Button("OK"), Button("Cancel")
+  )
+ );
+
+button = result["Button"];
+type=result["type"];
+  /**Selection of input value**/ 
+
+if(button==1 & type==2,	
+
+while(button==1,
+
+result=Dialog(title("CPK/DPM Conversion Calculator")," ",
+		VList("Enter Mean and Std Dev of the raw data, LSL and USL below:  ",
+			Lineup(2,
+				" "," ",			
+				"Mean", average=EditNumber(average),
+		             "Std Dev", std=EditNumber(std),
+				"LSL", lsl=EditNumber(lsl),
+				"USL", usl=editNumber(usl))," ",
+			
+			"CPK and Defect Rate Calculation:", " ",
+			Lineup(2,
+				"CPK", cpkcal=editnumber(cpkcal),
+				"CPL", cplcal=editnumber(cplcal),
+				"CPU", cpucal=editnumber(cpucal),
+				"Defect Rate", dpm=edittext(dpm)),
+
+			" ",
+
+			HList(button("OK"), button("Cancel") )
+			)
+	);
+	
+
+	button = result["button"];
+	average=result["average"];
+	std=result["std"];
+	usl=result["usl"];
+	lsl=result["lsl"];
+	dpm=result["dpm"];
+	cpkcal=result["cpkcal"];
+	cpucal=result["cpucal"];
+	cplcal=result["cplcal"];
+
+/* Error Testing */
+
+	if(std<0 & button==1, Dialog(Title("Error"),"Std Dev must be greater than 0",button("OK"));error1="out";dpm=.;cpkcal=.;cpucal=.;cplcal=.,error1="ok");
+	if(IsMissing(average) & button==1, Dialog(Title("Error"),"Missing Average Value!",button("OK"));error2="out";dpm=.;cpkcal=.;cpucal=.;cplcal=.,error2="ok");
+	if(IsMissing(std) & button==1, Dialog(Title("Error"),"Missing Std Dev Value!",button("OK"));error3="out";dpm=.;cpkcal=.;cpucal=.;cplcal=.,error3="ok");
+	if(IsMissing(usl) & IsMissing(lsl) & button==1, Dialog(Title("Error"),"Missing Spec limit!",button("OK"));error4="out";dpm=.;cpkcal=.;cpucal=.;cplcal=.,error4="ok");
+	if(!IsMissing(usl) & !IsMissing(lsl) & (lsl > usl)  & button==1, Dialog(Title("Error"),"LSL should less than USL",button("OK"));error5="out";dpm=.;cpkcal=.;cpucal=.;cplcal=.,error5="ok");
+
+
+/* DPM Computation */
+if(error1=="ok"& error2=="ok" & error3=="ok" & error4=="ok" & error5=="ok",
+	if(IsMissing(usl)& button==1, dpmcal=(Normal Distribution(lsl, average, std)*1000000));	
+	if(IsMissing(lsl)& button==1, dpmcal=((1-Normal Distribution(usl, average, std))*1000000));
+			
+	if(!IsMissing(lsl)&!IsMissing(usl)& button==1, dpmcal=(((1-Normal Distribution(usl, average, std))*1000000)+ (Normal Distribution(lsl, average, std)*1000000)));
+
+	if(1<=dpmcal<=10000, dpm=char(round(dpmcal,0))||Char(" ") || Char ("Defective Parts Per Million"));
+	if(0.1<=dpmcal<1, dpm=char(round(dpmcal,1))||Char(" ") || Char ("Defective Parts Per Million"));
+	if(0.001<=dpmcal<0.1, dpm=char(round(dpmcal*1000,0)) ||char(" ") ||char("Defective Parts Per Billion"));
+	if(dpmcal<0.001, dpm=char(dpmcal*1000) ||char(" ") ||char("Defective Parts Per Billion"));
+	if(dpmcal>10000, dpm=char(round(dpmcal/10000,2))||Char(" ") || Char ("%"));
+	if(dpm==char("0 Defective Parts Per Billion"), dpm=char("Less than 1 Defective Part per Quadrillion"));
+	if(dpmcal>1000000, dpm=char("More Than 100% Defect Rate"));
+		
+
+	if(IsMissing(usl)& button==1, cplcal=round(((average-lsl)/(3*std)),2);cpucal=.);	
+	if(IsMissing(lsl)& button==1, cpucal=round(((usl-average)/(3*std)),2);cplcal=.);
+	if(IsMissing(usl)& button==1, cpkcal=cplcal);	
+	if(IsMissing(lsl)& button==1, cpkcal=cpucal);
+			
+	if(!IsMissing(lsl)&!IsMissing(usl)& button==1, cpucal=round((usl-average)/(3*std),2));
+	if(!IsMissing(lsl)&!IsMissing(usl)& button==1, cplcal=round((average-lsl)/(3*std),2));
+	if(!IsMissing(lsl)&!IsMissing(usl)& button==1, cpkcal=minimum(cpucal, cplcal))
+)
+
+);
+
+);/** End CPK DPM Calculation if input Average, Std dev, USL and LSL**/ 
+
+
+if(button==1 & type==1,	
+
+while(button==1,
+
+Result=Dialog(title("CPK/DPM Conversion Calculator")," ",
+		VList("Enter the CPL, CPU (or both CPL and CPU) below:",
+			Lineup(2,
+				" "," ",			
+				"CPL", cpl=EditNumber(cpl),
+   		             "CPU", cpu=EditNumber(cpu))," ",
+						
+			
+			"Defect Rate Calculation:", " ",
+			Lineup(2,
+				"Defect Rate", dpm1=edittext(dpm1)
+				)," ",
+	
+
+			HList(Button("OK"), Button("Cancel") )
+			)
+	);
+	
+
+	button = result["button"];
+	cpu=result["cpu"];
+	cpl=result["cpl"];
+	dpm1=result["dpm1"];
+
+/* Error Testing */
+//none	
+
+
+/* DPM Computation */
+
+	if(IsMissing(cpl) & !IsMissing(cpu) & button==1, dpmcal1=((1-Normal distribution(3*cpu,0,1))*1000000));	
+	if(IsMissing(cpu) & !IsMissing(cpl) & button==1, dpmcal1=((1-Normal distribution(3*cpl,0,1))*1000000));	
+	if(!IsMissing(cpu)& !IsMissing(cpl) & button==1, dpmcal1=((1-Normal distribution(3*cpu,0,1))*1000000)+ ((1-Normal distribution(3*cpl,0,1))*1000000));
+
+	if(1<=dpmcal1<=10000, dpm1=char(round(dpmcal1,0))||Char(" ") || Char ("Defective Parts Per Million"));
+	if(0.1<=dpmcal1<1, dpm1=char(round(dpmcal1,1))||Char(" ") || Char ("Defective Parts Per Million"));
+	if(0.001<=dpmcal1<0.1, dpm1=char(round(dpmcal1*1000,0)) ||char(" ") ||char("Defective Parts Per Billion"));
+	if(dpmcal1<0.001, dpm1=char(dpmcal1*1000) ||char(" ") ||char("Defective Parts Per Billion"));
+	if(dpmcal1>10000, dpm1=char(round(dpmcal1/10000,2))||Char(" ") || Char ("%"));
+	if(dpm1==char("0 Defective Parts Per Billion"), dpm1=char("Less than 1 Defective Part per Quadrillion"));
+	if(dpmcal1>1000000, dpm1=char("More Than 100% Defect Rate"))
+
+);
+
+);/** End Cpk DPM Calculation by input capability indices**/
+
+
+if(button==1 & type==3,	
+
+while(button==1,
+
+/* ComboBox set-up, depending on whether the use choose % or DPM or DPB*/
+
+ If(scale=="%",a="%";b="DPM";c="DPB",scale=="DPM",a="DPM";b="DPB";c="%",scale=="DPB",a="DPB";b="%";c="DPM");
+ If(speclist=="One-Sided",a2="One-Sided";b2="Two-Sided",speclist=="Two-Sided",a2="Two-Sided";b2="One-Sided");
+
+result=Dialog(title("CPK/DPM Conversion Calculator")," ",
+		VList("Enter the Defect %, DPM or DPB below:  ",
+			Lineup(3,
+				" "," "," ",	
+				"Defect Rate",input=editnumber(input),dtype=combobox(a,b,c)		
+
+				)," ",
+			
+			"1-sided or 2-sided spec:",
+    			spec=Radiobuttons(a2,b2),
+
+			" ",
+
+			"CPK Calculation:", " ",
+			Lineup(2,
+				"CPK", cpkcal1=editnumber(cpkcal1)),
+
+			" ",
+
+			HList(button("OK"), button("Cancel") )
+			)
+	);
+	
+
+	button = result["button"];
+
+	input=result["input"];
+	cpkcal1=result["cpkcal1"];
+	dtype=result["dtype"];
+	if(dtype==1,scale=a,
+    	dtype==2,scale=b,
+    	dtype==3,scale=c);
+	spec=result["spec"];
+ 	if(spec==1,speclist=a2,
+    	spec==2,speclist=b2);
+
+	if(scale=="DPM" & (input<=0 | input>=1000000) & button==1, Dialog(Title("Error"),"DPM must be >0 and <1000000",button("OK")));
+	if(scale=="%" & (input<=0 | input>=100) & button ==1, Dialog(Title("Error"),"Defect % must be >0 and <100",button("OK")));
+	if(scale=="DPB" & (input<=0 ) & button==1, Dialog(Title("Error"),"DPB must be >0 ",button("OK")));
+
+	if(IsMissing(input)&  button==1, Dialog(Title("Error"),"Missing Value!",button("OK")));
+			
+	if(speclist=="One-Sided" & scale=="DPM" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/1000000))/3,2));
+	if(speclist=="One-Sided" & scale=="%" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/100))/3,2));
+	if(speclist=="One-Sided" & scale=="DPB" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/1000000000))/3,2));
+
+	if(speclist=="Two-Sided" & scale=="DPM" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/2/1000000))/3,2));
+	if(speclist=="Two-Sided" & scale=="%" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/2/100))/3,2));
+	if(speclist=="Two-Sided" & scale=="DPB" & !IsMissing(input)& button==1, cpkcal1=round(Normal Quantile(1-(input/2/1000000000))/3,2));
+
+);
+
+);/** End input DPM**/ 
+
+);
+
+
+	

@@ -1,0 +1,994 @@
+/***********************************
+ *SOS Commonality Function Library
+ *This file contains functions and expressions that are called by SOS Commonality Analysis scripts
+ *JMP Version: 5.1.1 & 7.0
+ * 
+ *$Author: Pdbrown $
+ *$Revision: 34 $
+ *$Version: 2.06.0 $
+ *$Date: 12/23/08 4:29p $
+ *$Modtime: 07/21/11 4:27p $
+ *$Archive: /SOSdev/SOS2/LIBRARIES/sosCAfunc.JSL $
+ *
+ * $History: sosCAfunc.JSL $
+ * 
+  * *****************  Version 34  *****************
+ * User: Siew Cheng      Date: 07/21/11   Time: 4:29p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Revise for JMP 9 , row 685 & 686 try(InsertInto( XTrend_Chart_List, VListBox( XTrend_Chart_Box[OutlineBox(1)] ) ),InsertInto( XTrend_Chart_List, VListBox( ) ));
+ * *****************  Version 33  *****************
+ * User: Pdbrown      Date: 12/23/08   Time: 4:29p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Implement use of DIAG_Cntrl (replaces DIAG_Cntrl_UL & DIAG_Cntrl_LL)
+ * 
+ * *****************  Version 32  *****************
+ * User: Pdbrown      Date: 12/18/08   Time: 10:05p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Optimize generation of initial dialog box (CA_LoadFunc)
+ * 
+ * *****************  Version 31  *****************
+ * User: Pdbrown      Date: 4/16/08    Time: 5:32p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Reinstate Hard Exclude data
+ * 
+ * *****************  Version 30  *****************
+ * User: Pdbrown      Date: 3/13/08    Time: 8:12p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix exclusion routines
+ * 
+ * *****************  Version 29  *****************
+ * User: Pdbrown      Date: 2/25/08    Time: 3:51p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update
+ * 
+ * *****************  Version 28  *****************
+ * User: Pdbrown      Date: 1/25/08    Time: 7:16a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * 1. Add routine that finds and excludes empty group-by columns from
+ * analysis.
+ * 2. Disable run-time creation of InputVar_tab
+ * 3. Add encapsulating outline box to each analysis output window
+ * displaybox tree.
+ * 4. Control File variables dynamically assigned based on analysis mode
+ * (UL vs LL).
+ *   Modifiers for COL_TYPE_LISTCHK and CNTRL_FILE_COLNAMES   moved to
+ * CA_LoadFunc().
+ * 5. Further enhancements to LL_GLBLS and UL_GLBS.
+ * 
+ * *****************  Version 27  *****************
+ * User: Pdbrown      Date: 1/18/08    Time: 10:08a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * CNTRL_INIT modifiers for LL and UL defined in LL_GLBLS and UL_GLBLS.
+ * COL_TYPE_LIST_CHK modfier defined in LL_GLBLS.
+ * CNTRL_FILE_COLNAMES modfier defined in UL_GLBLS.
+ * Error detection column formulas revised.
+ * 
+ * *****************  Version 26  *****************
+ * User: Pdbrown      Date: 1/14/08    Time: 5:17p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Modify InputVarTab creation
+ * Insert value into COL_TYPE_LISTCHK_VALS[8]
+ * 
+ * *****************  Version 25  *****************
+ * User: Pdbrown      Date: 1/09/08    Time: 2:02a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update for SOS 2.4
+ * 
+ * *****************  Version 24  *****************
+ * User: Pdbrown      Date: 12/17/07   Time: 11:47a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix TrendCharts, exclusion proc
+ * 
+ * *****************  Version 23  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 8:53p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix manual dialog
+ * 
+ * *****************  Version 22  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 4:51p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Create CA_AnalysisOutput() function for generating analysis output.
+ * New glblvar IS_LLSOSFMT disables rollup after cntrl file read (CATTS
+ * UL->LL).
+ * Add RowstateCol "ClearExcludedState". More efficient at selective
+ * clearing exclusions.
+ * Remove count pre-excl routine (to be added later).
+ * CA_Proc()
+ *   Enhance "no analysis" detection
+ *   Add check for missing Y vals.
+ * Reorg CA_Exit().
+ * 
+ * *****************  Version 21  *****************
+ * User: Pdbrown      Date: 11/02/07   Time: 3:45a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Temporary disable embedded cntrl file edit
+ * 
+ * *****************  Version 20  *****************
+ * User: Pdbrown      Date: 11/02/07   Time: 3:13a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix embedded cntrl file mode: CNTRL_MODE=4
+ * Fix naming of embedded cntrl file
+ * 
+ * *****************  Version 19  *****************
+ * User: Pdbrown      Date: 10/25/07   Time: 9:08p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update Version info
+ * 
+ * *****************  Version 18  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 12:38p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix CATTS prime bug when cntrl file template is used as control file
+ * 
+ * *****************  Version 17  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 4:57a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix CATTS prime bugs
+ * modularize function library
+ * 
+ * *****************  Version 16  *****************
+ * User: Pdbrown      Date: 10/02/07   Time: 3:08p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix VerifyControlFile
+ * 
+ * *****************  Version 15  *****************
+ * User: Pdbrown      Date: 9/20/07    Time: 9:50p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix _err_msg_ bug
+ * Other minor fixes
+ * 
+ * *****************  Version 14  *****************
+ * User: Pdbrown      Date: 9/20/07    Time: 9:48a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Implement level 1 error handling
+ * LL and UL glbls added
+ * 
+ * *****************  Version 13  *****************
+ * User: Pdbrown      Date: 9/10/07    Time: 4:56p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix code error for JMP5.1.1
+ * 
+ * *****************  Version 12  *****************
+ * User: Pdbrown      Date: 9/10/07    Time: 1:01p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Code revamp
+ * LL Control File
+ * SOS 2.4 beta
+ * 
+ * *****************  Version 11  *****************
+ * User: Pdbrown      Date: 6/20/07    Time: 10:29p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * force date column formatting fixed
+ * Created UpdateInputVarTab function for LL cntrl file
+ * 
+ * *****************  Version 10  *****************
+ * User: Pdbrown      Date: 6/04/07    Time: 5:45p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix cntrl file date col fmt bug
+ * Fix SummByResp display bug
+ * Update CleanUP()
+ * 
+ * *****************  Version 9  *****************
+ * User: Pdbrown      Date: 6/01/07    Time: 4:56p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update for JMP6
+ * 
+ * *****************  Version 8  *****************
+ * User: Pdbrown      Date: 3/26/07    Time: 11:02a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Restructure ReadControlFile() to handle cols that have AREA defined but
+ * not coltype
+ * 
+ * *****************  Version 7  *****************
+ * User: Pdbrown      Date: 3/11/07    Time: 3:21p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Re-enable display of means diamonds on boxplots.
+ * Fix table variables
+ * 
+ * *****************  Version 6  *****************
+ * User: Pdbrown      Date: 3/11/07    Time: 1:44p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Add path vars.
+ * misc op enhancements.
+ * 
+ * *****************  Version 5  *****************
+ * User: Pdbrown      Date: 12/06/06   Time: 5:07a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Added Dialog for entering exclusion limits
+ * 
+ * *****************  Version 4  *****************
+ * User: Pdbrown      Date: 12/06/06   Time: 3:18a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Table variable creation moved to after join with master control file
+ * 
+ * *****************  Version 3  *****************
+ * User: Pdbrown      Date: 12/04/06   Time: 1:57a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Remove ref table options from dialog box
+ * 
+ * *****************  Version 2  *****************
+ * User: Pdbrown      Date: 12/04/06   Time: 1:22a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update header
+ * 
+ * *****************  Version 1  *****************
+ * User: Pdbrown      Date: 12/04/06   Time: 12:53a
+ * Created in $/SOSdev/SOS2/LIBRARIES
+ * Commonality Analysis function library
+**********************************************************/
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+::CA_COREVARS = Expr( 
+  {
+    ::alpha = 0.05,
+    ::UL_OPFlag=0,
+    ::dt="",
+    ::button={0,0,0,0,0},
+    ::Result={},
+    ::Response = {},
+    ::Y_Date_ID = {},
+    ::x = {},
+    ::X_Date_ID = {},
+    ::areaid = {},
+    ::Grp_Cols = {},
+    ::Grp_Cols_orig = {},
+    ::Run_ID = {},
+    ::Sample_Size = {},
+    ::GroupID = {},
+    ::Grp_Names = {},
+    ::Grp_Names_orig = {},    
+    ::N_Lot_Excl = .,
+    ::N_X_Excl = .,
+    ::N_Grps = 0,
+    ::N_Grp_Cols = 0,    
+    ::N_Inputs = Expr(NItems(x)),
+    ::N_X_Dates = Expr(NItems(X_Date_ID)),
+    ::N_Outputs = Expr(NItems(Response)),
+    ::N_Grp_Cols_orig = Expr(NItems(Grp_Cols_orig)),    
+    ::savrsQ = .,
+    ::date_methodQ = .,
+    ::ref_select = 1,
+    ::exclQ = .,
+    ::exclminxQ = .,    
+    ::Excl_Count_List=[],
+    ::doappend=0,
+    ::num_preexcl = 0,
+    ::num_excl_ss_low = 0,
+    ::num_x_date_missing = 0,
+    ::num_y_date_missing = 0,
+    ::do_biv=0,
+    ::tukswitch=0,
+    ::one_lev_chk=0,
+    ::one_miss_lev_chk=0,
+    ::one_samp_per_lev_chk=0,
+    ::all_zero_chk = 0,
+    ::Input_and_Date_List = {},
+    ::Input_and_Date_List_man = {},
+    ::Input_and_Date_List_elem = {},
+    ::date_elem = "",
+    ::stat_list={},
+    ::p_list={},
+    ::decision_list={},
+    ::femx = {{}, [], -1, -1},
+    ::femy = {{}, [], -1, -1},
+    ::ANOVA_pval_List={},
+    ::VarTest_pval_List={},
+    ::WelchTest_pval_List={},
+    ::MeansTest_pval_List={},
+    ::Decision_Mean_List={},
+    ::Decision_Var_List={},
+    ::Oneway_Chart_Box={},
+    ::Live_Oneway_Chart_List={},
+    ::Oneway_Chart_List={},
+    ::XTrend_Chart_Box={},
+    ::YTrend_Chart_Box={},
+    ::Live_XTrend_Chart_List={},
+    ::Live_YTrend_Chart_List={},
+    ::XTrend_Chart_List={},
+    ::YTrend_Chart_List={},
+    ::XDate_Missing_List = {},
+    ::YDate_Missing_List = {},
+    ::X_level_Excl_List = {},
+    ::All_Live_Oneway_Chart_List={},
+    ::All_Oneway_Chart_List={},
+    ::All_MeansTest_pval_List={},
+    ::All_VarTest_pval_List={},
+    ::All_Decision_Mean_List={},
+    ::All_Decision_Var_List={},
+    ::All_Live_XTrend_Chart_List={},
+    ::All_Live_YTrend_Chart_List={},
+    ::All_XTrend_Chart_List={},
+    ::All_YTrend_Chart_List={},
+    ::All_XDate_Missing_List = {},
+    ::All_YDate_Missing_List = {},
+    ::All_X_level_Excl_List={},
+    ::All_Grp_Live_Oneway_Chart_List = {},
+    ::All_Grp_Oneway_Chart_List = {},
+    ::All_Grp_VarTest_pval_List = {},
+    ::All_Grp_MeansTest_pval_List = {},
+    ::All_Grp_Decision_Var_List = {},
+    ::All_Grp_Decision_Mean_List = {},
+    ::All_Grp_Live_XTrend_Chart_List = {},
+    ::All_Grp_Live_YTrend_Chart_List = {},
+    ::All_Grp_XTrend_Chart_List = {},
+    ::All_Grp_YTrend_Chart_List = {},
+    ::All_Grp_XDate_Missing_List = {},
+    ::All_Grp_YDate_Missing_List = {},
+    ::All_Grp_X_level_Excl_List = {},
+    ::All_Excl_Count_List={},
+    ::All_Grp_Pre_Excluded = {},
+    ::All_Grp_LowSS_Excluded = {},
+    ::All_Grp_TrueLowSS_Excluded={},
+    ::All_Grp_No_Data_Flag = {},
+    ::SubAnalysisBox={},
+    ::EmptyColAlertBox=TextBox(""),
+    ::InputVar_X = {};
+    ::InputVar_Y = {};
+    ::InputVar_X = {};
+    ::InputVar_Date = {};
+  }
+); //EndExpr
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::CA_Main = Function( {}, {_instr_ptr_=1},
+  If( RET == 1,
+    IncOP(1,4200);
+    CA_CNTRL_EXESEQ = {
+      {RET, CNTRL_TABLE_ROWS, ERR_MSG} = VerifyControlFile(CNTRL_TABLE),          //201
+      CONTROL_ARRAY = ReadControlFile(RAW_DT, CNTRL_TABLE, CNTRL_FILE_COLNAMES),  //202
+      {RET, LL_DT, ERR_MSG} = CA_AnalysisSetup(CONTROL_ARRAY),                    //203-204
+      EvalList(CA_COREVARS)
+    };
+
+    CA_ANLYS_EXESEQ = {CA_AnalysisInit(), CA_AnalyisPreProc(), CA_Proc(), CA_AnalysisOutput(), RET=0};
+    If( CNTRL_MODE != 3, InsertInto(CA_ANLYS_EXESEQ, CA_CNTRL_EXESEQ, 1) );
+    While( RET == 1, Eval(CA_ANLYS_EXESEQ[_instr_ptr_]); _instr_ptr_++ );
+
+    CA_Exit();
+    
+  );
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_AnalysisInit = Function( {}, {i,dt_passin},
+  If( RET == 1,
+    IncOP(1,4300);
+    Try(
+      If( CNTRL_MODE != 3 | IS_LLSOSFMT == 1,
+        For(i=1, i<=NTable(), i++,
+          If( Type(DataTable(i)<<GetProperty("Pass-in")) == "List", 
+            dt_passin = DataTable(i)<<GetProperty("Pass-in");
+            EvalList(dt_passin);
+            i=NTable();
+          );
+        )
+      );
+      If( IsEmpty(dt1), dt1=LL_DT; CurrentDataTable(dt1) ); //Validate LL table
+      
+      LL_DT_NAME = dt1 << GetName;
+      dt1<<MinimizeWindow;
+      dt1<<ClearSelect;
+      dt1<<ClearColumnSelection;
+      dt1<<SuppressFormulaEvaluation(0);
+      dt = dt1<<Subset( Rows( dt1<<GetRowsWhere(!Excluded()) ) ,SuppressFormulaEvaluation(0) );
+      dt<<RunFormulas;
+      IncOP();  //301
+      Wait(0);
+      dt<<SetName( Char(dt1 << GetName ||"_"||"(Copy)") );
+      CurrentDataTable(dt);
+      dt<<BringWindowToFront;
+      //TrackTable(dt);
+      // Initialize Variables
+      Excl_Count_List=J(1,4,0);      
+      If( IsMissing(N_X_Excl), N_X_Excl=0 );
+      If( IsMissing(N_Lot_Excl) & NItems(Sample_Size) !=0, N_Lot_Excl=0 ),
+      
+      RET = -1; ERR_MSG = "Analysis Init Failed.";
+    ); //EndTry
+  ); //EndIf  
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_AnalyisPreProc = Function( {},
+  If( RET == 1,
+    IncOP();  //302
+    If( button[1] == 1,
+      Try(
+        dt << NewColumn("Order",Numeric);
+        Column(dt, "Order")<<SetEachValue( Row() );
+        CreateColumn(dt, "ClearExcludedState","RowState");
+        Wait(0.0001);
+        Column(dt, "ClearExcludedState") << 
+          SetFormula(
+            As Row State(
+              Selected( Row State() ) + Excluded( Row State() ) * 2 * !Selected( Row State() ) + (Hidden( Row State() ) * 4) * !
+              Selected( Row State() ) + Labeled( Row State() ) * 8 +
+              If( do_biv,
+                Selected( Row State() ) * 2 * 16 + Selected( Row State() ) * 17 * 256,
+                0 + 0
+              )
+            )
+          );
+        // Create group table
+        summ_grp_tab = dt<<Summary( Group(Eval(Grp_Cols_orig)), Min(:Order) ); //Make invisible
+        TrackTable(summ_grp_tab);
+        summ_grp_tab << Sort( By(:Name("Min(Order)")), ReplaceTable );
+        summ_grp_tab << DeleteColumns(Column(summ_grp_tab,"Min(Order)"));
+       
+        If( N_Grp_Cols_orig != 0,
+	        Grp_Cols_orig = Thread( Expr( Char(Grp_Cols_orig[_argv])), (1::N_Grp_Cols_orig)` );
+					Grp_Names_orig = Thread( Expr( EvalList({MatrixAsList(Column(summ_grp_tab, _argv) << GetValues)}) ), Grp_Cols_orig );
+	 				rm_indx = FindEmptyGrpCols(Grp_Names_orig);
+					If( NItems(rm_indx) !=0, Eval( EvalExpr(summ_grp_tab << DeleteColumns(Expr(Grp_Cols_orig[rm_indx]))) ));
+					Grp_Cols = Try(Remove(Grp_Cols_orig, rm_indx), Grp_Cols_orig);
+					Grp_Names = Try(Remove(Grp_Names_orig, rm_indx), Grp_Names_orig);
+					N_Grp_Cols = NItems(Grp_Cols);       
+        );
+//         Match( N_Grp_Cols,
+//          0,
+//           Grp_Names={},
+//          1,
+//           Grp_Names = EvalList({Column(summ_grp_tab, 1) << GetValues}),
+//          Grp_Names = Thread( Expr( EvalList({MatrixAsList(Column(summ_grp_tab, _argv) << GetValues)}) ), (1::N_Grp_Cols)` )
+//         );
+        
+				N_Grps = NRow(summ_grp_tab);
+        GroupID = GetTableAsText( summ_grp_tab ),
+        
+        RET = -1; ERR_MSG = "Problem creating group table.";
+      ); //EndTry
+      
+      CreateInputTable(dt);  //304
+      //RET=0;
+      If( RET == 1,
+        IncOP();   //305
+        Try(
+          Choose( date_methodQ,
+            // No Dates
+             NULL,
+            // Single Date
+             ForEachRow( Column( InputVar_tab, dates_colname )[] = Char(X_Date_ID[1]) ),
+            // Manual Date Mapping
+             For( i=1, i<=N_Inputs, i++,
+              Eval( Substitute( NameExpr(AssociateDate_Diag_Expr), Expr( _Title ),Char(x[i]) ) );
+              If( NItems(Proc_Date) != 0, UpdateInVarDateTab(InputVar_tab, Char(x[i]), Char(Proc_Date[1])) );
+              If( button[3] == -1, i=N_Inputs; RET=-1; ERR_MSG="Date Mapping Cancelled." );
+             ),
+            // Cntrl File
+             NULL;
+          ); //EndChoose
+          
+          IncOP(); //306
+          Eval( Substitute( NameExpr(CreateInputDateList), Expr( _data_tab ), InputVar_tab ) ),
+          
+          RET = -1; ERR_MSG = "Input-Date Mapping Failed.";
+        ); //EndTry
+      ), //EndIf RET
+  
+      RET = -1; ERR_MSG = "Analysis Halted.";
+    ); //EndIf button[1]
+  ); //EndIf RET
+); //EndFunction
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+//
+// Commonality_Proc
+// Create plots and report objects
+// Called from [Main]
+// PB: 5/16/06
+////////////////////////////////////////////////////////////
+::CA_Proc = Function( {}, {h,i,j},
+  If( RET == 1,
+    // Generate Analysis Objects
+    IncOP(1,4400); //400
+    ::cntr=1;
+    ::chklist = {{}};
+    ::inputx_grp_expr = Expr(Input_and_Date_List[h][j]);
+    ::inputx_elem_expr = Expr(Char(Input_and_Date_List[h][j][i][1]));
+    ::datex_elem_expr = Expr(Char(Input_and_Date_List[h][j][i][2]));
+    ::outputy_elem_expr = Expr(Char(Response[j]));
+    
+    Try(
+      IncOP();  //401
+      // Cycle through each group
+      For( h=1, h<=N_Grps, h++,
+        // Cycle through each output
+        For( j=1, j<=N_Outputs, j++,
+          // Cycle through each input
+          For( i=1, i<=NItems(inputx_grp_expr), i++,
+          
+//           	For( m=1, m<=N_Grp_Cols, m++, InputVar_Z[m]=Insert(InputVar_Z[m], Eval(Grp_Names[m][h]) ) );
+//         		InsertInto( InputVar_X, Eval(inputx_elem_expr) );
+//         		InsertInto( InputVar_Y, Eval(outputy_elem_expr) );
+//         		InsertInto( InputVar_Date, If(NItems(Input_and_Date_List[h][j][i]) == 2, Eval(datex_elem_expr), "") );
+
+            CurrentDataTable(summ_grp_tab);
+            Selected(RowState(h))=1;
+            CurrentDataTable(dt);
+
+            // Determine type of analysis to do (00 = Cont-Cont 01 = Cont-Dis 10 = Dis-Cont 11 = Dis-Dis)
+            anl_code = GetTypeID( Column(dt, Eval(inputx_elem_expr)), Column(dt, Eval(outputy_elem_expr)) );
+            Wait(0.0001);
+            EmptyColAlertBox=TextBox("");
+            del_linbox=0;
+            do_ex = 0;
+            do_biv = (anl_code == "00");
+            grp_rows = [];
+            excl_grp_rows = [];
+            femx = {{}, [], -1, -1};
+            femy = {{}, [], -1, -1};
+            idcnt_list={};
+            tukswitch = 0;
+            fitswitch = 0;
+            num_excl_ss_low=0;
+            all_pre_chk = 0;
+                        
+            Column(dt, "ClearExcludedState") << CopyToRowStates;
+            Wait(0.0001);
+            grp_rows = SummarizeInput(dt, inputx_elem_expr, outputy_elem_expr);
+            do_ex = !one_miss_lev_chk;
+            If( do_ex & (!IsMissing(N_Lot_Excl) & NItems(Sample_Size) != 0),
+              For( p=1, p<=NRow(grp_rows), p++,
+                CurrentDataTable(dt);
+                If( Column(dt, Char(Sample_Size[1]))[grp_rows[p]] < N_Lot_Excl,
+                  Excluded(RowState(Eval(grp_rows[p])))=1;
+                  Hidden(RowState(Eval(grp_rows[p])))=1;
+                  Selected(RowState(Eval(grp_rows[p])))=0;
+                  num_excl_ss_low++;
+                  excl_grp_rows |/= grp_rows[p],
+                
+                  Excluded(RowState(Eval(grp_rows[p])))=0;
+                  Hidden(RowState(Eval(grp_rows[p])))=0;
+                  Selected(RowState(Eval(grp_rows[p])))=1;
+                )
+              );
+              savrws = dt << GetSelectedRows;
+              dt << ClearSelect << SelectRows(excl_grp_rows);
+              grp_rows = SummarizeInput(dt, Eval(inputx_elem_expr), Eval(outputy_elem_expr));
+              savelev=levels_x_prex; savenper = n_perlevel_x_prex;
+              dt << ClearSelect << SelectRows(savrws);
+              grp_rows = SummarizeInput(dt, Eval(inputx_elem_expr), Eval(outputy_elem_expr));
+
+            );
+            
+            CurrentDataTable(dt);
+            all_pre_chk = AnalysisPreCheck( grp_rows, Column(dt, Eval(outputy_elem_expr)), do_ex );            
+            If( all_pre_chk,
+              If( NRow(excl_grp_rows) != 0,
+                Thread( Expr( Selected(RowState(_argv))=1 ), excl_grp_rows );
+                grp_rows = SummarizeInput(dt, Eval(inputx_elem_expr), Eval(outputy_elem_expr));
+              );
+              femx = FindAndExcl(Eval(do_minex & !do_biv & !ZeroOrMissing(N_X_Excl)), inputx_elem_expr, grp_rows, "<", n_perlevel_x_prex, N_X_Excl );
+              If( NRow(excl_grp_rows) != 0, Thread( Expr( Selected(RowState(_argv))=0 ), excl_grp_rows ) );
+              If( femx[4] > 0,
+                grp_rows = SummarizeInput(dt, Eval(inputx_elem_expr), Eval(outputy_elem_expr));                
+                all_pre_chk = AnalysisPreCheck( grp_rows, Column(dt, Eval(outputy_elem_expr)), 2 );           
+              );
+              If( all_pre_chk,
+                femy = FindAndExcl(do_zormy, inputx_elem_expr, grp_rows, ".", max_y_prex );
+                If( femy[4] > 0,
+                  grp_rows = SummarizeInput(dt, Eval(inputx_elem_expr), Eval(outputy_elem_expr));                
+                  all_pre_chk = AnalysisPreCheck( grp_rows, Column(dt, Eval(outputy_elem_expr)), 3 );
+                );
+              );
+            ); 
+            
+            CurrentDataTable(dt);
+            try(Match( anl_code,
+              "00",
+                fitswitch = Eval(!one_lev_chk);                                              
+                CAresults = GenerateCAScatterPlot( Column(dt, Char(Input_and_Date_List[h][j][i][1]) ), Column(dt, Char(Response[j]) ), "", all_pre_chk, fitswitch );
+                If( all_pre_chk,
+                  CAresults[1][TextBox(1)]<<Delete;
+                  InsertInto( All_Grp_No_Data_Flag, If( fitswitch, "", "One Level") );
+                );                      
+                xlegend_opt = Expr(Expr( dt<<Colors(17); dt<<Markers(2) ));
+                ylegend_opt = Expr(Expr( dt<<Colors(17); dt<<Markers(2) ));
+                CAresults[1][ OutlineBox( "Linear Fit" ) ]<<Append( OutlineBox( "Significance Tests" ) );
+                InsertInto( stat_list, {Expr({"Slope"})} );
+                InsertInto( p_list, {Expr( {Matrix(All_Grp_MeansTest_pval_List[h][k][m])} )} );
+                InsertInto( decision_list, {Expr( {All_Grp_Decision_Mean_List[h][k][m]} )} ),
+              "10",
+                tukswitch = Eval(!one_lev_chk & !one_samp_per_lev_chk);
+                CAresults = GenerateCAOneway( Column(dt, Char(Input_and_Date_List[h][j][i][1]) ), Column(dt, Char(Response[j]) ),"", all_pre_chk,1,0,tukswitch );
+                If( all_pre_chk,
+                  CAresults[1][TextBox(1)]<<Delete;
+                  InsertInto( All_Grp_No_Data_Flag, If(tukswitch, "", If( one_samp_per_lev_chk, "One Sample per Level", "One Level")) );
+                ); 
+                xlegend_opt = Expr(XTrend_Chart_Box[FrameBox(1)]<<RowLegend( Column(dt, Char(Input_and_Date_List[h][j][i][1]) ), color(1), marker(1) ));
+                ylegend_opt = Expr(YTrend_Chart_Box[FrameBox(1)]<<RowLegend( Column(dt, Char(Input_and_Date_List[h][j][i][1]) ), color(1), marker(1) ));
+                CAresults[1][ OutlineBox( "Means and ?" ) ]<<Append( OutlineBox( "Significance Tests" ) );
+                InsertInto( stat_list, {Expr({"Mean","Variance"})} );
+                InsertInto( p_list, {Expr( {Matrix(All_Grp_MeansTest_pval_List[h][k][m]), Matrix(All_Grp_VarTest_pval_List[h][k][m])} )} );
+                InsertInto( decision_list, {Expr( {All_Grp_Decision_Mean_List[h][k][m], All_Grp_Decision_Var_List[h][k][m]} )} );
+            )); //EndMatch                 
+                                      
+            InsertInto( X_level_Excl_List, EvalList({femx}) );
+            InsertInto( All_Grp_LowSS_Excluded, num_excl_ss_low );
+
+            If(All_Grp_LowSS_Excluded[cntr] !=0 & all_pre_chk,
+              Try(CAresults[1][LineUpBox(1)] << Delete; del_linbox=1 );
+            );
+            
+            If( NItems(All_Grp_Pre_Excluded) != 0, 
+              If( All_Grp_Pre_Excluded[cntr] !=0 & !del_linbox & all_pre_chk,
+                Try( CAresults[1][LineUpBox(1)] << Delete );
+              );
+            );
+
+            // Generate trend charts for input variables
+            num_x_date_missing=0;
+            If( NItems(Input_and_Date_List[h][j][i]) == 2 & all_pre_chk,
+              XTrend_Chart_Box = VListBox( GenerateCATrendChart( Column(dt, Char(Input_and_Date_List[h][j][i][2]) ), Column(dt, Char(Response[j]) ),"" ) );
+              XTrend_Chart_Box[TextBox(1)]<<Delete;
+              If( tukswitch, Eval(xlegend_opt), dt<<colors(0)<<markers(0) );
+              ForEachRow( If( Selected(),
+                If( IsMissing(Column(dt, Char(Input_and_Date_List[h][j][i][2]) )[]), num_x_date_missing++ );
+                );
+              ),
+        
+              If( (do_minex & !do_biv), dt<<ColorByColumn(Column(dt, Char(Input_and_Date_List[h][j][i][1])))<<MarkerByColumn(Column(dt, Char(Input_and_Date_List[h][j][i][1]))) );
+              XTrend_Chart_Box = VListBox();
+            );
+        
+            // Generate trend charts for output variables
+            num_y_date_missing=0;
+            If( NItems(Y_Date_ID) != 0 & anl_code=="10" & all_pre_chk,
+                YTrend_Chart_Box = HListBox( GenerateCATrendChart( Column(dt, Char(Y_Date_ID[1]) ), Column(dt, Char(Response[j]) ),"" ) );
+                YTrend_Chart_Box[TextBox(1)]<<Delete;
+                If( tukswitch, Eval(ylegend_opt), dt<<colors(0)<<markers(0) );                
+                ForEachRow( If( Selected(), If(IsMissing(Column(dt, Char(Y_Date_ID[1]) )[]), num_y_date_missing++) ) ),
+              
+                If( NItems(Input_and_Date_List[h][j][i]) == 2 & anl_code=="00" & all_pre_chk,
+                  YTrend_Chart_Box = HListBox( GenerateCATrendChart( Column(dt, Char(Input_and_Date_List[h][j][i][2]) ), Column(dt, Char(Input_and_Date_List[h][j][i][1]) ),"" ) );
+                  YTrend_Chart_Box[TextBox(1)]<<Delete;
+                  Eval(ylegend_opt),
+          
+                  //If( (do_minex & !do_biv), dt<<ColorByColumn(Column(dt, Char(Input_and_Date_List[h][j][i][1])))<<MarkerByColumn(Column(dt, Char(Input_and_Date_List[h][j][i][1]))) );
+                  YTrend_Chart_Box = HListBox();
+                )
+            ); //EndIf
+            dt<<ClearSelect;
+            CurrentDataTable(summ_grp_tab);
+            Selected(RowState(h))=0;
+
+            // Assemble output objects
+            InsertInto( Live_Oneway_Chart_List, Eval(CAresults[1]) );
+            InsertInto( Oneway_Chart_List, HListBox( Live_Oneway_Chart_List[NItems(Live_Oneway_Chart_List)][OutlineBox(1)] ) );            
+            InsertInto( VarTest_pval_List, Eval(CAresults[3]) );
+            InsertInto( MeansTest_pval_List, Eval(CAresults[2]) );
+            InsertInto( Decision_Mean_List, 
+              Match( anl_code,
+                "00", 
+                  If( !IsMissing(Eval(CAresults[2])), If( Eval(CAresults[2]) >= alpha, "Slope Not Sig","Slope Significant"), "" ),
+                "10",
+                  If( !IsMissing(Eval(CAresults[2])), If( Eval(CAresults[2]) >= alpha, "Not Sig","Significant"), "" ) 
+              ) 
+            );
+            InsertInto( Decision_Var_List, 
+              Match( anl_code,
+                "00",
+                  "",
+                "10",
+                  If( !IsMissing(Eval(CAresults[3])), If( Eval(CAresults[3]) >= alpha, "Not Sig","Significant"), "" )
+              ) 
+            );
+            InsertInto( Live_XTrend_Chart_List, XTrend_Chart_Box );
+            InsertInto( Live_YTrend_Chart_List, YTrend_Chart_Box );
+            try(InsertInto( XTrend_Chart_List, VListBox( XTrend_Chart_Box[OutlineBox(1)] ) ),InsertInto( XTrend_Chart_List, VListBox( ) ));
+            try(InsertInto( YTrend_Chart_List, VListBox( YTrend_Chart_Box[OutlineBox(1)] ) ),InsertInto( YTrend_Chart_List, VListBox( ) ));
+            InsertInto( XDate_Missing_List, num_x_date_missing );
+            InsertInto( YDate_Missing_List, num_y_date_missing );
+            //Print(femx);
+            cntr++;
+
+          ); //EndFor i
+
+          InsertInto( All_Live_Oneway_Chart_List, EvalList( {Live_Oneway_Chart_List} ) );
+          InsertInto( All_Oneway_Chart_List, EvalList( {Oneway_Chart_List} ) );
+          InsertInto( All_VarTest_pval_List, EvalList( {VarTest_pval_List} ) );
+          InsertInto( All_MeansTest_pval_List, EvalList( {MeansTest_pval_List} ) );
+          InsertInto( All_Decision_Var_List, EvalList( {Decision_Var_List} ) );
+          InsertInto( All_Decision_Mean_List, EvalList( {Decision_Mean_List} ) );
+          InsertInto( All_Live_XTrend_Chart_List, EvalList( {Live_XTrend_Chart_List} ) );
+          InsertInto( All_Live_YTrend_Chart_List, EvalList( {Live_YTrend_Chart_List} ) );
+          InsertInto( All_XTrend_Chart_List, EvalList( {XTrend_Chart_List} ) );
+          InsertInto( All_YTrend_Chart_List, EvalList( {YTrend_Chart_List} ) );
+          InsertInto( All_XDate_Missing_List, EvalList( {XDate_Missing_List} ) );
+          InsertInto( All_YDate_Missing_List, EvalList( {YDate_Missing_List} ) );
+          InsertInto( All_X_level_Excl_List, EvalList( {X_level_Excl_List} ) );
+        
+          Live_Oneway_Chart_List={};  
+          Oneway_Chart_List={};
+          VarTest_pval_List={};
+          MeansTest_pval_List={};
+          Decision_Mean_List={};
+          Decision_Var_List={};
+          Live_XTrend_Chart_List={};
+          Live_YTrend_Chart_List={};
+          XTrend_Chart_List={};
+          YTrend_Chart_List={};
+          XDate_Missing_List={};
+          YDate_Missing_List={};
+          X_level_Excl_List={};
+
+        ); //EndFor j
+
+        InsertInto( All_Grp_Live_Oneway_Chart_List, EvalList( {All_Live_Oneway_Chart_List} ) );
+        InsertInto( All_Grp_Oneway_Chart_List, EvalList( {All_Oneway_Chart_List} ) );
+        InsertInto( All_Grp_VarTest_pval_List, EvalList( {All_VarTest_pval_List} ) );
+        InsertInto( All_Grp_MeansTest_pval_List, EvalList( {All_MeansTest_pval_List} ) );
+        InsertInto( All_Grp_Decision_Var_List, EvalList( {All_Decision_Var_List} ) );
+        InsertInto( All_Grp_Decision_Mean_List, EvalList( {All_Decision_Mean_List} ) );
+        InsertInto( All_Grp_Live_XTrend_Chart_List, EvalList( {All_Live_XTrend_Chart_List} ) );
+        InsertInto( All_Grp_Live_YTrend_Chart_List, EvalList( {All_Live_YTrend_Chart_List} ) );
+        InsertInto( All_Grp_XTrend_Chart_List, EvalList( {All_XTrend_Chart_List} ) );
+        InsertInto( All_Grp_YTrend_Chart_List, EvalList( {All_YTrend_Chart_List} ) );
+        InsertInto( All_Grp_XDate_Missing_List, EvalList( {All_XDate_Missing_List} ) );
+        InsertInto( All_Grp_YDate_Missing_List, EvalList( {All_YDate_Missing_List} ) );
+        InsertInto( All_Grp_X_level_Excl_List, EvalList( {All_X_level_Excl_List} ) );
+
+        All_Live_Oneway_Chart_List={};  
+        All_Oneway_Chart_List={};
+        All_VarTest_pval_List={};
+        All_MeansTest_pval_List={};
+        All_Decision_Mean_List={};
+        All_Decision_Var_List={};
+        All_Live_XTrend_Chart_List={};
+        All_Live_YTrend_Chart_List={};
+        All_XTrend_Chart_List={};
+        All_YTrend_Chart_List={};
+        All_XDate_Missing_List={};
+        All_YDate_Missing_List={};
+        All_X_level_Excl_List={};
+
+      ); //EndFor h
+      
+      RET=1; ERR_MSG="",
+
+      RET=-1; ERR_MSG= Char("Error while analyzing: GROUP={" || GroupID[h][1] || "}, OUTPUT(Y)={" || Char(Response[j]) || "}, [INPUT(X),DATE]={" || Char(Input_and_Date_List[h][j][i]) || "}, {h,j,i}=" || Char(EvalList({h,j,i})) );
+      TrackTable(InputVar_tab);
+    ); //EndTry
+
+    If( RET == 1,
+      IncOP();  //402
+      // Populate Input Variable table with stats results
+      CurrentDataTable( InputVar_tab );
+//       InputVar_tab << SelectAllRows << DeleteRows;
+//       InputVar_tab << ClearSelect;
+//       InputVar_tab << AddRows( NItems(InputVar_Y) );
+//       For( m=1, m<=N_Grp_Cols, m++, Column( InputVar_tab, m ) << SetValues( InputVar_Z[m] ) );
+//       Column( InputVar_tab, outputvar_colname )<<SetValues( InputVar_Y );
+//       Column( InputVar_tab, inputvar_colname ) << SetValues( InputVar_X );
+//       Column( InputVar_tab, dates_colname )<<SetValues( InputVar_Date );
+      Column( InputVar_tab, "p Value for Mean" )<<SetValues(Flatten2DList( All_Grp_MeansTest_pval_List ));
+      Column( InputVar_tab, "p Value for Variance" )<<SetValues(Flatten2DList( All_Grp_VarTest_pval_List ));
+      Column( InputVar_tab, "Decision for Mean" )<<SetValues(Flatten2DList( All_Grp_Decision_Mean_List ));
+      Column( InputVar_tab, "Decision for Variance" )<<SetValues(Flatten2DList( All_Grp_Decision_Var_List ));
+      ForEachRow(
+          If( IsMissing( Column( InputVar_tab, "p Value for Mean" )[] ), Column( InputVar_tab, "p Value for Mean" )[] = 1; Column( InputVar_tab, "Decision for Mean" )[] = "N/A" );
+          If( IsMissing( Column( InputVar_tab, "p Value for Variance" )[] ), Column( InputVar_tab, "p Value for Variance" )[] = 1; Column( InputVar_tab, "Decision for Variance" )[] = "N/A" );
+          Column( InputVar_tab, "Order" )[] = Row();
+      ); //EndForEach
+      
+      IncOP();  //403
+      InputVar_tab << AddMultipleColumns("Min p Value",1,After(Column(dates_colname)),Numeric);
+      InputVar_tab << AddMultipleColumns("No Analysis Flag", 1,After(Column("Decision for Variance")), Character);
+      Column(InputVar_tab,"No Analysis Flag")<<SetValues( All_Grp_No_Data_Flag );
+      Column(InputVar_tab,"Min p Value")<<Format("PValue",10);
+      Column(InputVar_tab,"Min p Value")<<SetEachValue(Min(:p value for mean,:p value for variance));
+
+      // Sort Input Variable-Results table
+      IncOP();  //404
+      invar_sort_tab = InputVar_tab << Sort( By( :Min p Value ), Order(Ascending));
+      Column(invar_sort_tab,"p value for mean")<<SetEachValue( If( :p value for mean==1,.,:p value for mean) );
+      Column(invar_sort_tab,"p value for variance")<<SetEachValue( If( :p value for variance==1,.,:p value for variance) );
+      Column(invar_sort_tab,"Min p value")<<SetEachValue( If( :Min p value==1,.,:Min p value) );
+      TrackTable(invar_sort_tab);
+      InputVar_tab_HLD = Char(EvalExpr(Expr(DataTable(invar_sort_tab) << GetScript)));
+      Close(InputVar_tab, NoSave);
+    ); //EndIf RET
+  ); //EndIf RET
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_AnalysisOutput = Function( {}, 
+  If( RET == 1,
+    IncOP(1,4500);  //500
+    Try(
+      // Display Analysis Results Window (static)
+      CA_Output = NewWindow("Commonality Analysis", AnalysisBox = OutlineBox("Commonality Analysis", VlistBox()) );
+            Eval( Substitute( NameExpr( GenereateCAPlots ), Expr(_AnalysisBox),Expr(AnalysisBox), Expr(_OneWay_Chart),Expr(All_Grp_Oneway_Chart_List), Expr( _XTrend_Chart),Expr(All_Grp_XTrend_Chart_List), Expr( _YTrend_Chart ),Expr(All_Grp_YTrend_Chart_List), Expr(_levlist),All_Grp_X_level_Excl_List, Expr(_lotexcllist),All_Grp_LowSS_Excluded, Expr(_missxdatelist),All_Grp_XDate_Missing_List, Expr(_missydatelist),All_Grp_YDate_Missing_List, Expr(_xdatelist),Input_and_Date_List, Expr(_preexlist),All_Grp_Pre_Excluded ) );
+
+      // Display Live Analysis Results Window (dynamic)
+      IncOP();  //501
+      CA_Output_Live = NewWindow("Commonality Analysis (Live - Backup)", AnalysisBox_Live = OutlineBox("Commonality Analysis (Live - Backup)", VlistBox()) );
+            Eval( Substitute( NameExpr( GenereateCAPlots ), Expr(_AnalysisBox),Expr(AnalysisBox_Live), Expr(_OneWay_Chart),Expr(All_Grp_Live_Oneway_Chart_List), Expr( _XTrend_Chart),Expr(All_Grp_Live_XTrend_Chart_List), Expr( _YTrend_Chart ),Expr(All_Grp_Live_YTrend_Chart_List), Expr(_levlist),All_Grp_X_level_Excl_List, Expr(_lotexcllist),All_Grp_LowSS_Excluded, Expr(_missxdatelist), All_Grp_XDate_Missing_List, Expr(_missydatelist),All_Grp_YDate_Missing_List, Expr(_xdatelist),Input_and_Date_List, Expr(_preexlist),All_Grp_Pre_Excluded ) );
+
+      // Create Summary Report
+      IncOP();  //502
+      Eval(CA_Summary_Report);
+      If( RET==1, IncOP(1,4800) ),
+      
+      //If( OP_INDX >= 4500, Close(invar_sort_tab, NoSave) );
+      If( OP_INDX >= 4501, CA_Output << CloseWindow );
+      If( OP_INDX >= 4502, CA_Output_Live << CloseWindow );
+      RET=-1; ERR_MSG="Problem Creating Main Analysis Output.";
+    ); //EndTry
+  ); //EndIf RET
+); //EndFunction
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::CA_Init = Function( {}, {_errQ_= 0, _err_msg_=""},
+
+  If( RET == 1,
+    IncOP();  //002
+    If( !IS_CATTS,
+      If( NTable()==0,
+        Try( Open(); DATA_TABLE_ID = CurrentDataTable() << GetName,
+         ERR_MSG = "Unable to open data table: Exiting"; RET = -1;
+        ),
+
+        {RET,DATA_TABLE_ID,ERR_MSG} = UserTableSelect();
+        DataTable(DATA_TABLE_ID) << MinimizeWindow;
+      ),
+
+      Try( CurrentDataTable(DataTable(DATA_TABLE_ID)); CNTRL_MODE=1,
+      ERR_MSG = "Cannot find data table: Exiting"; RET = -1;
+      )
+    ); //EndIf IS_CATTS
+
+    If( RET == 1,
+      IncOP();  //003
+      RAW_DT = DataTable(DATA_TABLE_ID);
+      RAW_DT << ClearSelect;
+      RAW_DT << ClearColumnSelection;
+      DATE_LISTCHK_VALS = DetectDateFormat(RAW_DT);
+      DATA_TABLE_COLNAMES = RAW_DT << GetColumnNames(String);
+    )
+  ); //EndIfRET
+
+  EvalList({RET, RAW_DT, ERR_MSG})
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_LoadFunc = Function( {dt_},
+  If( RET == 1,
+    IncOP();  //004
+    CurrentDataTable(dt_);
+    If( IsEmpty(dt_ << GetProperty("Pass-in")) | (Eval(Type(dt_ << GetProperty("Pass-in"))) == "Scriptable"),
+      _radbutt_list_ = {"Open Existing Control File","Create New Control File"};
+      If( !IS_CATTS & Any(Matrix(Thread( Expr( If(Contains(_argv,"%"),1,0) ), DATA_TABLE_COLNAMES))), IS_UL=0 );
+      Cntrl_diagtitle = If( IS_UL, "Unit Level to Lot Level Data Prep",      
+	      InsertInto(_radbutt_list_,{"Manual Entry (Dialog Box)","Use embedded Control File"});
+	      "Lot Level Commonality Analysis"
+      );
+			{RET, CNTRL_MODE, ERR_MSG} = CA_SelectCntrl(dt_, Cntrl_diagtitle, Expr(DIAG_Cntrl), _radbutt_list_	),
+      
+      IS_UL = 0;
+      //EvalList(LL_GLBLS);
+      CNTRL_MODE = 3;
+      IS_LLSOSFMT = 1;
+    )
+  ); //EndIfRET   
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_Exit = Function( {},
+  If( RET != -1,
+    If( IS_CATTS,
+      If( OP_INDX >= 4507,
+        //CA_CloseWindow(CA_Output, Char(DATA_TABLE_ID || "_Analysis_Details"), 1, RESULTS_PATH);
+        CA_CloseWindow(CA_Output_Live);
+        //CA_CloseWindow(CA_Summary, Char(DATA_TABLE_ID || "_Analysis_Summary"), 1, RESULTS_PATH);
+        //CA_CloseWindow(CA_Overall_Summary, Char(DATA_TABLE_ID || "_Analysis_Overall_Summary"), 1, RESULTS_PATH);
+        CA_CloseWindow({CA_Overall_Summary,CA_Output,CA_Summary}, Char(DATA_TABLE_ID || "_Analysis_Output"), 1, RESULTS_PATH);
+      );  
+      CA_CloseTable(CNTRL_TABLE, Char(DATA_TABLE_ID || "_" || CNTRL_TABLE_NAME), 1, RESULTS_PATH);
+      //CA_CloseTable(RAW_DT, DATA_TABLE_ID, 1, RESULTS_PATH));
+      CA_CloseTable(dt1, LL_DT_NAME, 1, RESULTS_PATH);
+      CA_CloseTable(dt),
+      
+      If( CNTRL_SAVE_FLAG,
+				CA_CloseTable(CNTRL_TABLE, Char(DATA_TABLE_ID || "_" || CNTRL_TABLE_NAME), 1, REF_PATH),
+				
+				CA_CloseTable(CNTRL_TABLE);
+			);
+    ), //EndIf IS_CATTS
+    
+    Eval(DIAG_ERRAlert);
+    EvalList({If( (OP_INDX > 4300 & !IS_LLSOSFMT) | IS_CATTS, TrackTable(CNTRL_TABLE) ), If(IS_CATTS, TrackTable(RAW_DT))});
+    CleanUP();
+  ); //EndIfRET
+  
+  EXE_COMPLETE = EvalList({RET, OP_INDX, ERR_MSG})
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+::CA_Spvsr = Function( {instr_expr_},
+  EvalList(CA_GLBLS);
+  Try( EvalList(instr_expr_); RET=1; OP_INDX++, RET=-1; ERR_MSG = "Fatal Error: Unable to process PASS_IN_EXPR." );  //002
+  CA_Init();  //002-3
+  CA_LoadFunc(RAW_DT);  //004
+  CA_GetCntrlSrc();  //005
+); //EndFunction
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::LL_GLBLS = Expr(
+  {
+		LL_CNTRL_FILE_INIT[2] = Insert( LL_CNTRL_FILE_INIT[2],
+		 /**Error Check Area/Column Type**/
+    { {{CNTRL_FILE_COLNAMES[CNTRL_INDX + 3]}, {Parse(Char(EvalExpr(
+    	SetFormula(
+    		Match( Expr(Column(CNTRLcolname_coltype)), 
+    			Expr(COLTYPElistchk_lot), If( Is Missing( Expr(Column(CNTRLcolname_area )) ), "Warning:  AREA will be set to ALL."),
+          Expr(COLTYPElistchk_outputy), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+          Expr(COLTYPElistchk_ydate), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."), 
+          Expr(COLTYPElistchk_smplsz), If( !Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+          Expr(COLTYPElistchk_inputx), If( Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."), 
+        	Expr(COLTYPElistchk_xdate), If (Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."),
+    			"", "Warning:  Column will be deleted."
+    		)
+    	)))) }} }
+    ),
+   ::CNTRL_INIT = NameExpr(LL_CNTRL_FILE_INIT)
+
+  }
+
+); //EndExpr
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::UL_GLBLS = Expr(
+  {
+    InsertInto( UL_CNTRL_FILE_INIT[2],
+    /**Error Check Area/Column Type**/
+    { {{CNTRL_FILE_COLNAMES[CNTRL_INDX + 3]}, {Parse(Char(EvalExpr(
+        SetFormula(
+          Match( Expr(Column(CNTRLcolname_coltype)), 
+          	Expr(COLTYPElistchk_outputy), If(!Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."),
+          	Expr(COLTYPElistchk_ydate), If(!Is Missing( Expr(Column(CNTRLcolname_area )) ), "Error:  AREA must be left blank."), 
+          	Expr(COLTYPElistchk_inputx), If(Is Missing(  Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."), 
+        		Expr(COLTYPElistchk_xdate), If(Is Missing(  Expr(Column(CNTRLcolname_area )) ), "Error:  AREA required."),
+          	"", "Warning:  Column will be deleted."
+          )
+        )))) }},
+  	  
+      {{CNTRL_FILE_COLNAMES[CNTRL_INDX + 5]}, {Parse(Char(EvalExpr(
+        SetFormula(
+          Match(  Expr(Column(CNTRLcolname_coltype)),
+          	Expr(COLTYPElistchk_lot), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Area Lot."),
+          	Expr(COLTYPElistchk_inputx), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Input (X)."),
+          	Expr(COLTYPElistchk_xdate), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for X Date."),
+          	Expr(COLTYPElistchk_ydate), If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Y Date."),
+          	Expr(COLTYPElistchk_outputy), If( Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Error:  Enter Output (Y) Computation Method."),
+          	"", If( !Is Missing( Expr(Column(CNTRLcolname_outyc)) ), "Warning:  No Computation Required for Deleted Columns.")
+          )
+  		  )))) }} }
+    ),
+    ::CNTRL_INIT = NameExpr(UL_CNTRL_FILE_INIT)
+  }
+
+); //EndExpr
+Print("SOS CA Functions Loaded.");

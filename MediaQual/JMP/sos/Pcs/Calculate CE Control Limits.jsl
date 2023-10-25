@@ -1,0 +1,3256 @@
+﻿/********************************************************************
+  Calculate CE Control Limits
+  Authors: Todd Jordan, Paul Wenz, Derek Blythe, Xin Guan, Jeff Baumann
+  JMP Version: 12, 14, 16
+  Rev: 4 2/22/2022
+  - Reference Lot Level Variability and Distribution output charts as: MVar1report, MDist1report, SVar1report, SDist1report
+  - Bug fix for copy and pasting axis settings using the report references to fix issue with incorrect pasting of axis settings in JMP16 
+********************************************************************/
+
+Clear Globals();
+
+Try(
+	Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" ),
+	::FooterBox = V List Box( Text Box( " " ) )
+);
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sos capability functions.jsl" );
+//Include("C:\Users\tcjordan\Documents\ATTD Stats\SOS Development\Unit Level\CE Lot Level Function.jsl");
+//Include("C:\Users\tcjordan\Documents\ATTD Stats\SOS Development\Unit Level\CE Unit Level Function.jsl");
+
+/***************************   Unit Level FUNCTION   *****************************/
+unit_level_fcn = function({YID, ToolID, LotID, TimeID, IdealT, kScreen, cl_type, limitType, dt_ck, parmid}, 
+/***    Hide Data Table Windows    ***/
+hide_dts = Expr(
+	If( !Is Empty( dt_stacked ),
+		dt_stacked << show window( 0 )
+	);
+	If( !Is Empty( dt_sum ),
+		dt_sum << show window( 0 )
+	);
+	If( !Is Empty( dt ),
+		dt << show window( 0 )
+	);
+);
+
+
+/***    Close Windows Expression    ***/
+close_dts = Expr(
+	If( !Is Empty( dt_stacked ),
+		close(dt_stacked, no save)
+	);
+	If( !Is Empty( dt_sum ),
+		close(dt_sum, no save)
+	);
+	If( !Is Empty( dt ),
+		close(dt, no save)
+	);
+);
+
+Data Table(dt) << Sort(
+	By( eval(ToolID), eval(LotID), eval(TimeID) ),
+	Replace Table(1)
+);
+column(dt, LotID) << set property("Row Order Levels", 1);
+
+/*** Remove Missing data  ***/
+if(nitems(YID)==1,
+	YsisName = YID[1];
+	data_type = "Raw Data";
+	dt << select where( Is Missing( column(dt,YID[1])[] )) << delete rows;
+	y_raw = dt << get as matrix(  YID  );
+	dt_sum = Data Table( dt ) << Summary(
+		Group( eval(ToolID), eval(LotID) ),
+		N( eval(YID) ),
+		Mean( eval(YID) ),
+		Std Dev( eval(YID) ),
+		Min( eval(TimeID) ),
+		statistics column name format( "column stat" )
+	);
+	YID2 = evallist(list(YID[1]||" N", YID[1]||" Mean", YID[1]||" Std Dev"));
+	TimeID2 = evallist(list(TimeID[1]||" Min"));
+	
+	Data Table(dt_sum) << Sort(
+		By( eval(ToolID), eval(TimeID2) ),
+		Replace Table(1)
+	);
+	datamat =  dt_sum << get as matrix(  YID2  );
+	//ooc_r = [];
+	//sigma_mr = sigmaMR_fcn(ooc_r, y_raw, datamat[0,1]);
+	,//Else
+	YsisName = parmid;
+	data_type = "Summarized Data";
+	dt << select where ( Is Missing( column(dt,YID[1])[] ) | Is Missing( column(dt,YID[2])[] ) ) << delete rows;
+	dt_sum = Data Table( dt ) << Summary(
+		Group( eval(ToolID), eval(LotID) ),
+		Mean( eval(YID[1]) ),
+		Mean( eval(YID[2]) ),
+		Mean( eval(YID[3]) ),
+		Min( eval(TimeID) ),
+	statistics column name format( "column" )
+	);
+	
+	Data Table(dt_sum) << Sort(
+		By( eval(ToolID), eval(TimeID) ),
+		Replace Table(1)
+	);
+	YID2 = evallist(list(YsisName||" N", YsisName||" Mean", YsisName||" Std Dev"));
+	nc_dtsum = ncols(dt_sum);
+	for(i=1, i<=3, i++,
+		column(dt_sum, nc_dtsum-4 + i) << set name(YID2[i])
+	);
+	datamat =  dt_sum << get as matrix(  YID2  );
+);
+
+column(dt_sum, LotID) << set property("Row Order Levels", 1);
+
+//Create single column for Facility, entity combination
+entity_name = ToolID[1];
+entity_expr = ":"||entity_name;
+for(i=2, i<= nitems(ToolID), i++,
+	entity_name = entity_name||"_"||ToolID[i];
+	entity_expr = entity_expr||"\[||"_"||:Name("]\"||ToolID[i]||"\!")";
+);
+dt_sum<<new column(entity_name, character, formula(eval(parse(entity_expr))), eval formula);
+
+/*  Using robust stats instead of pseudo sigma screening for unit level
+s_screen = ps_screen_fcn(kscreen, datamat[0,3])[2];
+ooc_slots = loc(datamat[0,3]>s_screen);
+mean_screen = ps_screen_fcn(kscreen, datamat[0,2]);
+ooc_meanlots = loc(datamat[0,2]<mean_screen[1] | datamat[0,3]>mean_screen[2]);
+ooc_lots = loc(datamat[0,3]>s_screen | datamat[0,2]<mean_screen[1] | datamat[0,3]>mean_screen[2]);
+*/
+ooc = [];//passing no OOCs but leaving functionality in case we go back to pseudo sigma screening.
+
+sum_stats =  sigma_fcn(ooc, datamat);
+Grand_Mean = sum_stats[2]; 
+if(nitems(YID)==1,
+	sigma_mr = sigmaMR_fcn(ooc, y_raw, datamat[0,1]);
+	sigma_within = sigma_mr[4];
+	sigma_name = "Pooled Sigma MR";
+	,
+	sigma_within = sum_stats[3];
+	sigma_name = "Pooled Sigma";
+);
+
+if(IsMissing(IdealT), 
+	IdealT1 = Grand_Mean;
+	CL_text = "Center Line"
+	,
+	IdealT1 = IdealT;
+	CL_text = "Target";
+);
+
+dt_sum<<new column("Mean+3s", set values(datamat[0,2]+3*datamat[0,3]));
+dt_sum<<new column("Mean-3s", set values(datamat[0,2]-3*datamat[0,3]));
+
+
+/***	Stacked Data to create Mean +/- 3s plots	***/
+dt_stacked = dt_sum << stack(
+		columns( YID2[2], :Name( "Mean-3s" ), :Name( "Mean+3s" ) ),
+		Source Label Column( "Stat" ),
+		Stacked Data Column( "Blah"),
+		Output Table( YsisName || " Stacked" )
+);
+//dt_stacked << set name(YsisName || " Stacked");
+y_sum_name = YsisName||" Mean +/- 3sigma";
+column(dt_stacked,"Blah")<<set name(y_sum_name);
+
+Wait( 0.1 );
+Eval( hide_dts );
+
+/***	ccd Calculation	***/
+/*	Should we use 4 sigma of the lot means as the initial ccd
+	Why not use max of k*pseudo sigma delta from target?
+	What about Cpk approach like with Lot level?
+*/
+/***	Pseudo Sigma Approach to ccd	***/
+/*
+p25 = quantile(0.25, datamat[0,2]);
+p50 = quantile(0.5, datamat[0,2]);
+p75 = quantile(0.75, datamat[0,2]);
+
+lscreen = kscreen * (p75-p50)/0.6745;
+uscreen = kscreen * (p50-p25)/0.6745;
+max_delta = max(lscreen, uscreen);
+deltas_potential = loc(abs(datamat[0,2]-IdealT1)<=max_delta);
+DeltaMval = max(abs(data_mat[deltas_potential,2]));
+*/
+/***	End Pseudo Sigma Approach to ccd	***/
+
+/***	Cpk Approach for CCD like Lot Level	***/
+ent_means = datamat[0,2];
+entity_gmean = mean(ent_means);
+ent_deltas = ent_means - IdealT1;
+if (LimitType==2, 
+	wait(0.1); 
+	dlUn=Dialog( 
+	VList("Note:  Engineering limits with a chart-to-chart delta (CCD) are engineering and not statistical limits.",
+		"Only use on an exception basis with proper approval by engineering and platform management."
+	),
+	text Box(""), 
+	text Box("Enter Spec Limits for CCD Validation"), 
+	lineup(2,
+		text Box("LSL: "), LSL = edit number(.),
+		text Box("USL: "), USL = edit number(.)
+	),
+	Button("OK"),
+	Button("Cancel")
+	);
+	buttonU = dlUn["Button"];
+	LSL = dlUn["LSL"];
+	USL = dlUn["USL"];
+	If(cl_type==2, LSL = .);
+	If(cl_type==3, USL = .);
+	toggle = -1;
+	trans=0;
+	if (buttonU==-1, 
+		eval(unhide_close_dts);
+		throw(),
+	);
+	sigma_within_ud = sigma_within;
+	sigma_within_mat = sigma_within|/sigma_within_ud;
+	ent_meantemp = ent_means;
+	max_CCD_spec = (USL-4*sigma_within) - IdealT1;
+	min_CCD_spec = IdealT1 - (LSL+4*sigma_within);
+	min_max_CCD = min(max_CCD_spec, min_CCD_spec);
+	If(IsMissing(min_max_CCD)|min_max_CCD<0, CCD_to_spec = [.], CCD_to_spec = matrix(min(max_CCD_spec, min_CCD_spec)));
+	CCD_to_spec_mat = CCD_to_spec|/CCD_to_spec;
+	excl_ent_m = loc(ent_means>(IdealT1 + max_CCD_spec)|ent_means<(IdealT1 - min_CCD_spec));
+	
+	/***	Calculate XBar CCD	***/
+	ent_meantemp[excl_ent_m] = .;
+	If(nrows(loc(ent_meantemp))>0,
+		min_ent_lm = min(ent_meantemp); //valid minimum entity lot mean 
+		max_ent_lm = max(ent_meantemp); //valid maximum entity lot mean
+		,
+		min_ent_lm = min(ent_means);
+		max_ent_lm = max(ent_means);
+	);
+	If( cl_type == 1,
+		DeltaMtj = Max( Abs( IdealT1 - min_ent_lm ), Abs( IdealT1 - max_ent_lm ) ),
+		If( cl_type == 2,
+			DeltaMtj = max_ent_lm - IdealT1,
+			DeltaMtj = IdealT1 - min_ent_lm
+		)
+	);
+	deltaMVal = DeltaMtj;
+	Cpk_atCCD = min(
+		(USL-(DeltaMVal + IdealT1))/(3*sigma_within), 
+		(IdealT1 - DeltaMVal - LSL)/(3*sigma_within)
+	);
+	Cpk_atCCD_mat = Cpk_atCCD|/Cpk_atCCD;
+	cpk_msg_list = {"Capable. CCD OK", "Flag: Not capable. CCD too large", "Flag: Not capable. Process sigma too large", ""};
+	If(cpk_atCCD_mat[2]>=1.33,
+		cpk_msg = cpk_msg_list[1],
+		IsMissing(sigma_within)|IsMissing(cpk_atTTD_mat[2]),
+		cpk_msg = cpk_msg_list[4],
+		IsMissing(CCD_to_spec_mat[2]),
+		cpk_msg = cpk_msg_list[3],
+		cpk_msg = cpk_msg_list[2]
+	);
+	PClassM = " (Engineering)";
+	,//else
+	deltaMVal = DeltaMtj = 0;
+	LSL = USL = .;
+	PClassM = " (Statistical)";
+);
+/***	End Cpk Approach for CCD like Lot Level	***/
+
+UCL_sug = IdealT1 + DeltaMVal + 3*sigma_within;
+LCL_sug = IdealT1 - (DeltaMVal + 3*sigma_within);
+
+/***	Estimated and/or Actual %OOC	***/
+N_total = sum(datamat[0,1]);
+If(nitems(YID)==1,
+	n_OOC_name = "# OOC";
+	p_OOC_name = "% OOC";
+	ooc_lot = ooc_raw_fcn(UCL_sug, LCL_sug);
+	n_OOCl = ooc_lot[0,1];
+	p_OOCl = ooc_lot[0,3];
+	OOC_n_ud = OOC_n = sum(n_OOCl);
+	OOC_p_ud = OOC_p = sum(p_OOCl);
+	,//else
+	n_OOC_name = "# OOC (est.)";
+	p_OOC_name = "% OOC (est.)";
+	p_OOCl = OOC_sum_fcn(UCL_sug, LCL_sug);
+	n_OOCl = round(p_OOCl:*datamat[0,1],0);
+	OOC_n_ud = OOC_n = sum(n_OOCl);
+	OOC_p_ud = OOC_p = OOC_n / N_total * 100;
+);
+OOC_n_Lot_ud = OOC_n_Lot = nrows(loc(n_OOCl));
+OOC_p_lot_ud = OOC_p_Lot = 100* OOC_n_Lot / nrows(datamat);
+
+
+dt_sum<<new column(n_OOC_name, set values(n_OOCl));
+dt_sum<<new column(p_OOC_name, set values(p_OOCl));
+
+
+/***	Calculations to control format in tables	***/
+dplace_mean = If( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,2] ) - Min( datamat[0,2] ) ) ) ) + 2, 2);
+dplace_sigma = If( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) < 1,
+	Abs( Floor( Log10( Max( datamat[0,3] ) - Min( datamat[0,3] ) ) ) ) + 2, 2);
+dplace = If( Floor( Log10( UCL_sug - LCL_sug ) ) < 1, Abs( Floor( Log10( UCL_sug - LCL_sug ) ) ) + 2, 2);
+increment = if(LimitType == 1, round(sigma_within, dplace-1), round((DeltaMval + sigma_within)/3, dplace-1));
+
+/***	User defined variables	***/
+user_defined_center_line = user_defined_center_line2  = IdealT1;
+user_specified_UCL = UCL_sug;
+user_specified_LCL = LCL_sug;
+user_defined_CCD = DeltaMval; 
+sigma_within_ud = sigma_within;
+sigma_within_mat = sigma_within|/sigma_within_ud;
+user_defined_3_sigma_width = 3*sigma_within_ud;
+CCD_mat = DeltaMval|/user_defined_CCD;
+oci_ud = .;
+clsr_ud = .;
+
+reset_expr = expr(
+	user_defined_center_line = IdealT1;
+	user_defined_3_sigma_width = 3*sigma_within;
+	user_defined_CCD = DeltaMval;
+	eval(update_xbar_chart);
+);
+
+MeanOb= expr(MeanOb1=VList Box(
+		outlinebox("Unit Level Suggested Control Limits for "|| YsisName|| PClassM||" based on "||data_type,
+		TableBox(
+			NumberColBox("# Total Units",matrix(N_Total), <<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			//NumberColBox("# Lots Excluded",matrix(NLots_exc)),
+			if(!IsMissing(IdealT),
+				NumberColBox("Target", matrix(IdealT),<<SetFormat(6,dplace)),
+				NumberColBox("Centerline", matrix(IdealT1),SetFormat(6,dplace))
+			),
+			if(LimitType==2, NumberColBox("Chart Delta", matrix(DeltaMval),<<SetFormat(6,dplace)),),
+			NumberColBox(sigma_name, matrix(sigma_within),<<SetFormat(6,dplace)),
+			NumberColBox("LCL", matrix(LCL_sug),<<SetFormat(6,dplace)),
+			NumberColBox("UCL", matrix(UCL_sug),<<SetFormat(6,dplace)),
+			NumberColBox(n_OOC_name||" Unit Level", matrix(ooc_n),<<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			NumberColBox(p_OOC_name||" Unit Level", matrix(ooc_p),<<SetFormat(6,dplace)),
+			NumberColBox(n_OOC_name||" Lot Level", matrix(ooc_n_lot),<<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			NumberColBox(p_OOC_name||" Lot Level", matrix(ooc_p_lot),<<SetFormat(6,dplace)),
+			<<TableStyle("Bordered")
+			)),
+			outlinebox("Unit Level User Defined Control Limits for "|| YsisName|| PClassM||" based on "||data_type,
+			TableBox(
+			NumberColBox("# Total Units",matrix(N_Total), <<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			//NumberColBox("# Lots Excluded",matrix(NLots_exc)),
+			u_d_m=NumberColBox("User Defined Center Line", matrix(user_defined_center_line),<<SetFormat(6,dplace)),
+			if(LimitType==2, u_d_deltaM = NumberColBox("Chart Delta", matrix(DeltaMtj),<<SetFormat(6,dplace)),),
+			u_d_s=NumberColBox("User Defined Sigma", matrix(sigma_within_ud),<<SetFormat(6,dplace)),
+			u_d_lcl=NumberColBox("User Defined LCL", matrix(user_specified_lcl),<<SetFormat(6,dplace)),
+			u_d_ucl=NumberColBox("User Defined UCL", matrix(user_specified_ucl),<<SetFormat(6,dplace)),
+			u_d_oocn=NumberColBox("User Defined "||n_OOC_name||" Unit Level", matrix(ooc_n_ud),<<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			u_d_oocp=NumberColBox("User Defined "||p_OOC_name||" Unit Level", matrix(ooc_p_ud),<<SetFormat(6,dplace)),
+			u_d_oocn_lot=NumberColBox("User Defined "||n_OOC_name||" Lot Level", matrix(ooc_n_lot_ud),<<set format( 10, 0, "Fixed Dec", "Use thousands separator" )),
+			u_d_oocp_lot=NumberColBox("User Defined "||p_OOC_name||" Lot Level", matrix(ooc_p_lot_ud),<<SetFormat(6,dplace)),
+			NumberColBox("Mean Offline", matrix(Grand_Mean),<<SetFormat(6,dplace)),
+			u_d_oci=NumberColBox("User Defined OCI", matrix(oci_ud),<<SetFormat(6,dplace)),
+			u_d_clsr=NumberColBox("User Defined CLSR", matrix(clsr_ud),<<SetFormat(6,dplace)),
+			<<TableStyle("Bordered")
+			))
+		)
+		
+);
+
+update_xbar_chart = expr(
+	deltaMtj = user_defined_CCD;
+    if(user_defined_center_line == user_defined_center_line2,
+			sigma_within_ud = user_defined_3_sigma_width / 3,
+			If(LimitType==2,
+				If(cl_type == 1, deltaMtj = max(Abs(user_defined_center_line - min_ent_lm), Abs(user_defined_center_line - max_ent_lm)),
+					If(cl_type == 2, deltaMtj = max(max_ent_lm - user_defined_center_line,0),
+						deltaMtj = max(user_defined_center_line - min_ent_lm,0)
+					)
+				);
+				ent_deltas2 = ent_means - user_defined_center_line;
+			)
+	);
+	if(cl_type==1,
+		user_specified_ucl = user_defined_center_line + DeltaMtj + 3 * sigma_within_ud;
+		user_specified_lcl = user_defined_center_line - DeltaMtj - 3 * sigma_within_ud;
+		clsr_ud = ((user_specified_ucl-user_specified_lcl)/2 - DeltaMtj)/sigma_within,
+		If(cl_type==2,
+			user_specified_ucl = user_defined_center_line + DeltaMtj + 3 * sigma_within_ud;
+			user_specified_lcl = .;
+			If(LimitType==1, 
+				//clsr_ud = (user_specified_ucl-(Grand_Mean))/sigma_within,
+				clsr_ud = (user_specified_ucl-(user_defined_center_line + DeltaMtj))/sigma_within
+			),
+			user_specified_ucl = .;
+			user_specified_lcl = user_defined_center_line - DeltaMtj - 3 * sigma_within_ud;
+			If(LimitType==1,
+				//clsr_ud = ((Grand_Mean)-user_specified_lcl)/sigma_within,
+				clsr_ud = ((user_defined_center_line - DeltaMtj)-user_specified_lcl)/sigma_within
+			)
+		)
+	);
+	user_defined_center_line2 = user_defined_center_line;
+    user_specified_ucl2 = user_specified_ucl;
+	user_specified_lcl2 = user_specified_lcl;
+	//dtsJ<<select all rows<<markers(0)<<colors(0)<<clear select;
+	//ooc_rows = loc(colym_mat>user_specified_ucl | colym_mat<user_specified_lcl);
+	//ooc_n_ud = nrows(ooc_rows);
+	If(nitems(YID)==1,
+		ooc_lot = ooc_raw_fcn(user_specified_ucl, user_specified_lcl);
+		n_OOCl_ud = ooc_lot[0,1];
+		p_OOCl_ud = ooc_lot[0,3];
+		OOC_n_ud = sum(n_OOCl_ud);
+		OOC_p_ud = sum(p_OOCl_ud);
+		,
+		p_OOCl_ud = OOC_sum_fcn(user_specified_ucl, user_specified_lcl);
+		n_OOCl_ud = round(p_OOCl_ud:*datamat[0,1],0);
+		OOC_n_ud = sum(n_OOCl_ud);
+		OOC_p_ud = OOC_n_ud / N_total * 100;
+	);
+	OOC_n_Lot_ud = nrows(loc(n_OOCl_ud));
+	OOC_p_lot_ud = 100* OOC_n_Lot_ud / nrows(datamat);
+
+	wait(0);
+	column(dt_sum, n_OOC_name)<<set values (n_OOCl_ud);
+	column(dt_sum, p_OOC_name)<<set values (p_OOCl_ud);
+	wait(0);
+	user_defined_CCD = DeltaMtj;
+	CCD_mat[2] = user_defined_CCD;
+	sigma_within_mat[2] = sigma_within_ud;
+	//ooc_rows_old = ooc_rows;
+	//ooc_p_ud = 100*ooc_n_ud/NLots_Total;
+	oci_ud=(Grand_Mean -  user_defined_center_line)/(sigma_within_ud+user_defined_CCD/3);//oci_ud=(Grand_Mean -  user_defined_center_line)/sigma_within_ud;
+	u_d_m<<set values(matrix(user_defined_center_line));
+	if(LimitType==2, 
+		u_d_deltaM<<set values(matrix(user_defined_CCD));
+		//delta_to_cl<<set Values(ent_deltas2); 
+		CCD_mat_update<<set values(CCD_mat);
+		ud_sigma_process<<set values(sigma_within_mat);
+		max_CCD_spec = (USL-4*sigma_within_ud) - user_defined_center_line;
+		min_CCD_spec = user_defined_center_line - (LSL+4*sigma_within_ud);
+		//CCD_to_spec_mat[2] = min(max_CCD_spec, min_CCD_spec);
+		If(min(max_CCD_spec, min_CCD_spec)<0, CCD_to_spec_mat[2] = ., CCD_to_spec_mat[2] = min(max_CCD_spec, min_CCD_spec));
+		max_CCD_update<<set values(CCD_to_spec_mat);
+		Cpk_atCCD_mat[2] = min(
+			(USL-(user_defined_CCD + user_defined_center_line))/(3*sigma_within_ud), 
+			(user_defined_center_line - user_defined_CCD - LSL)/(3*sigma_within_ud) 
+		);
+		Cpk_atCCD_update << set values(Cpk_atCCD_mat);
+		If(cpk_atCCD_mat[2]>=1.33,
+			cpk_msg = cpk_msg_list[1],
+			IsMissing(sigma_within_ud)|IsMissing(cpk_atCCD_mat[2]),
+			cpk_msg = cpk_msg_list[4],
+			IsMissing(CCD_to_spec_mat[2]),
+			cpk_msg = cpk_msg_list[3],
+			cpk_msg = cpk_msg_list[2]
+		);
+		ud_cpk_msg<<set text(cpk_msg);
+	);
+	u_d_s<<set values(matrix(sigma_within_ud));
+	u_d_ucl<<set values(matrix(user_specified_ucl));
+	u_d_lcl<<set values(matrix(user_specified_lcl));
+	u_d_oocn<<set values(matrix(ooc_n_ud));
+	u_d_oocp<<set values(matrix(ooc_p_ud));
+	u_d_oocn_lot<<set values(matrix(ooc_n_lot_ud));
+	u_d_oocp_lot<<set values(matrix(ooc_p_lot_ud));
+	u_d_clsr<<set Values(matrix(clsr_ud));
+	u_d_oci<<set Values(matrix(oci_ud));
+);
+/*********************************************************************************************/
+/***	Plots	***/
+current data table(dt_stacked);
+min_scale = round(min(LSL, lcl_sug, IdealT1, col quantile(Column( y_sum_name ),.01))-increment, dplace_mean);
+max_scale = round(max(USL, ucl_sug, IdealT1, col quantile(Column( y_sum_name ),.99))+increment, dplace_mean);
+struc_vc = VListBox(
+	struc_vc_plot = dt_stacked << Variability Chart(
+		Y( eval(y_sum_name) ),
+		X( Eval(ToolID), eval(LotID) ),
+		Process Variation( 0 ),
+		Connect Cell Means( 1 ),
+		Show Range Bars( 1 ),
+		Show Points( 0 ),
+		Std Dev Chart( 0 ),
+		SendToReport(
+			Dispatch(
+				{},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Rotated Labels( "Horizontal" ), 
+				Add Ref Line( IdealT1, Solid, "Medium Dark Green", CL_text),
+				Add Ref Line( UCL_sug, Dashed, "Medium Dark Red", "Suggested UCL"),
+				Add Ref Line( LCL_sug, Dashed, "Medium Dark Red", "Suggested LCL"),
+				Show Major Grid( 1 )}
+			)
+		)
+	)
+	,
+		V List Box(
+		align( Left ),
+		panelbox("Change Center Line",
+		HlistBox(
+			VListBox(
+				cl_sb=Slider Box(
+					IdealT1 - DeltaMval - 3 * sigma_within_ud,
+					IdealT1 + DeltaMval + 3 * sigma_within_ud,
+					user_defined_center_line
+					,
+					update_xbar_chart
+				),
+				Global Box( user_defined_center_line )
+				)
+				,
+				gMean_table = outlinebox("Reference Estimates for Center Line",
+				TableBox(
+				numbercolbox("Grand Mean", matrix(Grand_Mean),<<SetFormat(6,dplace)),
+				//numbercolbox("Grand Median", matrix(IdealMdn),<<SetFormat(6,dplace)),
+				numbercolbox("Grand Entity Mean", matrix(entity_gmean),<<SetFormat(6,dplace))
+				)
+			)
+		)
+		)
+		,
+		panelbox("Change Control Limit Width",
+		HlistBox(
+			VlistBox(
+				sigma_sb=Slider Box(
+					0.00000000001,
+					9 * sigma_within_ud,
+					user_defined_3_sigma_width
+					,
+					update_xbar_chart
+				),
+				Global Box( user_defined_3_sigma_width )
+			),
+			IF(nitems(YID)==1,
+				gSigma_table = outlinebox("Reference Estimates for 3 Sigma Width",
+				TableBox(
+				numbercolbox("3*Pooled Sigma (MR)", matrix(3*sigma_mr[3]),<<SetFormat(6,dplace)),
+				numbercolbox("3*Pooled Sigma (Median MR)", matrix(3*sigma_mr[4]),<<SetFormat(6,dplace))
+				)
+				)
+			)
+		)
+		),
+		If(LimitType == 2,
+			Panel Box( "Change CCD",
+			H List Box(
+				V List Box(
+					CCD_sb = Slider Box( 0, Max( Abs( ent_deltas ) ), user_defined_CCD
+					,
+					update_xbar_chart 
+					),
+					Global Box( user_defined_CCD )
+				),
+				spec_table = Outline Box( "Cpk Validation of CCD",
+					V List Box(
+						show_bb = Button Box( “Show incapable region”,
+							toggle = toggle * -1;
+							If( toggle == 1,
+								trans = 0.2;
+								show_bb << set button name( "Hide incapable region" );
+							,
+								trans = 0;
+								show_bb << set button name( "Show incapable region" );
+							);
+						),
+						Table Box(
+							Number Col Box( "LSL", Matrix( LSL ) ),
+							Number Col Box( "USL", Matrix( USL ) )
+						),
+						H List Box(
+							Table Box(
+								String Col Box( "Configuration", {"Suggested", "User Defined"} ),
+								CCD_mat_update = Number Col Box( "CCD", CCD_mat, <<SetFormat( 6, dplace ) ),
+								ud_sigma_process = Number Col Box( "Sigma Within",
+									sigma_within_mat,
+									<<SetFormat( 6, dplace )
+								),
+								cpk_atCCD_update = Number Col Box(
+									"Cpk at Centerline +/- CCD and process sigma",
+									cpk_atCCD_mat,
+									<<SetFormat( 6, dplace )
+								),
+								max_CCD_update = Number Col Box( "Max CCD to meet Cpk requirement",
+									CCD_to_spec_mat,
+									<<SetFormat( 6, dplace )
+								)
+							),
+							Spacer Box( size( 10, 5 ) ),
+							V List Box(
+								Text Box( "" ),
+								Text Box( "Cpk Status", <<Set Font Style( "Bold" ) ),
+								If(
+									cpk_atCCD_mat[1] >= 1.33, Text Box( cpk_msg_list[1] ),
+									IsMissing(sigma_within)|IsMissing(cpk_atTTD_mat[2]), Text Box(cpk_msg_list[4]),
+									IsMissing( CCD_to_spec_mat[1] ), Text Box( cpk_msg_list[3] ),
+									Text Box( cpk_msg_list[2] )
+								),
+								ud_cpk_msg = Text Box( cpk_msg ),
+
+							)
+						)
+					)
+				)
+			)
+			)
+		)
+		,
+		buttonbox("Reset to Suggested Limits", reset_expr)
+	)
+);
+//gMean_table<<close;
+//If(nitems(YID)==1, gSigma_table<<close);
+If(LimitType == 2, /*spec_table<<close;*/ CCD_sb<<set width(500));
+
+cl_sb<<set width(500);
+sigma_sb<<set width(500);
+
+struc_vc[Framebox(1)] << Add Graphics Script(
+	 Pen Color( "green" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+     Pen Color( "blue" );
+     Pen Size( 2 );
+     Line Style( 1 );
+	H Line( user_specified_ucl );
+    H Line(user_specified_lcl);
+    if(	user_defined_center_line2 != user_defined_center_line|
+		user_defined_3_sigma_width != 3*sigma_within_ud|deltaMtj != user_defined_CCD
+		,
+		eval(update_xbar_chart);
+    );
+    
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_CCD, x , fill(2,user_defined_center_line - user_defined_CCD));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(sigma_within), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(sigma_within), x, fill(2,USL));
+		);
+    );
+);
+
+struc_vc_by = VListBox(
+	struc_vc_plot_by = dt_stacked << Variability Chart(
+		Y( eval(y_sum_name) ),
+		X( eval(LotID) ),
+		By(Eval(ToolID)),
+		Process Variation( 0 ),
+		Connect Cell Means( 1 ),
+		Show Range Bars( 1 ),
+		Show Points( 0 ),
+		Std Dev Chart( 0 ),
+		SendToReport(
+			Dispatch(
+				{},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Rotated Labels( "Horizontal" ), 
+				Add Ref Line( IdealT1, Solid, "Medium Dark Green", CL_text),
+				Add Ref Line( UCL_sug, Dashed, "Medium Dark Red", "Suggested UCL"),
+				Add Ref Line( LCL_sug, Dashed, "Medium Dark Red", "Suggested LCL"),
+				Show Major Grid( 1 )}
+			)
+		)
+	)
+);
+struc_vc_plot_by<<close all like this;
+
+current data table(dt_sum);
+CCD_vc = VlistBox(
+	HListBox(
+	dt_sum << Variability Chart(
+		Y( eval(YID2[2]) ),
+		X( Eval(ToolID)),
+		Process Variation( 0 ),
+		Connect Cell Means( 1 ),
+		Show Range Bars( 0 ),
+		Show Points( 1 ),
+		Points Jittered (1),
+		Std Dev Chart( 0 ),
+		SendToReport(
+			Dispatch(
+				{},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Rotated Labels( "Horizontal" ),
+				Show Major Grid( 1 )}
+			)
+		)
+	),
+	dt_sum<<Distribution(
+		Stack(1),
+		Continuous Distribution(
+			Column(eval(YID2[2])),
+			Horizontal Layout(1),
+			Vertical(1),
+			Count Axis(1),
+			Normal Quantile Plot(1),
+			Vertical(1),
+		SendToReport(
+			Dispatch(
+				{},
+				"1",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Rotated Labels( "Horizontal" ),
+				Show Major Grid( 1 )}
+			),
+			Dispatch(
+				{},
+				"2",
+				ScaleBox,
+				{Min(min_scale), 
+				Max(max_scale),
+				inc(increment),
+				Minor Ticks(0),
+				Rotated Labels( "Horizontal" ),
+				Show Major Grid( 1 )}
+			)
+		)
+		)
+		)
+	)
+);
+
+CCD_vc[Framebox(1)] << Add Graphics Script(
+	 Pen Color( "green" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_CCD, x , fill(2,user_defined_center_line - user_defined_CCD));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(sigma_within), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(sigma_within), x, fill(2,USL));
+		);
+    );
+);
+CCD_vc[Framebox(2)] << Add Graphics Script(
+	 Pen Color( "green" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_CCD, x , fill(2,user_defined_center_line - user_defined_CCD));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(sigma_within), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(sigma_within), x, fill(2,USL));
+		);
+    );
+);
+CCD_vc[Framebox(3)] << Add Graphics Script(
+	 Pen Color( "green" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_CCD, x , fill(2,user_defined_center_line - user_defined_CCD));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(sigma_within), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(sigma_within), x, fill(2,USL));
+		);
+    );
+);
+CCD_vc[Framebox(4)] << Add Graphics Script(
+	 Pen Color( "green" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_CCD, x , fill(2,user_defined_center_line - user_defined_CCD));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(sigma_within), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(sigma_within), x, fill(2,USL));
+		);
+    );
+);
+
+ooc_vc = OutlineBox(p_OOC_name||" for "||YsisName||" based on User Defined Control Limits",
+	HListBox(
+		dt_sum<<Oneway(
+			Y( eval( p_OOC_name ) ),
+			X( eval(entity_name) ),
+			Automatic Recalc( 1 ),
+			Means and Std Dev( 0 ),
+			Box Plots( 1 ),
+			Mean Lines( 1 ),
+			X Axis Proportional( 0 ),
+			Points Jittered( 1 ),
+			SendToReport(
+				Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} )
+			)
+		);
+	)
+);
+
+/***********************************************  End Plots  ***********************************************/
+
+/***	Create Report Window	***/
+UnitWin = New Window(YsisName||" Control Limit Calculation",<<OnClose(eval(close_dts)), 
+		TabBox("Summary Results",
+			vlistbox(eval(MeanOB), struc_vc, CCD_vc, ooc_vc, FooterBox),
+			"Detailed Plots",
+			vlistbox(struc_vc_by)
+		)
+	);
+	
+eval(update_xbar_chart);
+	
+);
+/***************************   End Unit Level FUNCTION   *****************************/
+
+/***************************   Lot Level FUNCTION   *****************************/
+lot_level_fcn = function({YID, ToolID, LotID, TimeID, IdealT, kScreen, cl_type, limitType, dt_ck, parmid}, 
+
+//delete missing data
+dt<<select where (ismissing(column(dt,YID[1])[] )) << delete rows;
+
+//Create single column for Facility, entity combination
+IF(nitems(ToolID)>1,
+	column(ToolID[1])<<datatype(character);
+	entity_name = ToolID[1];
+	entity_expr = ":"||entity_name;
+	for(i=2, i<= nitems(ToolID), i++,
+		column(ToolID[i])<<datatype(character);
+		entity_name = entity_name||"_"||ToolID[i];
+		entity_expr = entity_expr||"\[||"_"||:Name("]\"||ToolID[i]||"\!")";
+	);
+	 dt<<new column(entity_name, character, formula(eval(parse(entity_expr))), eval formula);
+	ent_col= ":"||entity_name;
+	//ToolID = evallist({parse(ent_col)})
+	,
+	entity_name = ToolID[1];
+	column(ToolID[1])<<datatype(character);
+);
+
+GrpHolder={entity_name, TimeID, LotID};
+GrpList=eval list(GrpHolder);
+
+
+// Main Body
+/*** Data File View Handling ***/
+// Hide Data Table Windows
+Hide_DTs = Expr(
+	IF(!IsEmpty(dtsj2), dtsj2<< show window(0));
+	IF(!IsEmpty(dtsjs), dtsjs<< show window(0));
+	IF(!IsEmpty(dtsj), dtsj<< show window(0));
+	IF(!IsEmpty(dts1), dts1<< show window(0));
+	IF(!IsEmpty(dts), dts<< show window(0));
+	IF(!IsEmpty(dt), dt<< show window(0));
+);
+/***    Close Windows Expression    ***/
+close_dts = expr(
+	If( !Is Empty(dtsj2),close(dtsj2, nosave));
+	If( !Is Empty(dtsjs),close(dtsjs, nosave));
+	If( !Is Empty(dtsj),close(dtsj, nosave));
+	If( !Is Empty(dts1),close(dts1, nosave));
+	If( !Is Empty(dts),close(dts, nosave));
+	If( !Is Empty(dt),close(dt, nosave))
+);
+wait(0);
+dt<<
+Sort(
+	By(eval(entity_name), eval(TimeID), eval(LotID)),
+	Replace Table
+);
+column(dt, LotID)<<set property("Row Order Levels", 1);
+//Change
+y_range = Col max ( column(dt,YID)) - Col min ( column(dt,YID));
+dplace = If(floor(log10( y_range ))<1,abs(floor(log10( y_range ))) + 2,2);
+
+// Summarize to Lot Level.
+If( dt_ck == 1,
+	dts = dt << Summary( 
+		Group( eval(entity_name), eval(TimeID), eval(LotID)), 
+		Mean( eval(YID )), 
+		Std Dev( eval(YID ) )
+		),
+	dts = dt << Summary(
+		Group( eval(entity_name ), eval(LotID)),
+		Min( eval(TimeID )),
+		Mean( eval(YID )),
+		Std Dev( eval(YID) )
+	);
+	d_name = "Min("||TimeID[1]||")";
+	move_col = column(dts,d_name);
+	move_col<<set selected(1);
+	move_name = TimeID[1];
+	after_col = entity_name;
+	dts << move selected columns(After(eval(after_col)) );
+	move_col<<set selected(0)<<set name(move_name);
+	dts<< Sort(
+		By(eval(entity_name), eval(TimeID), eval(LotID)),
+		Replace Table
+	);
+);
+column (dts, "N Rows")<<set name ("N Samples");
+column(dts, LotID)<<set property("Row Order Levels", 1);
+//Start Here
+// Calculate Outlier Screen Limits
+dts1=dts <<
+Summary(
+	Group(eval(entity_name)),
+	Median(column(5)),
+	Quantiles(25, column(5)),
+	Quantiles(75, column(5)),
+	Median(column(6)),
+	Quantiles(75, column(6))
+);
+
+// Check # of Entities  //
+entity_n = nrows(dts1);
+column (dts1, "N Rows")<<set name ("# Total Lots");
+dts1<<run formulas;
+entity_nlots = column(dts1,"# Total Lots")<<get as matrix;
+entity_range = J(nrows(entity_nlots), 2,.);
+entity_list = column(dts1, eval(entity_name))<<get values;
+start=1; end=0;
+for(i=1, i<= nrows(entity_nlots), i++,
+	end = end + entity_nlots[i];
+	entity_range[i,1]=start;
+	entity_range[i,2]=end;
+	start=start + entity_nlots[i];
+);
+
+// Exclude tools with less than 2 lots.
+dts1<<clear row states<<clear select<<clear column selection;
+ent_exc_rows = loc(entity_nlots<2);
+ent_exc = column(dts1, eval(entity_name))[ent_exc_rows];
+NEnt_Exc=nrows(ent_exc_rows);
+dts1<<select rows(ent_exc_rows);
+dts1<< new column("rowstate data", rowstate);
+for each row(if(selected(Row State())==1, rowstate()=excluded state(1); :rowstate data[]=excluded state(1)));
+if(NEnt_Exc>0, wait(0.1); 
+	DLGNoti=Dialog( 
+		VList("Warning:  "||Char(NEnt_Exc)|| " tool(s) excluded for insufficient number of lots (less than 2)."),"", 
+		Button("OK"))
+	);
+
+// Calc Screeing Limits.
+dts1<<New Column ("Mean Upper Screen Limit", numeric, continuous, formula(column(dts1,3)[] + eval(kScreen)* ((:
+column(dts1,5)[] - column(dts1,3)[]) / 0.6745))	
+);
+
+dts1<<New Column ("Mean Lower Screen Limit", numeric, continuous, formula(column(dts1,3)[] - eval(kScreen) * ((:
+column(dts1,3)[] - column(dts1,4)[]) / 0.6745))	
+);
+
+dts1<<New Column ("Std Dev Upper Screen Limit", numeric, continuous, formula(column(dts1,6)[] + eval(kScreen)* ((:
+column(dts1,7)[] - column(dts1,6)[]) / 0.6745))	
+);
+
+dts1<<run formulas;
+/*  Resume here:  Need to see if I can calculate outliers more directly and set row states and skip dts1 and dtsj */
+// Join in screen limits to Lot Level data.
+dtsname = dts<<GetName;
+dtsJ= dts <<
+Join(
+	With(
+		Data Table(
+			dts1
+		)
+	),
+	Merge Same Name Columns,
+	By Matching Columns(eval(entity_name) = eval(entity_name)),
+	Drop multiples(0, 0),
+	Name("Include non-matches")(0, 0),
+	Output Table("Joined")
+);
+
+dtsJ<<SetName( Char(dtsname)||"1");
+
+// Identify Outliers.
+dtsJ<<delete column ("Match Flag");
+
+for each row(rowstate()=:rowstate data);
+
+dtsJ << New Column( "Outlier",
+	character,
+	nominal,
+	formula(
+		If(
+			Is Missing( kscreen ), "No",
+			Column( 5 )[Empty()] > :Mean Upper Screen Limit | Column( 5 )[Empty()] <
+			:Mean Lower Screen Limit | !Is Missing( Column( 6 )[Empty()] ) & Column( 6 )[Empty()
+			] > :Std Dev Upper Screen Limit | Excluded( Row State( Empty() ) ) == 1, "Yes",
+			"No"
+		)
+	)
+);
+dtsJ<<run formulas;
+
+// Exclude and marker Outliers, save row states.
+for each row(if(:Outlier[]=="Yes",row state()=combine states(
+color state(3), marker state(11) , excluded state(1)),);:rowstate data[]=rowstate());
+//dtsJ<<clear row states;
+
+colym = column(dtsJ, 5);
+colym<<set name ("Lot Mean of "||char(eval(YID)));
+colys = column(dtsJ, 6);
+colys<<set name ("Lot Std Dev of "||char(eval(YID)));
+
+// Calculate Levey Jennings Sigma for xbar chart
+ow = dtsJ << Oneway(Y( eval(colym) ),X( eval(entity_name) ),Name( "Means/Anova" )(1));
+LJ_sigma_m=report(ow)[outlinebox("Summary of Fit")][Numbercolbox(1)][3];
+ow << close window;
+
+colym_mat = colym<<get as matrix;
+colys_mat = colys<<get as matrix;
+exc_lot = column("Outlier")<<get values;
+exc_rows = outlier_fcn1(exc_lot);
+exc_lotID = column(dtsJ, eval(lotID))[exc_rows];//Remove?
+NLots_exc = nrows(exc_rows);
+
+mr_lm = mr_fcn(exc_rows, colym_mat);
+mr_ls = mr_fcn(exc_rows, colys_mat);
+mr_entity_lm = mr_entity_fcn(exc_rows,colym_mat);
+mr_entity_ls = mr_entity_fcn(exc_rows,colys_mat);
+
+Grand_Mean = mr_lm[1];
+GrandMean_s = mr_ls[1];
+
+// Calculate Levey Jennings Sigma for sigma chart
+If(!IsMissing(Grandmean_s),
+	ow = dtsJ << Oneway(Y( eval(colys) ),X( eval(entity_name) ),Name( "Means/Anova" )(1));
+	LJ_sigma_s=report(ow)[outlinebox("Summary of Fit")][Numbercolbox(1)][3];
+	ow << close window,
+	LJ_sigma_s = .; //else
+);
+
+GrandMdn_s = mr_ls[2];
+IdealMdn = mr_lm[2];
+If( Is Missing( IdealT ), //or cl_type>1 fix?
+	IdealT1 = Grand_Mean;
+	CL_text = "Center Line"
+,
+	IdealT1 = IdealT;
+	CL_text = "Target";
+);
+
+//here
+
+column(dtsJ,"Outlier")<< delete formula;
+
+/*Merge Outlier Info into raw data.
+GrpHolder1={YID, entity_name, LotID, TimeID };
+GrpList1=eval list(GrpHolder1);
+colToolIDRaw=column(dt,eval(entity_name));
+colToolIDSum=column(dtsj,eval(entity_name));
+ColLotIDRaw = column(dt, eval(LotID));
+ColLotIDSum = column(dtsj, eval(LotID));
+ColTimeIDRaw = column(dt, eval(TimeID));
+ColTimeIDSum = column(dtsj, eval(TimeID));
+*/
+
+/***  Create data table for entity summary plots   ***/;
+//////// Calc TTD
+
+entity_sigmamr = matrix(mr_entity_lm[0,2]);
+entity_3sigmamr = matrix(mr_entity_lm[0,3]);
+entity_sigmamr_mdn =  matrix(mr_entity_lm[0,4]);
+entity_3sigmamr_mdn =  matrix(mr_entity_lm[0,5]);
+entity_sigmamr_s = matrix(mr_entity_ls[0,2]);
+entity_3sigmamr_s =  matrix(mr_entity_ls[0,3]);
+entity_sigmamr_s_mdn =  matrix(mr_entity_ls[0,4]);
+entity_3sigmamr_s_mdn =  matrix(mr_entity_ls[0,5]);
+
+ent_means = matrix(mr_entity_lm[0,1]);
+ent_sigmas = matrix(mr_entity_ls[0,1]);
+dtsJs = new table("Entity Summary");
+dtsJs<< new column(entity_name,character, values(entity_list));
+dtsJs<< new column("Means of Lot Means by Entity", values(ent_means));
+dtsJs<< new column("Sigma MR of Lot Means by Entity", values(entity_sigmamr));
+dtsJs<< new column("Means of Lot Sigma by Entity", values(ent_sigmas));
+dtsJs<< new column("Sigma MR of Lot Sigmas by Entity", values(entity_sigmamr_s));
+wait(0);
+eval(hide_dts);
+
+NLots_Total = sum(entity_nlots); //# lots analyzed
+If(NLots_Total == nrows(dt), unitlevel = 1; sigma_process=., unitlevel=0);
+/***  TTD Calculation  ***/
+/////////////
+entity_gmean = mean(mr_entity_lm[0,1]);
+min_ent_lm = min(mr_entity_lm[0,1]); //minimum entity lot mean
+max_ent_lm = max(mr_entity_lm[0,1]); //maximum entity lot mean
+entity_gmean_s = mean(mr_entity_ls[0,1]); //mean entity lot sigma
+max_ent_lsd = max(mr_entity_ls[0,1]); //maximum entity lot sigma
+min_ent_lsd = min(mr_entity_ls[0,1]); //minimum entity lot sigma
+
+/***	Input dialog control for Online Limits and TTD	***/
+If(LimitType == 1, 
+	deltaMVal=0; DeltaMtj = 0; deltaSDVal=0; DeltaSDtj=0; UnMatchStat=0; OL_TTD = 0; OL_TTDs = 0;
+	If(OL_ck == 1,
+		Limits_Diag = Dialog(
+			Title( "Online Control Limits" ),
+			LineUp( 2, "Enter Online Control Limits for:", parmid ),
+			"",
+			VList(
+				lineup(7,
+					"Xbar Chart: ",
+					"LCL",
+					x_LCL = EditNumber(),
+					"CL",
+					x_CL = EditNumber(),
+					"UCL",
+					x_UCL = EditNumber(),
+					"S Chart: ",
+					" ",
+					" ",
+					" CL",
+					s_CL = EditNumber(),
+					"UCL",
+					s_UCL = EditNumber()
+				),
+				"",
+				HList( Button( "OK" ), Button( "Cancel" ) )
+			); //EndVList
+		); //EndLimitsDialog
+		ButtonLD = Limits_Diag["Button"]; //Unload dialog values directly
+		OL_LCL = Limits_Diag["x_LCL"];
+		OL_CL = Limits_Diag["x_CL"];
+		OL_UCL = Limits_Diag["x_UCL"];
+		OL_CLs = Limits_Diag["s_CL"];
+		OL_UCLs = Limits_Diag["s_UCL"];
+		if (buttonLD==-1, 
+			eval(close_dts);
+			throw(),
+		);
+	)//End If
+);
+if (LimitType==2, 
+	wait(0.1);
+	If(OL_ck == 0, 
+	dlUn=Dialog( 
+	Title("Tool-to-tool Delta Input"),
+	VList("Note:  Engineering limits with a tool-to-tool delta (TTD) are engineering and not statistical limits.",
+		"Only use on an exception basis with proper approval by engineering and platform management.",
+		" ",
+	"Select which charts to apply TTD.",
+	UnMatchStat=RadioButtons("X-bar only", "X-bar and Sigma")),
+	text Box(""), 
+	text Box("Enter Spec Limits for TTD Validation"), 
+	lineup(2,
+		text Box("LSL: "), LSL = edit number(),
+		text Box("USL: "), USL = edit number()
+	),
+	Button("OK"),
+	Button("Cancel")
+	);
+	buttonU = dlUn["Button"];
+	LSL = dlUn["LSL"];
+	USL = dlUn["USL"];
+	If(cl_type==2, LSL = .);
+	If(cl_type==3, USL = .);
+	
+	UnMatchStat = dlUn["UnMatchStat"];
+	toggle = -1;
+	trans=0;
+	
+	if (buttonU==-1, 
+		eval(close_dts);
+		throw(),
+	);
+	,//Else dialog for Online Limits and TTD
+	dlUn = Dialog(
+		Title( "Online Control Limits & Tool-to-tool Delta" ),
+		LineUp( 2, "Enter Online Control Limits for:", parmid ),
+		"",
+		VList(
+			lineup(9,
+				"Xbar Chart: ",
+				"LCL",
+				x_LCL = EditNumber(),
+				"CL",
+				x_CL = EditNumber(),
+				"UCL",
+				x_UCL = EditNumber(),
+				"TTD",
+				X_TTD = EditNumber(),
+				"S Chart: ",
+				"  ",
+				"  ",
+				"CL",
+				s_CL = EditNumber(),
+				"UCL",
+				s_UCL = EditNumber(),
+				"TTD",
+				S_TTD = EditNumber()
+			),
+			"",
+			"",
+			VList("Note:  Engineering limits with a tool-to-tool delta (TTD) are engineering and not statistical limits.",
+			"Only use on an exception basis with proper approval by engineering and platform management.",
+			" ",
+			"Select which charts to apply TTD.",
+			UnMatchStat=RadioButtons("X-bar only", "X-bar and Sigma")),
+			text Box(""), 
+			text Box("Enter Spec Limits for TTD Validation"), 
+			lineup(2,
+				text Box("LSL: "), LSL = edit number(),
+				text Box("USL: "), USL = edit number()
+			),
+			HList( Button( "OK" ), Button( "Cancel" ) )
+		); //EndVList
+	); //EndLimitsDialog
+
+	ButtonU = dlUn["Button"]; //Unload dialog values directly
+	OL_LCL = dlUn["x_LCL"];
+	OL_CL = dlUn["x_CL"];
+	OL_UCL = dlUn["x_UCL"];
+	OL_TTD = dlUn["X_TTD"];  //new line added for TTD
+	OL_TTDs = dlUn["S_TTD"];  //new line added for TTD
+	OL_CLs = dlUn["s_CL"];
+	OL_UCLs = dlUn["s_UCL"];
+	LSL = dlUn["LSL"];
+	USL = dlUn["USL"];
+	If(cl_type==2, LSL = .);
+	If(cl_type==3, USL = .);
+
+	UnMatchStat = dlUn["UnMatchStat"];
+	toggle = -1;
+	trans=0;
+
+	if (buttonU==-1, 
+		eval(close_dts);
+		throw(),
+	);
+	);
+	/***	Calculate Sigma TTD, Process Sigma, and Cpk Validation	***/
+	DeltaSDtj = max_ent_lsd - grandmean_s;  //Edit (max_ent_lsd - min_ent_lsd)/2
+
+	If(UnMatchStat==1, DeltaSDtj=0; OL_TTDs=0, DeltaSDVal = DeltaSDtj);
+	DeltaSDVAl = DeltaSDtj;
+	If(unitlevel, 
+		sigma_process = mr_entity_lm[4],
+		sigma_process = grandmean_s + DeltaSDVal
+	);
+
+	sigma_process_ud = sigma_process;
+	sigma_process_mat = sigma_process|/sigma_process;
+	ent_meantemp = ent_means;
+	max_ttd_spec = (USL-4*sigma_process) - IdealT1;
+	min_ttd_spec = IdealT1 - (LSL+4*sigma_process);
+	min_max_ttd = min(max_ttd_spec, min_ttd_spec);
+	If(IsMissing(min_max_ttd)|min_max_ttd<0, ttd_to_spec = [.], ttd_to_spec = matrix(min(max_ttd_spec, min_ttd_spec)));
+	ttd_to_spec_mat = ttd_to_spec|/ttd_to_spec;
+	excl_ent_m = loc(ent_means>(IdealT1 + max_ttd_spec)|ent_means<(IdealT1 - min_ttd_spec));
+	
+	/***	Calculate XBar TTD	***/
+	ent_meantemp[excl_ent_m] = .;
+	If(nrows(loc(ent_meantemp))>0,
+		min_ent_lm = min(ent_meantemp); //valid minimum entity lot mean 
+		max_ent_lm = max(ent_meantemp); //valid maximum entity lot mean
+	);
+	If( cl_type == 1,
+		DeltaMtj = Max( Abs( IdealT1 - min_ent_lm ), Abs( IdealT1 - max_ent_lm ) ),
+		If( cl_type == 2,
+			DeltaMtj = max_ent_lm - IdealT1,
+			DeltaMtj = IdealT1 - min_ent_lm
+		)
+	);
+	deltaMVal = DeltaMtj;
+	Cpk_atTTD = min(
+		(USL-(DeltaMVal + IdealT1))/(3*sigma_process), 
+		(IdealT1 - DeltaMVal - LSL)/(3*sigma_process)
+	);
+	Cpk_atTTD_mat = Cpk_atTTD|/Cpk_atTTD;
+	cpk_msg_list = {"Capable. TTD OK", "Flag: Not capable. TTD too large", "Flag: Not capable. Process sigma too large", ""};
+	//look for cpk_msg = cpk_msg_list[4] and add condition for missing cpk
+	If(cpk_atTTD_mat[2]>=1.33,
+		cpk_msg = cpk_msg_list[1],
+		IsMissing(sigma_process)|IsMissing(cpk_atTTD_mat[2]),
+		cpk_msg = cpk_msg_list[4],
+		IsMissing(ttd_to_spec_mat[2]),
+		cpk_msg = cpk_msg_list[3],
+		cpk_msg = cpk_msg_list[2]
+	);  //Xin:When cpk_at_TTD_mat is missing, should output [4]
+	
+	//Else If LimitType!=2
+	,
+	deltaMVal=0; DeltaMtj = 0; deltaSDVal=0; DeltaSDtj=0; UnMatchStat=0;
+);
+
+//Calc limits.
+NLotsA = NLots_Total - NLots_exc;
+
+OAUCLM = IdealT1 + deltaMVal + 3*mr_lm[3];
+OALCLM = IdealT1 - deltaMVal - 3*mr_lm[3];
+OAUCLSD = grandmean_s + deltaSDVal + 3*mr_ls[3];
+
+YsisName=munger(munger(char(eval(YID)),1,"{", ""), 1, "}", "");
+column(dtsJ, 5)<<set name ("Lot Mean of "||YsisName);
+colLot=column(dtsJ, 3);
+colTool=column(dtsJ, 1);
+column(dtsJ, 6)<<set name ("Lot Sigma of "||YsisName);
+
+/*** OOC Count statistically suggested limits  ***/
+lot_n_s = NLots_Total-nrows(loc(ismissing(colys_mat)));
+outlier_mat = column(dtsJ,"Outlier")<<getasmatrix;
+ooc_rows = [];
+
+If(cl_type == 1,
+	ooc_rows = loc(colym_mat>OAUCLM | colym_mat<OALCLM),
+	if(cl_type == 2, OALCLM = .; ooc_rows = loc(colym_mat>OAUCLM), OAUCLM =.; ooc_rows = loc(colym_mat<OALCLM))//end if
+);//end if
+ooc_rows_OL = [];
+If(cl_type == 1 & OL_ck ==1, ooc_rows_OL = loc(colym_mat>OL_UCL | colym_mat<OL_LCL));
+if(cl_type == 2 & OL_ck==1, OL_LCL = .; ooc_rows_OL = loc(colym_mat>OL_UCL));
+if(cl_type == 3 & OL_ck==1, OL_UCL =.; ooc_rows_OL = loc(colym_mat<OL_LCL));
+
+ooc_n=nrows(ooc_rows);
+
+
+ooc_rows_s = [];
+ooc_rows_s = loc(colys_mat>OAUCLSD);
+ooc_n_s = nrows(ooc_rows_s);
+
+ooc_rows_s_OL = [];
+
+/***	Online Calculations	***/
+ref_list = {"Online", "Suggested", "User Defined"};
+OL_sigma = .;
+OL_sigma_s = .;
+clsr_OL = .;
+clsr_OL_lj = .; // new line levey jennings
+clsr_OL_s = .;
+clsr_OL_s_lj = .; // new line levey jennings
+oci_OL = .; 
+oci_OL_s = .;
+If(OL_ck==1,
+	If(ismissing(OL_LCL),
+		IF(!ismissing(OL_UCL), //1-sided Upper Limit
+			oci_OL = (Grand_Mean - OL_CL) / ((OL_UCL - OL_CL)/3);
+			OL_sigma = (OL_UCL - (OL_CL + OL_TTD))/3;
+			IF(LimitType == 1,
+				clsr_OL = (OL_UCL - Grand_Mean )/mr_lm[3];
+				clsr_OL_lj = (OL_UCL - Grand_Mean )/LJ_sigma_m; // new line levey jennings
+				,  //1-sided Statistical Limit
+				clsr_OL = 3*OL_sigma/mr_lm[3];  //TTD CLSR
+				clsr_OL_lj = 3*OL_sigma/LJ_sigma_m; // new line levey jennings
+			);
+		)
+		,//else OL_LCL not missing
+		IF(ismissing(OL_UCL),  //1-sided Lower Limit
+			oci_OL = (Grand_Mean - OL_CL) / ((OL_CL - OL_LCL)/3);
+			OL_sigma = (OL_CL - OL_LCL - OL_TTD)/3;
+			IF(LimitType == 1,
+				clsr_OL = (Grand_Mean - OL_LCL)/mr_lm[3];
+				clsr_OL_lj = (Grand_Mean - OL_LCL)/LJ_sigma_m; // new line levey jennings
+				,  //1-sided Statistical Limit
+				clsr_OL = 3*OL_sigma/mr_lm[3];  //TTD CLSR
+				clsr_OL_lj = 3*OL_sigma/LJ_sigma_m; // new line levey jennings
+			);
+			, //Else 2 sided Limits
+			oci_OL = (Grand_Mean - OL_CL) / ((OL_UCL - OL_LCL)/6);
+			OL_sigma = (OL_UCL - OL_LCL - 2*OL_TTD)/6;
+			clsr_OL = 3*OL_sigma/mr_lm[3];
+			clsr_OL_lj = 3 * OL_sigma / LJ_sigma_m; // new line levey jennings
+		)
+	);
+	If(ismissing(OL_UCLs)|Ismissing(OL_CLs), 
+		OL_sigma_s = .; clsr_OL_s = .; clsr_OL_s_lj = .; //new line levey jennings
+		,//else
+		OL_sigma_s = (OL_UCLs - (OL_CLs + OL_TTDs))/3;
+        oci_OL_s = (GrandMean_s - OL_CLs) / ((OL_UCLs - OL_CLs)/3);
+		If(unmatchstat == 2, //engineering limits with TTD on S
+			clsr_OL_s = 3*OL_sigma_s/mr_ls[3];
+			clsr_OL_s_lj = 3*OL_sigma_s/LJ_sigma_s; // new line levey jennings
+			, // CLSR with TTD
+            clsr_OL_s = (OL_UCLs - Grandmean_s)/mr_ls[3];
+            clsr_OL_s_lj = (OL_UCLs - Grandmean_s)/LJ_sigma_s; 
+            // CLSR for Statistical
+		);
+	);
+	//clsr_OL = 3*OL_sigma/mr_lm[3];
+	//clsr_OL_s = 3*OL_sigma_s/mr_ls[3];
+	//oci_OL = (Grand_Mean - OL_CL)/(OL_sigma+OL_TTD/3);//oci_OL = (Grand_Mean - OL_CL)/OL_sigma;
+	//oci_OL_s = (Grandmean_s - OL_CLs)/(OL_sigma_s+OL_TTDs/3);//oci_OL_s = (Grandmean_s - OL_CLs)/OL_sigma_s;
+	ooc_n_OL = nrows(ooc_rows_OL);
+	ooc_p_OL = 100*ooc_n_OL/NLots_Total;
+	ooc_rows_s_OL = loc(colys_mat>OL_UCLs);
+	ooc_n_OL_s = nrows(ooc_rows_s_OL);
+	ooc_p_OL_s = 100*ooc_n_OL_s/lot_n_s
+	,//Else OL_ck==0
+	ooc_n_OL = .;
+	ooc_p_OL =.;
+	ooc_n_OL_s = .;
+	ooc_p_OL_s = .;
+	OL_CL = .;
+	OL_TTD = 0;
+	OL_TTDs = 0;
+	OL_LCL = .;
+	OL_UCL = .;
+	OL_sigma = .;
+	OL_sigma_s = .;
+	clsr_OL = .;
+	clsr_OL_lj = .; // new line levey jennings
+	clsr_OL_s = .;
+	clsr_OL_s_lj = .; // new line levey jennings
+	OL_CLs = .;
+	OL_UCLs = .;
+	oci_OL = .;
+	oci_OL_s = .;
+);
+
+
+ooc_p = 100*ooc_n/NLots_Total;
+ooc_p_s = 100*ooc_n_s/lot_n_s;
+
+If( deltaMVal==0, PClassM = " (Statistical)", PClassM = " (Engineering)" );
+If( deltaSDVal==0, PClassS = " (Statistical)", PClassS = " (Engineering)" );
+
+///////////////Create Mean and Sigma Report.
+// Create Mean report.
+ooc_rows_old = ooc_rows;
+ooc_n_ud = .;
+ooc_p_ud = .;
+oci_ud = .;
+clsr_ud = .;
+clsr_sug = 3*mr_lm[3]/mr_lm[3];
+
+clsr_ud_lj = .; // new line levey jennings
+clsr_sug_lj = 3 * mr_lm[3]/LJ_sigma_m; // new line levey jennings
+
+
+If(CL_Type == 1,
+	oci_sug = (Grand_mean - IdealT1)/ ((OAUCLM - OALCLM)/6),
+	If(CL_Type == 2,
+		oci_sug = (Grand_mean - IdealT1)/ ((OAUCLM - IdealT1)/3);
+		If(LimitType == 1, clsr_sug = (OAUCLM - Grand_Mean)/ mr_lm[3]) ,
+		oci_sug = (Grand_mean - IdealT1)/ ((IdealT1 - OALCLM)/3);
+		If(LimitType== 1, clsr_sug = (Grand_Mean-OALCLM)/ mr_lm[3])
+	)
+);
+//oci_sug = (Grand_mean - IdealT1)/ (mr_lm[3]+ DeltaMVal/3);//oci_sug = (Grand_mean - IdealT1)/ mr_lm[3];
+//clsr_sug = 3*mr_lm[3]/mr_lm[3];
+OOC_status = {}; OCI_status = {}; CLSR_status = {}; TTD_status = {};
+CLSR_status_lj = {}; //new line levey jennings
+insertinto(OOC_status, ooc_msg_fcn(ooc_p_OL),1);
+insertinto(OOC_status, ooc_msg_fcn(ooc_p),2);
+insertinto(OOC_status, ooc_msg_fcn(ooc_p_ud),3);
+insertinto(OCI_status, oci_msg_fcn(oci_OL),1);
+insertinto(OCI_status, oci_msg_fcn(oci_sug),2);
+insertinto(OCI_status, oci_msg_fcn(oci_ud),3);
+insertinto(CLSR_status, clsr_msg_fcn(clsr_OL),1);
+insertinto(CLSR_status, clsr_msg_fcn(clsr_sug),2);
+insertinto(CLSR_status, clsr_msg_fcn(clsr_ud),3);
+insertinto(CLSR_status_lj, clsr_msg_fcn(clsr_OL_lj),1); // new line levey jennings
+insertinto(CLSR_status_lj, clsr_msg_fcn(clsr_sug_lj),2); // new line levey jennings
+insertinto(CLSR_status_lj, clsr_msg_fcn(clsr_ud_lj),3); // new line levey jennings
+insertinto(TTD_status, ttd_msg_fcn(OL_TTD,DeltaMval),1);
+insertinto(TTD_status, ttd_msg_fcn(DeltaMval,DeltaMval),2);
+insertinto(TTD_status, ttd_msg_fcn(DeltaMval,DeltaMval),3);
+
+MeanOBOL = expr(
+	MeanOBOL1 = outlinebox("X-bar Control Limit Summary for "|| YsisName|| PClassM,
+		HListBox(Align(center),
+		TableBox(
+			StringColBox("Reference", ref_list),
+			NumberColBox("# Total Lots",matrix({NLots_Total, NLots_Total, NLots_Total})),
+			NumberColBox("# Lots Excluded",matrix({NLots_exc, NLots_exc, NLots_exc})),
+			u_d_m=NumberColBox("Center Line", matrix({OL_CL, IdealT1, user_defined_center_line}),<<SetFormat(6,dplace)),
+			if(LimitType==2, u_d_deltaM = NumberColBox("TTD", matrix({OL_TTD, DeltaMval, DeltaMtj}),<<SetFormat(6,dplace))),
+			u_d_s=NumberColBox("Sigma Online", matrix({OL_sigma, mr_lm[3], sug_sigma}),<<SetFormat(6,dplace)),
+			u_d_lcl=NumberColBox("LCL", matrix({OL_LCL, OALCLM, user_specified_lcl}),<<SetFormat(6,dplace)),
+			u_d_ucl=NumberColBox("UCL", matrix({OL_UCL, OAUCLM, user_specified_ucl}),<<SetFormat(6,dplace)),
+			u_d_oocn=NumberColBox("# OOC", matrix({ooc_n_OL, ooc_n, ooc_n_ud}),<<SetFormat(6,0)),
+			u_d_oocp=NumberColBox("%OOC", matrix({ooc_p_OL, ooc_p, ooc_p_ud}),<<SetFormat(6,dplace)),
+			NumberColBox("Mean Offline", matrix({Grand_Mean, Grand_Mean, Grand_Mean}),<<SetFormat(6,dplace)),
+			NumberColBox("Sigma Offline", matrix({mr_lm[3], mr_lm[3], mr_lm[3]}),<<SetFormat(6,dplace)),
+			NumberColBox("Sigma Offline (LJ)", matrix({LJ_sigma_m, LJ_sigma_m, LJ_sigma_m}),<<SetFormat(6,dplace)), // new line levey jennings
+			u_d_oci=NumberColBox("OCI", matrix({oci_OL, oci_sug, oci_ud}),<<SetFormat(6,dplace)),
+			u_d_clsr=NumberColBox("CLSR", matrix({clsr_OL, clsr_sug, clsr_ud}),<<SetFormat(6,dplace)),
+			u_d_clsr_lj=NumberColBox("CLSR (LJ)", matrix({clsr_OL_lj, clsr_sug_lj, clsr_ud_lj}),<<SetFormat(6,dplace)), // new line levey jennings
+			if(LimitType==2, NumberColBox("TTD Offline", matrix({DeltaMval, DeltaMval, DeltaMval}),<<SetFormat(6,dplace))),
+			if(LimitType==2, u_d_deltaRatio = NumberColBox("TTD Ratio", matrix({OL_TTD/DeltaMval, DeltaMval/DeltaMval, DeltaMtj/DeltaMval}),<<SetFormat(6,dplace))),
+			<<TableStyle("Plain")
+			)
+			,
+			VlistBox(TextBox("     ")),
+			VListBox(TextBox(""),TextBox("OOC Status", <<setfont style("bold")), TextBox(OOC_Status[1]), TextBox(OOC_Status[2]), u_d_oocp_status=TextBox(OOC_Status[3])),
+			VlistBox(TextBox("     ")),
+			VListBox(TextBox(""),TextBox("OCI Status", <<setfont style("bold")), TextBox(OCI_Status[1]), TextBox(OCI_Status[2]), u_d_oci_status=TextBox(OCI_Status[3])),
+			VlistBox(TextBox("     ")),
+			VListBox(TextBox(""),TextBox("CLSR Status", <<setfont style("bold")), TextBox(CLSR_Status[1]), TextBox(CLSR_Status[2]), u_d_clsr_status=TextBox(CLSR_Status[3])),
+			VlistBox(TextBox("     ")),
+			VListBox(TextBox(""),TextBox("CLSR(LJ) Status", <<setfont style("bold")), TextBox(CLSR_Status_lj[1]), TextBox(CLSR_Status_lj[2]), u_d_clsr_status_lj=TextBox(CLSR_Status_lj[3])), // new line levey jennings
+			VlistBox(TextBox("     ")), // new line levey jennings
+			If(LimitType==2,VListBox(TextBox(""),TextBox("TTD Status", <<setfont style("bold")), TextBox(TTD_Status[1]), TextBox(TTD_Status[2]), u_d_ttd_status=TextBox(TTD_Status[3]))),
+		)
+	)
+);
+
+reset_expr = expr(
+	user_defined_center_line = IdealT1;
+	user_defined_3_sigma_width = 3*mr_lm[3];
+	user_defined_ttd = DeltaMval;
+);
+
+/***  User-Specified Control Limits  ***/
+user_defined_center_line = IdealT1;
+user_defined_center_line2 = user_defined_center_line;
+ent_deltas = ent_means - IdealT1;
+ent_deltas2 = ent_means - user_defined_center_line;
+//rank_deltas = rank(abs(ent_deltas));
+
+sug_sigma = mr_lm[3];
+sug_sigma2 = sug_sigma;
+user_defined_3_sigma_width = 3*sug_sigma;
+user_defined_ttd = DeltaMval;
+ttd_mat = DeltaMval|/user_defined_ttd;
+
+If(cl_type==1,
+	user_specified_ucl = OAUCLM;
+	user_specified_lcl = OALCLM,
+	if(cl_type==2,
+		user_specified_ucl = OAUCLM;
+		user_specified_lcl = .,
+		user_specified_ucl = .;
+		user_specified_lcl = OALCLM
+	)
+);
+user_specified_ucl2 = user_specified_ucl;
+user_specified_lcl2 = user_specified_lcl;
+
+// Create box plot if n entity = 1 //
+n1_boxplot = expr(
+	If(entity_n == 1,
+		dt<<Oneway(
+		Y( eval(YID) ),
+		X( eval(LotID) ),
+		Means and Std Dev( 0 ),
+		Box Plots( 1 ),
+		Mean Lines( 1 ),
+		X Axis Proportional( 0 ),
+		Points Jittered( 1 ),
+		SendToReport(
+			Dispatch( {}, "1", ScaleBox, {Show Major Grid( 1 )} ),
+			Dispatch(
+				{},
+				"Oneway Plot",
+				FrameBox,
+				{Frame Size( 1024, 296 ),
+				Row Legend(
+				eval(entity_name),
+				Color( 1 ),
+				Color Theme( "JMP Default" ),
+				Marker( 0 ),
+				Marker Theme( "" ),
+				Continuous Scale( 0 ),
+				Reverse Scale( 0 ),
+				Excluded Rows( 0 )
+			)
+				}
+			)
+		)
+	),
+	If(NLots_Total> 300,
+		temp_list = {entity_name},
+		temp_list = {entity_name, LotID}
+	);
+	dt<<Variability Chart(
+	Y( eval(YID) ),
+	X( evallist(temp_list) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	Show Range Bars( 0 ),
+	Show Cell Means( 1 ),
+	Connect Cell Means( 1 ),
+	Show Grand Mean( 1 ),
+	Std Dev Chart( 0 ),
+	AIAG Labels( 0 ),
+	Show Box Plots( 1 ),
+	Show Box Plot Whisker Bars( 0 ),
+	SendToReport(
+		Dispatch(
+			{},
+			"2",
+			ScaleBox,
+			{Show Major Grid( 1 )}
+		),
+		Dispatch(
+			{},
+			"Variability Chart",
+			FrameBox, Row Legend(
+				eval(entity_name),
+				Color( 1 ),
+				Color Theme( "JMP Default" ),
+				Marker( 1 ),
+				Marker Theme( "Standard" ),
+				Continuous Scale( 0 ),
+				Reverse Scale( 0 ),
+				Excluded Rows( 0 )
+			)
+		),
+	)
+	)
+	)
+);
+
+MeanVcc = V List Box(
+	dtsJ << Control Chart(
+		Sample Label( colLot ),
+		Phase( colTool ),
+		Group Size( 1 ),
+		KSigma( 3 ),
+		Chart Col( colYm, Individual Measurement( Test 1( 0 ) ) ),
+		SendToReport(
+			Dispatch(
+				{},
+				"IR Chart of IM",
+				FrameBox,
+				{DispatchSeg( CustomStreamSeg( 2 ), {Line Color( "Black" )} )}
+			)
+		)
+	)
+	,
+	V List Box(
+		align( Left ),
+		panelbox("Change Center Line",
+		HlistBox(
+			VListBox(
+				cl_sb=Slider Box(
+					IdealT1 - DeltaMval - 3 * sug_sigma,
+					IdealT1 + DeltaMval + 3 * sug_sigma,
+					user_defined_center_line,
+					update_xbar_chart
+				),
+				Global Box( user_defined_center_line )
+				)
+				,
+				gMean_table = outlinebox("Reference Estimates for Center Line",
+				TableBox(
+				numbercolbox("Grand Mean", matrix(Grand_Mean),<<SetFormat(6,dplace)),
+				numbercolbox("Grand Median", matrix(IdealMdn),<<SetFormat(6,dplace)),
+				numbercolbox("Grand Entity Mean", matrix(entity_gmean),<<SetFormat(6,dplace))
+				)
+			)
+		)
+		)
+		,
+		panelbox("Change Control Limit Width",
+		HlistBox(
+			VlistBox(
+				sigma_sb=Slider Box(
+					0.00000000001,
+					9 * mr_lm[3],
+					user_defined_3_sigma_width,
+					update_xbar_chart
+				),
+				Global Box( user_defined_3_sigma_width )
+			),
+				gSigma_table = outlinebox("Reference Estimates for 3 Sigma Width",
+				TableBox(
+				numbercolbox("3*Pooled Sigma (MR)", matrix(3*mr_lm[3]),<<SetFormat(6,dplace)),
+				numbercolbox("3*Pooled Sigma (Median MR)", matrix(3*mr_lm[4]),<<SetFormat(6,dplace)),
+				numbercolbox("3*Pooled Sigma (Levey Jennings)", matrix(3*LJ_sigma_m),<<SetFormat(6,dplace))
+				)
+				)
+		)
+		),
+		If(
+			UnMatchStat >= 1,
+			Panel Box( "Change TTD: Click TTD for summarized data if summarized data used",
+			H List Box(
+			    
+				V List Box(
+				    H list box(
+				    Button Box("TTD for summarized data", ttd_expr), //add a button to calculate TTD
+				    //Button Box("TTD for raw data", spec_table<< set open(1)), //add a button for raw data
+				    ),
+					ttd_sb = Slider Box( 0, Max( Abs( ent_deltas ) ), user_defined_ttd, update_xbar_chart ),
+					Global Box( user_defined_ttd ),
+					
+				),
+				spec_table = Outline Box( "Cpk Validation of TTD if raw data is used",
+					V List Box(
+						show_bb = Button Box( “Show incapable region”,
+							toggle = toggle * -1;
+							If( toggle == 1,
+								trans = 0.2;
+								show_bb << set button name( "Hide incapable region" );
+							,
+								trans = 0;
+								show_bb << set button name( "Show incapable region" );
+							);
+						),
+						Table Box(
+							Number Col Box( "LSL", Matrix( LSL ) ),
+							Number Col Box( "USL", Matrix( USL ) )
+						),
+						H List Box(
+							Table Box(
+								String Col Box( "Configuration", {"Suggested", "User Defined"} ),
+								ttd_mat_update = Number Col Box( "TTD", ttd_mat, <<SetFormat( 6, dplace ) ),
+								ud_sigma_process = Number Col Box( "Process Sigma from S chart",
+									sigma_process_mat,
+									<<SetFormat( 6, dplace )
+								),
+								cpk_atTTD_update = Number Col Box(
+									"Cpk at Centerline +/- TTD and process sigma",
+									cpk_atTTD_mat,
+									<<SetFormat( 6, dplace )
+								),
+								max_ttd_update = Number Col Box( "Max TTD to meet Cpk requirement",
+									ttd_to_spec_mat,
+									<<SetFormat( 6, dplace )
+								)
+							),
+							Spacer Box( size( 10, 5 ) ),
+							V List Box(
+								Text Box( "" ),
+								Text Box( "Cpk Status", <<Set Font Style( "Bold" ) ),
+								If(
+									cpk_atTTD_mat[1] >= 1.33, Text Box( cpk_msg_list[1] ),
+									IsMissing(sigma_process)|IsMissing(cpk_atTTD_mat[2]), Text Box(cpk_msg_list[4]),  //if cpk value missing, output blank
+									IsMissing( ttd_to_spec_mat[1] ), Text Box( cpk_msg_list[3] ),
+									Text Box( cpk_msg_list[2] )
+								),
+								ud_cpk_msg = Text Box( cpk_msg ),
+
+							)
+						)
+					)
+				); //spec_table outline box
+				//spec_table<<set open(0),  //collape by default
+			 )
+			)
+		)
+		,
+		buttonbox("Reset to Suggested Limits", reset_expr),
+		
+	)
+);
+//gMean_table<<close;
+//gSigma_table<<close;
+If(UnMatchStat >= 1, /*spec_table<<close;*/ ttd_sb<<set width(500));
+IF(OL_ck == 1, 
+	MeanVcc[axisbox(1)]<<Add Ref Line( OL_CL, Solid, "Medium Dark Green", "Online CL");
+	If(LimitType==2,
+		MeanVcc[axisbox(1)]<<Add Ref Line( OL_CL+OL_TTD, Dotted, "Medium Dark Green", "Online CL+TTD");
+		MeanVcc[axisbox(1)]<<Add Ref Line( OL_CL-OL_TTD, Dotted, "Medium Dark Green", "Online CL-TTD")
+	)
+);
+MeanVcc[axisbox(1)]<<Add Ref Line( IdealT1, Solid, "Medium Dark Red", CL_text)
+	<<Add Ref Line( OAUCLM, Dashed, "Medium Dark Red", "Suggested UCL")
+	<<Add Ref Line( OALCLM, Dashed, "Medium Dark Red", "Suggested LCL")
+	<<Show Major Grid( 0 );
+
+cl_sb<<set width(500);
+sigma_sb<<set width(500);
+
+
+//Rearrange and append items to Phase Limits table box (also for S)
+temp_n=entity_n+1;
+entity_lmean = [];
+for(i=1, i<=entity_n, i++,
+	temp1 = meanVCC[1,table box(1),numbercolbox(temp_n)]<<get;
+	entity_lmean = entity_lmean|/temp1;
+	meanVCC[1,table box(1),numbercolbox(2*temp_n-1)] << delete;
+	meanVCC[1,table box(1),numbercolbox(temp_n)] << delete;
+	meanVCC[1,table box(1),numbercolbox(1)] << delete;
+	temp_n--
+);
+meanVCC[1,table box(1)]<<append(numbercolbox("Mean", entity_lmean));
+meanVCC[1,table box(1)]<<append(numbercolbox("Sigma (MR)", entity_sigmamr));
+meanVCC[1,table box(1)]<<append(numbercolbox("3*Sigma (MR)", entity_3sigmamr));
+meanVCC[1,table box(1)]<<append(numbercolbox("LCL", entity_lmean - entity_3sigmamr));
+meanVCC[1,table box(1)]<<append(numbercolbox("UCL", entity_lmean + entity_3sigmamr));
+if(limittype == 2, meanVCC[1,table box(1)]<<append(numbercolbox("Delta to Suggested Centerline", ent_deltas));
+	meanVCC[1,table box(1)]<<append(numbercolbox("Delta to User Defined Centerline", ent_deltas2));
+	delta_to_cl = meanVCC[1,table box(1), numbercolbox("Delta to User Defined Centerline")];
+);
+meanVCC[1,table box(1)]<<append(numbercolbox("Sigma (Median MR)", entity_sigmamr_mdn));
+meanVCC[1,table box(1)]<<append(numbercolbox("3*Sigma (Median MR)", entity_3sigmamr_mdn));
+meanVCC[1,table box(1)]<<append(numbercolbox("LCL (Median MR)", entity_lmean - entity_3sigmamr_mdn));
+meanVCC[1,table box(1)]<<append(numbercolbox("UCL (Median MR)", entity_lmean + entity_3sigmamr_mdn));
+
+
+MeanVcc[Framebox(1)] << frame size(517, 296);
+
+update_xbar_chart = expr(
+	deltaMtj = user_defined_ttd;
+    if(user_defined_center_line == user_defined_center_line2,
+			sug_sigma = user_defined_3_sigma_width / 3,
+			If(LimitType==2,
+				If(cl_type == 1, deltaMtj = max(Abs(user_defined_center_line - min_ent_lm), Abs(user_defined_center_line - max_ent_lm)),
+					If(cl_type == 2, deltaMtj = max(max_ent_lm - user_defined_center_line,0),
+						deltaMtj = max(user_defined_center_line - min_ent_lm,0)
+					)
+				);
+				ent_deltas2 = ent_means - user_defined_center_line;
+			)
+	);
+	if(cl_type==1, //cl_type==1 is 2-sided limits
+		user_specified_ucl = user_defined_center_line + DeltaMtj + 3 * sug_sigma;
+		user_specified_lcl = user_defined_center_line - DeltaMtj - 3 * sug_sigma;
+		clsr_ud = ((user_specified_ucl-user_specified_lcl)/2 - DeltaMtj)/sug_sigma2;
+		clsr_ud_lj = ((user_specified_ucl-user_specified_lcl)/2 - DeltaMtj)/LJ_sigma_m,//else // new line levey jennings
+		If(cl_type==2, //cl_type==2 is 1-sided upper
+			user_specified_ucl = user_defined_center_line + DeltaMtj + 3 * sug_sigma;
+			user_specified_lcl = .;
+			If(LimitType==1, 
+				clsr_ud = (user_specified_ucl-(Grand_Mean))/sug_sigma2; //Statistical, 1-sided upper
+				clsr_ud_lj = (user_specified_ucl-(Grand_Mean))/LJ_sigma_m, //else // new line levey jennings
+				clsr_ud = (user_specified_ucl-(user_defined_center_line + DeltaMtj))/sug_sigma2;
+				clsr_ud_lj = (user_specified_ucl-(user_defined_center_line + DeltaMtj))/LJ_sigma_m // new line levey jennings
+			),//else 1-sided lower
+			user_specified_ucl = .;
+			user_specified_lcl = user_defined_center_line - DeltaMtj - 3 * sug_sigma;
+			If(LimitType==1,
+				clsr_ud = ((Grand_Mean)-user_specified_lcl)/sug_sigma2;
+				clsr_ud_lj = ((Grand_Mean)-user_specified_lcl)/LJ_sigma_m, // new line levey jennings
+				clsr_ud = ((user_defined_center_line - DeltaMtj)-user_specified_lcl)/sug_sigma2;
+				clsr_ud_lj = ((user_defined_center_line - DeltaMtj)-user_specified_lcl)/LJ_sigma_m; // new line levey jennings
+			)
+		)
+	);
+	user_defined_center_line2 = user_defined_center_line;
+    user_specified_ucl2 = user_specified_ucl;
+	user_specified_lcl2 = user_specified_lcl;
+	dtsJ<<select all rows<<markers(0)<<colors(0)<<clear select;
+	ooc_rows = loc(colym_mat>user_specified_ucl | colym_mat<user_specified_lcl);
+	ooc_n_ud = nrows(ooc_rows);
+	dtsJ<<select rows(ooc_rows)<<markers(11)<<colors(3)<<clear select;
+	dtsJ<<select rows(exc_rows)<<colors(1)<<clear select;
+	user_defined_ttd = DeltaMtj;
+	ttd_mat[2] = user_defined_ttd;
+	ooc_rows_old = ooc_rows;
+	ooc_p_ud = 100*ooc_n_ud/NLots_Total;
+	If(CL_Type == 1,
+		oci_ud = (Grand_mean - user_defined_center_line)/ ((user_specified_ucl - user_specified_lcl)/6),
+		If(CL_Type == 2,
+			oci_ud = (Grand_mean - user_defined_center_line)/ ((user_specified_ucl - user_defined_center_line)/3),
+			oci_ud = (Grand_mean - user_defined_center_line)/ ((user_defined_center_line - user_specified_lcl)/3)
+		)
+	);
+	//oci_ud=(Grand_mean - user_defined_center_line)/(sug_sigma+user_defined_ttd/3);//oci_ud=(Grand_mean - user_defined_center_line)/sug_sigma;
+	u_d_m<<set values(matrix({OL_CL, IdealT1, user_defined_center_line}));
+	if(LimitType==2, 
+		u_d_deltaM<<set values(matrix({OL_TTD, DeltaMval, DeltaMtj}));
+		u_d_deltaRatio<<set values(matrix({OL_TTD/DeltaMval, DeltaMval/DeltaMval, user_defined_ttd/DeltaMval}));
+		delta_to_cl<<set Values(ent_deltas2); 
+		ttd_mat_update<<set values(ttd_mat);
+		max_ttd_spec = (USL-4*sigma_process_ud) - user_defined_center_line;
+		min_ttd_spec = user_defined_center_line - (LSL+4*sigma_process_ud);
+		//ttd_to_spec_mat[2] = min(max_ttd_spec, min_ttd_spec);
+		If(min(max_ttd_spec, min_ttd_spec)<0, ttd_to_spec_mat[2] = ., ttd_to_spec_mat[2] = min(max_ttd_spec, min_ttd_spec));
+		max_ttd_update<<set values(ttd_to_spec_mat);
+		Cpk_atTTD_mat[2] = min(
+			(USL-(user_defined_ttd + user_defined_center_line))/(3*sigma_process_ud), 
+			(user_defined_center_line - user_defined_ttd - LSL)/(3*sigma_process_ud) 
+		);
+		Cpk_atTTD_update << set values(Cpk_atTTD_mat);
+		If(cpk_atTTD_mat[2]>=1.33,
+			cpk_msg = cpk_msg_list[1],
+			IsMissing(sigma_process_ud)|IsMissing(cpk_atTTD_mat[2]),
+			cpk_msg = cpk_msg_list[4],
+			IsMissing(ttd_to_spec_mat[2]),
+			cpk_msg = cpk_msg_list[3],
+			cpk_msg = cpk_msg_list[2]
+		);
+		ud_cpk_msg<<set text(cpk_msg);
+	);
+	OOC_status[3] = ooc_msg_fcn(ooc_p_ud);
+	OCI_status[3] = oci_msg_fcn(oci_ud);
+	CLSR_status[3] = clsr_msg_fcn(clsr_ud);
+	CLSR_status_lj[3] = clsr_msg_fcn(clsr_ud_lj); // new line levey jennings
+	TTD_status[3] = ttd_msg_fcn(user_defined_ttd,DeltaMval);
+	u_d_s<<set values(matrix({OL_sigma, mr_lm[3], sug_sigma}));
+	u_d_ucl<<set values(matrix({OL_UCL, OAUCLM, user_specified_ucl}));
+	u_d_lcl<<set values(matrix({OL_LCL, OALCLM, user_specified_lcl}));
+	u_d_oocn<<set values(matrix({ooc_n_OL, ooc_n, ooc_n_ud}));
+	u_d_oocp<<set values(matrix({ooc_p_OL, ooc_p, ooc_p_ud}));
+	u_d_clsr<<set Values(matrix({clsr_OL, clsr_sug, clsr_ud}));
+	u_d_clsr_lj<<set Values(matrix({clsr_OL_lj, clsr_sug_lj, clsr_ud_lj})); // new line levey jennings
+	u_d_oci<<set Values(matrix({oci_OL, oci_sug, oci_ud}));
+	u_d_oocp_status<<set text (OOC_status[3]);
+	u_d_oci_status<<set text(OCI_status[3]);
+	u_d_clsr_status<<set text(CLSR_status[3]);
+	u_d_clsr_status_lj << set text(CLSR_status_lj[3]); // new line levey jennings
+
+	If(LimitType==2, u_d_ttd_status<<set text(TTD_status[3]));
+);
+
+MeanVcc[Framebox(1)] << Add Graphics Script(
+	IF(OL_ck == 1,
+		Pen Color("Medium Dark Green");
+		Pen Size( 2);
+		Line Style( 0 );
+		H Line( OL_CL );
+		Line Style( 1 );
+		H Line( OL_UCL );
+		H Line( OL_LCL );
+		Text Color("Medium Dark Green");
+		Text Size( 7 );
+		Text( {1, OL_UCL}, "Online UCL" );
+		Text( {1, OL_LCL}, "Online LCL" );
+	);
+	 Pen Color( "blue" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+     Pen Color( "blue" );
+     Pen Size( 2 );
+     Line Style( 1 );
+	H Line( user_specified_ucl );
+    H Line(user_specified_lcl);
+	Text Color("blue");
+	Text Size( 7 );
+	Text(Right Justified, {Nlots_Total, user_specified_ucl}, "User Defined UCL" );
+	Text(Right Justified, {Nlots_Total, user_specified_lcl}, "User Defined LCL" );
+	Pen Color("Medium Dark Red");
+	Pen Size( 2);
+	Line Style( 0 );
+	H Line( IdealT1 );
+	Line Style( 1 );
+	H Line( OAUCLM );
+	H Line( OALCLM );
+    if(	user_defined_center_line2 != user_defined_center_line|
+		user_defined_3_sigma_width != 3*sug_sigma|deltaMtj != user_defined_ttd,
+		eval(update_xbar_chart);
+    );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_ttd, x , fill(2,user_defined_center_line - user_defined_ttd));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,USL));
+		);
+    );
+);
+
+ //End Dynamic mean and limits
+
+MeanVVar=VlistBox (
+		HListBox(
+		MVar1=dtsJ<<Variability Chart(
+			Y( colYm ),
+			X( colTool),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Show Range Bars( 0 ),
+			Connect Cell Means( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+					Dispatch(
+			{},
+			"2",
+			ScaleBox,
+			{		Add Ref Line(IdealT1, solid, Medium Dark Red),
+					Add Ref Line(OAUCLM, Dashed, Medium Dark Red),
+					Add Ref Line(OALCLM, Dashed, Medium Dark Red),Show Major Grid( 1 )}
+			),
+				Dispatch(
+					{},
+					"Variability Chart",
+					FrameBox,
+					Frame Size( 517, 296 )
+				)
+			)
+		),
+		IfBox(entity_n>1,MDist1=dtsJs<<Distribution(
+			Stack(1),
+			Continuous Distribution(
+				Column(2),
+				Horizontal Layout(1),
+				Vertical(1),
+				Count Axis(1),
+				Normal Quantile Plot(1),
+				Vertical(1)
+			),
+			SendToReport(
+				Dispatch( {}, "Means of Lot Means by Entity", OutlineBox, Close( 0 ) ),
+				Dispatch(
+					{},
+					"1",
+					ScaleBox,
+					{Scale(Linear), Format("Best"),  Show Major Grid(1), Add Ref Line(eval(IdealT1), Solid, Red)}
+				),
+			Dispatch(
+				{"Means of Lot Means by Entity"},
+				"Distrib Histogram",
+				FrameBox,
+				{Frame Size( 82, 296 )}
+			),
+			Dispatch(
+				{"Means of Lot Means by Entity"},
+				"Distrib Outlier Box",
+				FrameBox,
+				{Frame Size( 36, 296 )}
+			),
+			Dispatch(
+				{"Means of Lot Means by Entity"},
+				"Distrib Quantile Plot",
+				FrameBox,
+				{Frame Size( 207, 296 )}
+			)
+			)
+			)
+			)
+		)
+		,
+		IfBox(entity_n>1,MDist2=dtsJs<<Distribution(
+			Continuous Distribution(
+				Column(3),
+				Horizontal Layout(1),
+				Vertical(0),
+				Count Axis(1),
+				Normal Quantile Plot(1)
+			),
+			SendToReport(
+				Dispatch( {}, "Sigma MR of Lot Means by Entity", OutlineBox, Close( 1 ) ),
+				Dispatch(
+					{},
+					"1",
+					ScaleBox,
+					{Scale(Linear), Format("Best"),  Show Major Grid(1)}
+				)
+			)
+			)
+		)
+	);
+MeanVVar[Framebox(1)] << Add Graphics Script(
+	 Pen Color( "blue" );
+     Pen Size( 2);
+     Line Style( 0 );
+     H Line( user_defined_center_line );
+    If(limittype==2,
+		Fill Color(69);
+		transparency(0.2);
+		Y Function( user_defined_center_line + user_defined_ttd, x , fill(2,user_defined_center_line - user_defined_ttd));
+		If(!IsMissing(LSL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(LSL+4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,LSL));
+		);
+		If(!IsMissing(USL), 
+			Fill Color( 67 );
+			Transparency( trans );
+			Y Function(USL-4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,USL));
+		);
+    );
+);
+If(entity_n>1,
+	MeanVVar[Framebox(2)] << Add Graphics Script(
+		 Pen Color( "blue" );
+		 Pen Size( 2);
+		 Line Style( 0 );
+		 H Line( user_defined_center_line );
+		If(limittype==2,
+			Fill Color(69);
+			transparency(0.2);
+			Y Function( user_defined_center_line + user_defined_ttd, x , fill(2,user_defined_center_line - user_defined_ttd));
+			If(!IsMissing(LSL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(LSL+4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,LSL));
+			);
+			If(!IsMissing(USL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(USL-4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,USL));
+			);
+		);
+	);
+	MeanVVar[Framebox(3)] << Add Graphics Script(
+		 Pen Color( "blue" );
+		 Pen Size( 2);
+		 Line Style( 0 );
+		 H Line( user_defined_center_line );
+		If(limittype==2,
+			Fill Color(69);
+			transparency(0.2);
+			Y Function( user_defined_center_line + user_defined_ttd, x , fill(2,user_defined_center_line - user_defined_ttd));
+			If(!IsMissing(LSL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(LSL+4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,LSL));
+			);
+			If(!IsMissing(USL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(USL-4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,USL));
+			);
+		);
+	);
+	MeanVVar[Framebox(4)] << Add Graphics Script(
+		 Pen Color( "blue" );
+		 Pen Size( 2);
+		 Line Style( 0 );
+		 H Line( user_defined_center_line );
+		If(limittype==2,
+			Fill Color(69);
+			transparency(0.2);
+			Y Function( user_defined_center_line + user_defined_ttd, x , fill(2,user_defined_center_line - user_defined_ttd));
+			If(!IsMissing(LSL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(LSL+4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,LSL));
+			);
+			If(!IsMissing(USL), 
+				Fill Color( 67 );
+				Transparency( trans );
+				Y Function(USL-4*(user_defined_center_line_s + DeltaSDtj), x, fill(2,USL));
+			);
+		);
+	);
+);
+
+//Create Sigma Report.
+dtsj<<clear select<<clear column selection;
+dtsj2 = Data Table( dtsj ) <<
+Subset(
+	Output Table(Char(dtsname)||"2" )
+);
+wait(0);
+eval(hide_dts);
+ooc_rows_s_old = ooc_rows_s;
+ooc_n_ud_s = .;
+ooc_p_ud_s = .;
+oci_ud_s = .;
+clsr_ud_s = .;
+oci_sug_s = 0;
+
+clsr_ud_s_lj = .; // new line levey jennings
+
+IF(LimitType == 1, 
+	clsr_sug_s = 3*mr_ls[3]/mr_ls[3]; //=3
+	clsr_sug_s_lj = 3*mr_ls[3]/LJ_sigma_s; // new line levey jennings
+	,
+	clsr_sug_s = (OAUCLSD - (Grandmean_s + DeltaSDVal))/mr_ls[3];
+	clsr_sug_s_lj = (OAUCLSD - (Grandmean_s + DeltaSDVal))/LJ_sigma_s; // new line levey jennings
+);
+
+OOC_status_s = {}; OCI_status_s = {}; CLSR_status_s = {}; TTD_status_s = {};
+CLSR_status_s_lj = {}; // new line levey jennings 
+insertinto(OOC_status_s, ooc_msg_fcn(ooc_p_OL_s),1);
+insertinto(OOC_status_s, ooc_msg_fcn(ooc_p_s),2);
+insertinto(OOC_status_s, ooc_msg_fcn(ooc_p_ud_s),3);
+insertinto(OCI_status_s, oci_msg_fcn(oci_OL_s),1);
+insertinto(OCI_status_s, oci_msg_fcn(oci_sug_s),2);
+insertinto(OCI_status_s, oci_msg_fcn(oci_ud_s),3);
+insertinto(CLSR_status_s, clsr_msg_fcn(clsr_OL_s),1);
+insertinto(CLSR_status_s, clsr_msg_fcn(clsr_sug_s),2);
+insertinto(CLSR_status_s, clsr_msg_fcn(clsr_ud_s),3);
+insertinto(CLSR_status_s_lj, clsr_msg_fcn(clsr_OL_s_lj),1); // new line levey jennings
+insertinto(CLSR_status_s_lj, clsr_msg_fcn(clsr_sug_s_lj),2); // new line levey jennings
+insertinto(CLSR_status_s_lj, clsr_msg_fcn(clsr_ud_s_lj),3); // new line levey jennings
+insertinto(TTD_status_s, ttd_msg_fcn(OL_TTDs,DeltaSDval),1);
+insertinto(TTD_status_s, ttd_msg_fcn(DeltaSDval,DeltaSDval),2);
+insertinto(TTD_status_s, ttd_msg_fcn(DeltaSDval,DeltaSDval),3);
+
+SDOBOL = expr(
+	SDOBOL1 = outlinebox("Sigma Control Limit Summary for "|| YsisName ||PClassM,
+		HListBox(Align(center),
+		TableBox(
+			StringColBox("Reference", ref_list),
+			NumberColBox("# Total Lots",matrix({lot_n_s, lot_n_s, lot_n_s})),
+			NumberColBox("# Lots Excluded",matrix({NLots_exc, NLots_exc, NLots_exc})),
+			u_d_m_s=NumberColBox("Center Line", matrix({OL_CLs, grandmean_s, user_defined_center_line_s}),<<SetFormat(6,dplace)),
+			if(UnMatchStat==2, u_d_deltasd = NumberColBox("TTD", matrix({OL_TTDs, DeltaSDval, DeltaSDval}),<<SetFormat(6,dplace))),
+			u_d_s_s=NumberColBox("Sigma Online", matrix({OL_sigma_s, mr_ls[3], mr_ls[3]}),<<SetFormat(6,dplace)),
+			u_d_ucl_s=NumberColBox("UCL", matrix({OL_UCLs, OAUCLSD, user_specified_ucl_s}),<<SetFormat(6,dplace)),
+			u_d_oocn_s=NumberColBox("# OOC", matrix({ooc_n_OL_s, ooc_n_s, ooc_n_ud_s}),<<SetFormat(6,0)),
+			u_d_oocp_s=NumberColBox("%OOC", matrix({ooc_p_OL_s, ooc_p_s, ooc_p_ud_s}),<<SetFormat(6,dplace)),
+			NumberColBox("Mean Offline", matrix({GrandMean_s, GrandMean_s, GrandMean_s}),<<SetFormat(6,dplace)),
+			NumberColBox("Sigma Offline", matrix({mr_ls[3], mr_ls[3], mr_ls[3]}),<<SetFormat(6,dplace)),
+			NumberColBox("Sigma Offline (LJ)", matrix({LJ_sigma_s, LJ_sigma_s, LJ_sigma_s}),<<SetFormat(6,dplace)), // new line levey jennings
+			u_d_oci_s=NumberColBox("OCI", matrix({oci_OL_s, oci_sug_s, oci_ud_s}),<<SetFormat(6,dplace)),
+			u_d_clsr_s=NumberColBox("CLSR", matrix({clsr_OL_s, clsr_sug_s, clsr_ud_s}),<<SetFormat(6,dplace)),
+			u_d_clsr_s_lj=NumberColBox("CLSR (LJ)", matrix({clsr_OL_s_lj, clsr_sug_s_lj, clsr_ud_s_lj}),<<SetFormat(6,dplace)), // new line levey jennings
+			if(UnMatchStat==2, NumberColBox("TTD Offline", matrix({DeltaSDval, DeltaSDval, DeltaSDval}),<<SetFormat(6,dplace))),
+			if(UnMatchStat==2, u_d_deltaRatio_s = NumberColBox("TTD Ratio", matrix({OL_TTDs/DeltaSDval, DeltaSDval/DeltaSDval, user_defined_ttd_s/DeltaSDval}),<<SetFormat(6,dplace))),
+			<<TableStyle("Plain")
+		)
+		,
+		VlistBox(TextBox("     ")),
+		VListBox(TextBox(""),TextBox("OOC Status", <<setfont style("bold")), TextBox(OOC_Status_s[1]), TextBox(OOC_Status_s[2]), u_d_oocp_status_s=TextBox(OOC_Status_s[3])),
+		VlistBox(TextBox("     ")),
+		VListBox(TextBox(""),TextBox("OCI Status", <<setfont style("bold")), TextBox(OCI_Status_s[1]), TextBox(OCI_Status_s[2]), u_d_oci_status_s=TextBox(OCI_Status_s[3])),
+		VlistBox(TextBox("     ")),
+		VListBox(TextBox(""),TextBox("CLSR Status", <<setfont style("bold")), TextBox(CLSR_Status_s[1]), TextBox(CLSR_Status_s[2]), u_d_clsr_status_s=TextBox(CLSR_Status_s[3])),
+		VlistBox(TextBox("     ")),
+		VListBox(TextBox(""),TextBox("CLSR (LJ) Status", <<setfont style("bold")), TextBox(CLSR_Status_s_lj[1]), TextBox(CLSR_Status_s_lj[2]), u_d_clsr_status_s_lj=TextBox(CLSR_Status_s_lj[3])), // new line levey jennings
+			VlistBox(TextBox("     ")), 
+		If(UnMatchStat==2,VListBox(TextBox(""),TextBox("TTD Status", <<setfont style("bold")), TextBox(TTD_Status_s[1]), TextBox(TTD_Status_s[2]), u_d_ttd_status_s=TextBox(TTD_Status_s[3]))),
+		)
+	)
+);
+
+reset_expr_s = expr(
+	If(unitlevel, user_defined_center_line_s = sigma_process, user_defined_center_line_s = grandmean_s);
+	user_defined_3_sigma_width_s = 3*mr_ls[3];
+	user_defined_ttd_s = DeltaSDval;
+);
+
+spec_table_expr=expr(/** open spec table*/
+	spec_table << set open(1);
+);
+
+ttd_expr=expr(/*******Calculate cpk check for TTD*/
+
+
+
+//Set initial values of variables
+button=1;			//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+If(Contains( YID[1], "Xbar" )>0, Xcenter=user_defined_center_line, Xcenter=.);   //Xbar chart center line
+If(Contains( YID[1], "Xbar" )>0, XTTD=user_defined_ttd, XTTD=0);   //Xbar chart TTD
+If(Contains( YID[1], "Sigma" )>0, sTTD=user_defined_ttd, sTTD=0);      //Sigma chart TTD
+If(Contains( YID[1], "Sigma" )>0, scenter=user_defined_center_line, scenter=.);    //Sigma chart centerline
+
+lsl=LSL;				//user input spec limit
+usl=USL;				//user input spec limit
+cpucheck=.;
+cplcheck=.;
+cpkcheck=.;     //output value
+
+/* Dialog Box is active until the user clicks Cancel or generates a Plot */
+
+
+	while(button==1,
+
+		Result=Dialog(title("CPK check for TTD limit"),
+
+				  VList("Enter control limit:",
+				   Lineup(2,	
+					"Centerline on Xbar chart", Xcenter=EditNumber(Xcenter),
+					"Centerline on sigma chart", scenter=EditNumber(scenter),		
+					"TTD on Xbar chart", XTTD=EditNumber(XTTD),
+					"TTD on sigma chart", sTTD=EditNumber(sTTD)
+				   ),
+				   " ",
+				   "Enter spec limit:", 
+				   Lineup(2,	
+				   "LSL", lsl=EditNumber(lsl),	
+					"USL", usl=EditNumber(usl)
+						
+				   ),
+				   "If not applicable, please leave the box blank.",
+				   "Note: for summarized data, Xbar and Sigma chart limit are calculated separately" ,
+
+					" ",
+				"CPK Check Calculation:", " ",
+					Lineup(2,
+						"CPK check", cpkcheck=editnumber(cpkcheck)),
+
+					" ",
+
+					HList(button("OK"), button("Cancel") )
+					)
+			);   //end dialog box
+			
+
+			button = result["button"];
+			Xcenter=result["Xcenter"];
+			scenter=result["scenter"];
+			XTTD=result["XTTD"];
+			sTTD=result["sTTD"];
+			usl=result["USL"];
+			lsl=result["LSL"];
+			cpkcheck=result["cpkcheck"];
+
+		/* Error Testing */
+
+			if(IsMissing(Xcenter) & button==1, Dialog(Title("Error"),"Missing Xbar chart centerline!",button("OK"));error1="out";cpkcheck=.,error1="ok");
+			if((XTTD==0 |IsMissing(XTTD)) & (sTTD==0 |IsMissing(sTTD)) & button==1, Dialog(Title("Error"),"Missing at least one TTD value!",button("OK"));error2="out";cpkcheck=.,error2="ok");
+			if(IsMissing(scenter) & button==1, Dialog(Title("Error"),"Missing Sigma chart centerline!",button("OK"));error3="out";cpkcheck=.,error3="ok");
+			if(IsMissing(usl) & IsMissing(lsl) & button==1, Dialog(Title("Error"),"Missing Spec limit!",button("OK"));error4="out";cpkcheck=.,error4="ok");
+			if(!IsMissing(usl) & !IsMissing(lsl) & (lsl >= usl)  & button==1, Dialog(Title("Error"),"LSL should less than USL",button("OK"));error5="out";cpkcheck=.,error5="ok");
+			if((XTTD<0 | sTTD<0) & button==1, Dialog(Title("Error"),"TTD value must be positive!",button("OK"));error6="out";cpkcheck=.,error6="ok");
+			if(scenter<=0 & button==1, Dialog(Title("Error"),"Sigma chart centerline must be positve value!",button("OK"));error7="out";cpkcheck=.,error7="ok");
+            //do we allow to have control limit on the side where is no spec limit??
+
+
+		/* Cpk check Computation */
+		if(error1=="ok"& error2=="ok" & error3=="ok" & error4=="ok" & error5=="ok" & error6=="ok" & error7=="ok" & button==1,
+
+					
+			if(!IsMissing(usl), cpucheck=round((usl-(Xcenter+XTTD))/(3*(scenter+sTTD)),2), cpucheck=.);
+			if(!IsMissing(lsl), cplcheck=round(((Xcenter-XTTD)-lsl)/(3*(scenter+sTTD)),2), cplcheck=.);
+			cpkcheck=minimum(cpucheck, cplcheck) //if one side limit is missing, will return to the other
+
+		)
+
+	);/** End Cpk check for TTD limit**/	
+);  //end ttd_expr
+
+
+/***  User-Specified Control Limits  ***/
+If(unitlevel, user_defined_center_line_s = sigma_process, user_defined_center_line_s = grandmean_s);
+user_defined_center_line2_s = user_defined_center_line_s;
+ent_deltas_s = ent_sigmas - user_defined_center_line_s;
+ent_deltas_s2 = ent_sigmas - user_defined_center_line_s;
+sug_sigma_s = mr_ls[3];
+sug_sigma2_s = sug_sigma_s;
+user_defined_3_sigma_width_s = 3*sug_sigma_s;
+user_defined_ttd_s = DeltaSDval;
+user_specified_ucl_s = OAUCLSD;
+user_specified_ucl2_s = user_specified_ucl_s;
+
+
+SDVcc=vlistbox(
+	dtsj2<<Control Chart(
+		Sample Label(eval(collot)),
+		Phase(eval(coltool)),
+		Group Size(1),
+		KSigma(3),
+		Chart Col(eval(colYs),Individual Measurement(Test 1(0))),
+	),
+	V List Box(
+		align( Left ),
+		panelbox("Change Center Line",
+		HlistBox(
+			VlistBox(
+			cl_sb_s=Slider Box(
+				0,
+				grandmean_s + DeltaSDval + 3 * sug_sigma_s,
+				user_defined_center_line_s,
+				update_s_chart
+			),
+			Global Box( user_defined_center_line_s )
+			)
+		,
+			gMean_table_s = outlinebox("Reference Estimates for Center Line",
+			TableBox(
+			numbercolbox("Grand Mean", matrix(GrandMean_s),<<SetFormat(6,dplace)),
+			numbercolbox("Grand Median", matrix(GrandMdn_s),<<SetFormat(6,dplace)),
+			numbercolbox("Grand Entity Mean", matrix(entity_gmean_s),<<SetFormat(6,dplace))
+			)
+			)
+		)
+		),
+		panelbox("Change Control Limit Width",
+		HlistBox(
+			VlistBox(
+			sigma_sb_s=Slider Box(
+				0.00000000001,
+				9 * mr_ls[3],
+				user_defined_3_sigma_width_s,
+				update_s_chart
+			),
+			Global Box( user_defined_3_sigma_width_s )
+			)
+		,
+			gSigma_table_s = outlinebox("Reference Estimates for 3 Sigma Width",
+			TableBox(
+			numbercolbox("3*Pooled Sigma (MR)", matrix(3*mr_ls[3]),<<SetFormat(6,dplace)),
+			numbercolbox("3*Pooled Sigma (Median MR)", matrix(3*mr_ls[4]),<<SetFormat(6,dplace)),
+			numbercolbox("3*Pooled Sigma (Levey Jennings)", matrix(3*LJ_sigma_s),<<SetFormat(6,dplace))
+			)
+			)
+		)
+		),
+		IfBox(UnMatchStat==2,
+		panelbox("Change TTD",
+			ttd_sb_s=Slider Box(
+				0,
+				max(abs(ent_deltas_s)),
+				user_defined_ttd_s,
+				update_xbar_chart
+			),
+			Global Box(user_defined_ttd_s)
+		)
+		),
+		buttonbox("Reset to Suggested Limits", reset_expr_s)
+	)
+);
+
+//gMean_table_s<<close;
+//gSigma_table_s<<close;
+cl_sb_s<<set width(500);
+sigma_sb_s<<set width(500);
+ttd_sb_s<<set width(500);
+
+If(Ol_ck==1,
+	SDVcc[axisbox(1)]<<Add Ref Line( OL_CLs, Solid, "Medium Dark Green", "Online CL");
+	If(UnMatchStat==2,
+		SDVcc[axisbox(1)]<<Add Ref Line( OL_CLs+OL_TTDs, Dotted, "Medium Dark Green", "Online CL+TTD")
+	)
+);
+SDVcc[axisbox(1)]<<Add Ref Line( grandmean_s, Solid, Medium Dark Red, "Center Line")
+	<<Add Ref Line( OAUCLSD, Dotted, Medium Dark Red, "Suggested UCL");
+	//<<Show Major Grid(0);
+
+SDVcc[Framebox(1)] << frame size(517, 296);
+
+update_s_chart = expr(
+	DeltaSDtj = user_defined_ttd_s;
+     if(user_defined_center_line_s == user_defined_center_line2_s,
+			sug_sigma_s = user_defined_3_sigma_width_s / 3,
+			if(UnMatchStat==2,
+				If(max_ent_lsd - user_defined_center_line_s<=0, DeltaSDtj=0,DeltaSDtj = max_ent_lsd - user_defined_center_line_s);
+				ent_deltas_s2 = ent_sigmas - user_defined_center_line_s;
+			)
+		);
+	user_defined_ttd_s = DeltaSDtj;
+	user_specified_ucl_s = user_defined_center_line_s + DeltaSDtj + 3 * sug_sigma_s;
+	If(UnMatchStat!=2, 
+		clsr_ud_s = (user_specified_ucl_s-(GrandMean_s))/mr_ls[3];
+		clsr_ud_s_lj = (user_specified_ucl_s-(GrandMean_s))/LJ_sigma_s; // new line levey jennings
+		,
+		clsr_ud_s = (user_specified_ucl_s-(user_defined_center_line_s + DeltaSDtj))/mr_ls[3];
+		clsr_ud_s_lj = (user_specified_ucl_s-(user_defined_center_line_s + DeltaSDtj))/LJ_sigma_s;
+	);
+    user_defined_center_line2_s = user_defined_center_line_s;
+    user_specified_ucl2_s = user_specified_ucl_s;
+	dtsj2<<select all rows<<markers(0)<<colors(0)<<clear select;
+	ooc_rows_s = loc(colys_mat>user_specified_ucl_s );
+	ooc_n_ud_s = nrows(ooc_rows_s);
+	dtsj2<<select rows(ooc_rows_s)<<markers(11)<<colors(3)<<clear select;
+	dtsj2<<select rows(exc_rows)<<colors(1)<<clear select;
+	ooc_rows_s_old = ooc_rows_s;
+	ooc_p_ud_s = 100*ooc_n_ud_s/lot_n_s;
+	oci_ud_s=(grandmean_s -  user_defined_center_line_s)/(sug_sigma_s + user_defined_ttd_s/3);//oci_ud_s=(grandmean_s -  user_defined_center_line_s)/sug_sigma_s;
+	u_d_m_s<<set values(matrix({OL_CLs, grandmean_s, user_defined_center_line_s}));
+	if(UnMatchStat==2, 
+		u_d_deltaSD<<set values(matrix({OL_TTDs, DeltaSDval, user_defined_ttd_s}));
+		delta_to_cl_s<<set Values(ent_deltas_s2);
+		u_d_deltaRatio_s<<set Values(matrix({OL_TTDs/DeltaSDval, DeltaSDval/DeltaSDval, user_defined_ttd_s/DeltaSDval}))
+	);
+	OOC_status_s[3] = ooc_msg_fcn(ooc_p_ud_s);
+	OCI_status_s[3] = oci_msg_fcn(oci_ud_s);
+	CLSR_status_s[3] = clsr_msg_fcn(clsr_ud_s);
+	CLSR_status_s_lj[3] = clsr_msg_fcn(clsr_ud_s_lj); // new line levey jennings
+	TTD_status_s[3] = ttd_msg_fcn(user_defined_ttd_s,DeltaSDval);
+	u_d_s_s<<set values(matrix({OL_sigma_s, mr_ls[3], sug_sigma_s}));
+	u_d_ucl_s<<set values(matrix({OL_UCLs, OAUCLSD, user_specified_ucl_s}));
+	u_d_oocn_s<<set values(matrix({ooc_n_OL_s, ooc_n_s, ooc_n_ud_s}));
+	u_d_oocp_s<<set values(matrix({ooc_p_OL_s, ooc_p_s, ooc_p_ud_s}));
+	u_d_clsr_s<<set Values(matrix({clsr_OL_s, clsr_sug_s, clsr_ud_s}));
+	u_d_clsr_s_lj<<set Values(matrix({clsr_OL_s_lj, clsr_sug_s_lj, clsr_ud_s_lj})); // new line levey jennings
+	u_d_oci_s<<set Values(matrix({oci_OL_s, oci_sug_s, oci_ud_s}));
+	u_d_oocp_status_s<<set text (OOC_status_s[3]);
+	u_d_oci_status_s<<set text(OCI_status_s[3]);
+	u_d_clsr_status_s<<set text(CLSR_status_s[3]);
+	u_d_clsr_status_s_lj<<set text(CLSR_status_s_lj[3]); // new line levey jennings
+	If(UnMatchStat==2, u_d_ttd_status_s<<set text(TTD_status_s[3]));
+	
+	If(UnMatchStat>0,
+		ent_meantemp = ent_means;
+		sigma_process_ud = user_defined_center_line_s+DeltaSDtj;
+		sigma_process_mat[2] = sigma_process_ud;
+		max_ttd_spec_ud = USL-4*sigma_process_ud;
+		min_ttd_spec = LSL+4*sigma_process_ud;
+		excl_ent_m_ud = loc(ent_means>(USL-4*sigma_process_ud)|ent_means<(LSL+4*sigma_process_ud));
+		ent_meantemp[excl_ent_m_ud] = .;
+		ud_sigma_process<<set values(sigma_process_mat);
+		max_ttd_spec = (USL-4*sigma_process_ud) - user_defined_center_line;
+		min_ttd_spec = user_defined_center_line - (LSL+4*sigma_process_ud);
+		//ttd_to_spec_mat[2] = min(max_ttd_spec, min_ttd_spec);
+		If(min(max_ttd_spec, min_ttd_spec)<0, ttd_to_spec_mat[2] = ., ttd_to_spec_mat[2] = min(max_ttd_spec, min_ttd_spec));
+		max_ttd_update<<set values(ttd_to_spec_mat);
+		Cpk_atTTD_mat[2] = min(
+			(USL-(user_defined_ttd + user_defined_center_line))/(3*sigma_process_ud), 
+			(user_defined_center_line - user_defined_ttd - LSL)/(3*sigma_process_ud)
+		);
+		Cpk_atTTD_update << set values(Cpk_atTTD_mat);
+		If(cpk_atTTD_mat[2]>=1.33,
+			cpk_msg = cpk_msg_list[1],
+			IsMissing(sigma_process_ud)|IsMissing(cpk_atTTD_mat[2]),
+			cpk_msg = cpk_msg_list[4],
+			IsMissing(ttd_to_spec_mat[2]),
+			cpk_msg = cpk_msg_list[3],
+			cpk_msg = cpk_msg_list[2]
+		);
+		ud_cpk_msg<<set text(cpk_msg);
+		//ud_ent_invalid<<set values(ent_meantemp);
+	);
+);
+
+//Rearrange and append items to Phase Limits table box
+temp_n=entity_n+1;
+entity_smean = [];
+for(i=1, i<=entity_n, i++,
+	temp1 = SDVCC[1,table box(1),numbercolbox(temp_n)]<<get;
+	entity_smean = entity_smean|/temp1;
+	SDVCC[1,table box(1),numbercolbox(2*temp_n-1)] << delete;
+	SDVCC[1,table box(1),numbercolbox(temp_n)] << delete;
+	SDVCC[1,table box(1),numbercolbox(1)] << delete;
+	temp_n--
+);
+SDVCC[1,table box(1)]<<append(numbercolbox("Mean", entity_smean));
+SDVCC[1,table box(1)]<<append(numbercolbox("Sigma MR", entity_sigmamr_s));
+SDVCC[1,table box(1)]<<append(numbercolbox("3*Sigma MR", entity_3sigmamr_s));
+SDVCC[1,table box(1)]<<append(numbercolbox("LCL", entity_smean - entity_3sigmamr_s));
+SDVCC[1,table box(1)]<<append(numbercolbox("UCL", entity_smean + entity_3sigmamr_s));
+if(UnMatchStat==2, SDVCC[1,table box(1)]<<append(numbercolbox("Delta to Suggested Centerline", ent_deltas_s));
+	SDVCC[1,table box(1)]<<append(numbercolbox("Delta to User Defined Centerline", ent_deltas_s2));
+	delta_to_cl_s = SDVCC[1,table box(1), numbercolbox("Delta to User Defined Centerline")]
+);
+SDVCC[1,table box(1)]<<append(numbercolbox("Sigma Median MR", entity_sigmamr_s_mdn));
+SDVCC[1,table box(1)]<<append(numbercolbox("3*Sigma Median MR", entity_3sigmamr_s_mdn));
+SDVCC[1,table box(1)]<<append(numbercolbox("LCL (Median MR)", entity_smean - entity_3sigmamr_s_mdn));
+SDVCC[1,table box(1)]<<append(numbercolbox("UCL (Median MR)", entity_smean + entity_3sigmamr_s_mdn));
+
+
+SDVcc[Framebox(1)] << Add Graphics Script(
+	IF(OL_ck == 1,
+		Pen Color("Medium Dark Green");
+		Pen Size( 2);
+		Line Style( 0 );
+		H Line( OL_CLs );
+		Line Style( 1 );
+		H Line( OL_UCLs );
+		Text Color("Medium Dark Green");
+		Text Size( 7 );
+		Text( {1, OL_UCLs}, "Online UCL" );
+	);
+	Pen Color( "blue" );
+    Pen Size( 2);
+    Line Style( 0 );
+    H Line( user_defined_center_line_s );
+    Pen Color( "blue" );
+    Pen Size( 2 );
+    Line Style( 1 );
+	H Line( user_specified_ucl_s );
+	Text Color("blue");
+	Text Size( 7 );
+	Text(Right Justified, {lot_n_s, user_specified_ucl_s}, "User Defined UCL" );
+	Pen Color("Medium Dark Red");
+	Pen Size( 2);
+	Line Style( 0 );
+	H Line( grandmean_s );
+	Line Style( 1 );
+	H Line( OAUCLSD );
+    if(	user_defined_center_line2_s != user_defined_center_line_s|
+		user_defined_3_sigma_width_s != 3*sug_sigma_s|DeltaSDtj!=user_defined_ttd_s,
+		eval(update_s_chart)
+	);
+    If(UnMatchStat==2,
+		Fill Color(69);
+		transparency(.4);
+		Y Function( user_defined_center_line_s + user_defined_ttd_s, x , fill(2,user_defined_center_line_s));
+    )
+);
+
+ //End Dynamic mean and limits
+
+SDVVar=VlistBox (
+		HListBox(
+		SVar1=dtsj2<<Variability Chart(
+			Y( eval(colYs) ),
+			X( eval(colTool)),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Show Range Bars( 0 ),
+			Connect Cell Means( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			Show Box Plots( 1 ),
+			SendToReport(
+					Dispatch(
+			{},
+			"2",
+			ScaleBox,
+			{			Add Ref Line(grandmean_s, solid, Medium Dark Red),
+						Add Ref Line(OAUCLSD, Dashed, Medium Dark Red), Show Major Grid( 1 )}
+			),
+				Dispatch(
+					{},
+					"Variability Chart",
+					FrameBox,
+					Frame Size( 517, 296 )
+				)
+			)
+		),
+			IfBox(entity_n>1,SDist1=dtsJs<<Distribution(
+			Stack(1),
+			Continuous Distribution(
+				Column(4),
+				Horizontal Layout(1),
+				Vertical(1),
+				Count Axis(1),
+				Normal Quantile Plot(1),
+				Vertical(1)
+			),
+			SendToReport(
+				Dispatch( {}, "Means of Lot Sigma by Entity", OutlineBox, Close( 0 ) ),
+				Dispatch(
+					{},
+					"1",
+					ScaleBox,
+					{Scale(Linear), Format("Best"),  Show Major Grid(1), Add Ref Line(eval(IdealT1), Solid, Red)}
+				),
+				Dispatch(
+					{"Means of Lot Sigma by Entity"},
+					"Distrib Histogram",
+					FrameBox,
+					{Frame Size( 82, 296 )}
+				),
+				Dispatch(
+					{"Means of Lot Sigma by Entity"},
+					"Distrib Outlier Box",
+					FrameBox,
+					{Frame Size( 36, 296 )}
+				),
+				Dispatch(
+					{"Means of Lot Sigma by Entity"},
+					"Distrib Quantile Plot",
+					FrameBox,
+					{Frame Size( 207, 296 )}
+				)
+			)
+			)
+			)	
+		)
+		,
+			IfBox(entity_n>1, SDist2=dtsJs<<Distribution(
+				Continuous Distribution(
+					Column(5),
+					Horizontal Layout(1),
+					Vertical(0),
+					Count Axis(1),
+					Normal Quantile Plot(1)
+				),
+				SendToReport(
+				Dispatch( {}, "Sigma MR of Lot Sigmas by Entity", OutlineBox, Close( 1 ) ),
+					Dispatch(
+						{},
+						"1",
+						ScaleBox,
+						{Scale(Linear), Format("Best"),  Show Major Grid(1)}
+					)
+				)
+				)
+				)
+);
+If(!IsMissing(user_defined_center_line_s) & entity_n>1,//add condition number of entity is greater than 1
+	SDVVar[Framebox(1)] << Add Graphics Script(
+		 Pen Color( "blue" );
+		 Pen Size( 2);
+		 Line Style( 0 );
+		 H Line( user_defined_center_line_s );
+		If(UnMatchStat==2,
+			Fill Color(69);
+			transparency(.4);
+			Y Function( user_defined_center_line_s + user_defined_ttd_s, x , fill(2,user_defined_center_line_s));
+		)
+	);
+	If(entity_n>1,
+		SDVVar[Framebox(2)] << Add Graphics Script(
+			 Pen Color( "blue" );
+			 Pen Size( 2);
+			 Line Style( 0 );
+			 H Line( user_defined_center_line_s );
+			If(UnMatchStat==2,
+				Fill Color(69);
+				transparency(.4);
+				Y Function( user_defined_center_line_s + user_defined_ttd_s, x , fill(2,user_defined_center_line_s));
+			)
+		);
+		SDVVar[Framebox(3)] << Add Graphics Script(
+			 Pen Color( "blue" );
+			 Pen Size( 2);
+			 Line Style( 0 );
+			 H Line( user_defined_center_line_s );
+			If(UnMatchStat==2,
+				Fill Color(69);
+				transparency(.4);
+				Y Function( user_defined_center_line_s + user_defined_ttd_s, x , fill(2,user_defined_center_line_s));
+			)
+		);
+		SDVVar[Framebox(4)] << Add Graphics Script(
+			 Pen Color( "blue" );
+			 Pen Size( 2);
+			 Line Style( 0 );
+			 H Line( user_defined_center_line_s );
+			If(UnMatchStat==2,
+				Fill Color(69);
+				transparency(.4);
+				Y Function( user_defined_center_line_s + user_defined_ttd_s, x , fill(2,user_defined_center_line_s));
+			)
+		);
+	)
+);
+			
+//Create report window.
+if(!IsMissing(Grandmean_s),
+	MeanWin=New Window (YsisName||" Control Limit Calculation",<<OnClose(eval(close_dts)), 
+		vlistbox(eval(n1_boxplot), eval(MeanOBOL), MeanVcc, MeanVVar, eval(SDOBOL), SDVcc, SDVVar,FooterBox)
+	),
+	MeanWin=New Window (YsisName||" Control Limit Calculation",<<OnClose(eval(close_dts)), 
+		vlistbox(eval(n1_boxplot), eval(MeanOBOL), MeanVcc, MeanVVar, FooterBox)
+	)
+);
+
+eval(update_xbar_chart);
+eval(update_s_chart);
+
+//Reference each graphs outline box as a report to copy and paste axis settings
+MVar1report=MVar1<<report;
+MDist1report=MDist1<<report;
+SVar1report=SVar1<<report;
+SDist1report=SDist1<<report;
+
+if(
+	//if
+	entity_n>1,
+	//then
+	MVar1report[axisbox(1)]<<copy axis settings;
+	MDist1report[axisbox(1)]<<paste axis settings;
+	SVar1report[axisbox(1)]<<copy axis settings;
+	SDist1report[axisbox(1)]<<paste axis settings;
+);
+
+
+
+);
+/***************************   End Lot Level FUNCTION   *****************************/
+
+/***************************   Supporting FUNCTIONS   *****************************/
+/***************************   FUNCTIONS   *****************************/
+/*** Sigma MR Function   
+	Calculates Lot level statistics on raw data
+	Lot Mean, Median, sigma mean MR, sigma median MR
+	ooc_rows removes rows from calculation
+***/
+sigmaMR_fcn = function({ooc_rows, colymat, lot_n_mat}, {Default Local},
+	colymattemp = colymat;
+	colymattemp [ooc_rows] = [.];
+	ave_unit = mean(colymattemp);
+	mdn_unit = quantile(0.5, colymattemp);
+	mr_mat2 = [];
+	start = 1; end = 0;
+	for(i=1, i<=nrows(lot_n_mat), i++,
+		end = end + lot_n_mat[i];  
+		if(lot_n_mat[i]>1,
+		coly_mat2 = colymattemp[start:: end];
+		coly_mat3 = colymattemp[start:: end];
+		ent_mean = mean(coly_mat2);
+		coly_mat2[lot_n_mat[i]]=[];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1]=[];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.]|/abs(coly_mat2 - coly_mat3);
+		mr_mat2 = mr_mat2|/mr_mat;
+		,//else if
+		mr_mat2 = mr_mat2|/[.];
+		);
+		start = start + lot_n_mat[i];
+		);
+	ave_mr = mean(mr_mat2)/1.128; //as table(mr_mat2);
+	mdn_mr = quantile(0.5,mr_mat2)/0.954;
+	mr_res = ave_unit||mdn_unit||ave_mr || mdn_mr;
+);
+
+/*** Sigma Function   
+	Calculates statistics on summarized data
+	Total N after outlier screening, grand mean, sigma within
+***/
+sigma_fcn = function({ooc_rows, nms_mat}, {Default Local},
+	nms_mat[ooc_rows,0] = [];
+	nms_mat[Loc( Is Missing( nms_mat[0, 3] ) ), 3] = 0;
+	g_mean = sum(nms_mat[0, 1] :* nms_mat[0, 2]) / Sum( nms_mat[0, 1] );
+	s_within = sqrt(sum(nms_mat[0,3]^2 :* nms_mat[0,1])/sum(nms_mat[0,1]));
+	lot_mean = mean(nms_mat[0,2]);
+	lot_sd = std dev(nms_mat[0,2]);
+	sum_stats = matrix({Sum( nms_mat[0, 1]), g_mean, s_within, nrows(nms_mat), lot_mean, lot_sd});
+);
+
+/*** Pseudo Sigma Screen Function   
+	Calculates pseudo sigma screen upper and lower limits
+***/
+ps_screen_fcn = function({ksigma, datavec}, {Default_Local},
+	p25 = quantile(0.25, datavec);
+	p50 = quantile(0.5, datavec);
+	p75 = quantile(0.75, datavec);
+	
+	lscreen = p50 - ksigma * (p75-p50)/0.6745;
+	uscreen = p50 + ksigma * (p50-p25)/0.6745;
+	ps_screen = lscreen|/uscreen;
+);
+
+/***	OOC Functions	
+		Used in Unit Level Control Charts to calculate OOCs based on raw data input.
+***/
+ooc_raw_fcn = function({UCL, LCL}, {Default Local},
+	nOOCl=[];
+	pOOCl=[];
+	start = 1; end = 0;
+	for(i=1, i<=nrows(datamat), i++,
+		end = end + datamat[i,1];  
+		if(datamat[i,1]>1,
+		coly_mattemp = y_raw[start:: end];
+		n_ooc_l = nrows(loc(coly_mattemp>UCL|coly_mattemp<LCL));
+		p_ooc_l = n_ooc_l/N_Total *100
+		,//else if
+		If(coly_mattemp>UCL|coly_mattemp<LCL, n_ooc_l = [1]);
+		p_ooc_l = n_ooc_l/N_total *100
+		);
+	start = start + datamat[i,1];
+	nOOCl = nOOCl|/n_ooc_l;
+	pOOCl = pOOCl|/p_ooc_l;
+	);
+	ooc_res = nOOCl || datamat[0,1] ||pOOCl;
+);
+ooc_sum_fcn = function({UCL, LCL}, {Default Local},
+	p_OOCl = ((1-t Distribution((UCL - datamat[0,2]):/datamat[0,3],datamat[0,1])) + t Distribution((LCL - datamat[0,2]):/datamat[0,3], datamat[0,1]));
+);
+
+/***	Outlier Functions	***/
+outlier_fcn1 = function({exc_list}, {Default Local},
+	exc_row = loc(exc_list, "Yes")
+);
+
+outlier_fcn2 = function({exc_mat}, {Default Local},
+	exc_row = loc(exc_mat)
+);
+
+/*** Pseudo Sigma Screen Function   
+	Calculates pseudo sigma screen upper and lower limits
+***/
+ps_screen_fcn = function({ksigma, datavec}, {Default_Local},
+	p25 = quantile(0.25, datavec);
+	p50 = quantile(0.5, datavec);
+	p75 = quantile(0.75, datavec);
+	
+	lscreen = p50 - ksigma * (p75-p50)/0.6745;
+	uscreen = p50 + ksigma * (p50-p25)/0.6745;
+	ps_screen = lscreen|/uscreen;
+);
+
+/*** MR Function   
+	Used in Lot Level Control Charts
+	Calculates Lot level statistics on raw data
+	Lot Mean, Median, sigma mean MR, sigma median MR
+	ooc_rows removes rows from calculation
+***/
+MR_fcn = function({ooc_rows, colymat}, {Default Local},
+	colymattemp = colymat;
+	colymattemp [ooc_rows] = [.];
+	ave_lot = mean(colymattemp);
+	mdn_lot = quantile(0.5, colymattemp);
+	mr_mat2 = [];
+	for(i=1, i<=entity_n, i++,
+		if(entity_nlots[i]>1,
+		coly_mat2 = colymattemp[entity_range[i,1]:: entity_range[i,2]];
+		coly_mat3 = colymattemp[entity_range[i,1]:: entity_range[i,2]];
+		ent_mean = mean(coly_mat2);
+		coly_mat2[entity_nlots[i]]=[];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1]=[];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.]|/abs(coly_mat2 - coly_mat3);
+		mr_mat2 = mr_mat2|/mr_mat;
+		,//else if
+		mr_mat2 = mr_mat2|/[.];
+		)
+		);
+	ave_mr = mean(mr_mat2)/1.128;
+	mdn_mr = quantile(0.5,mr_mat2)/0.954;
+	mr_res = ave_lot||mdn_lot||ave_mr || mdn_mr;
+);
+
+/*** MR Entity Function   
+	Used in Lot Level Control Charts
+	Calculates Entity level statistics
+	Entity Mean, sigma mean MR, sigma median MR, 3 sigma mean MR, 3 sigma median MR 
+	ooc_rows removes rows from calculation
+***/
+MR_entity_fcn = function({ooc_rows, colymat}, {Default Local},
+	ent_stats=J(entity_n,5,.);
+	colymattemp = colymat;
+	colymattemp [ooc_rows] = [.];
+	for(i=1, i<=entity_n, i++,
+		If(entity_nlots[i]>1,
+		coly_mat2 = colymattemp[entity_range[i,1]:: entity_range[i,2]];
+		coly_mat3 = colymattemp[entity_range[i,1]:: entity_range[i,2]];
+		ent_mean = mean(coly_mat2);
+		coly_mat2[entity_nlots[i]]=[];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1]=[];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.]|/abs(coly_mat2 - coly_mat3);
+		,
+		mr_mat = [.];
+		ent_mean = colymattemp[entity_range[i,1]:: entity_range[i,2]];
+		);
+		ent_stats[i,1] = ent_mean; //mean
+		ent_stats[i,2] = mean(mr_mat)/1.128; //sigma MR
+		ent_stats[i,3] = 3*ent_stats[i,2]; //3*sigma MR
+		ent_stats[i,4] = quantile(0.5,mr_mat)/0.954; //sigma median MR
+		ent_stats[i,5] = 3*ent_stats[i,4]; //3*sigma median MR
+		);
+	ent_stats;
+);
+
+/*** Status message Function   
+	Creates a list of indicator messages for OOC, OCI, CLSR, and ttd_ratio
+***/
+ooc_msg_fcn = Function({ooc_test}, {Default_Local},
+	OOC_list = {"", "Warning - >=2%", "Flag - >=5%"};
+	If(!IsMissing(ooc_test)&ooc_test>=5, ooc_msg = OOC_list[3],
+		!IsMissing(ooc_test)&ooc_test>=2, ooc_msg = OOC_list[2],
+		ooc_msg = OOC_list[1]
+	);
+	ooc_msg;
+);
+oci_msg_fcn = Function({oci_test}, {Default_Local},
+	OCI_list = {"", "Warning - Above", "Warning - Below", "Flag - Above", "Flag - Below"};
+	If(!IsMissing(oci_test)&oci_test>1.5, oci_msg = OCI_list[4],
+		!IsMissing(oci_test)&oci_test>1, oci_msg = OCI_list[2],
+		!IsMissing(oci_test)&oci_test<-1.5, oci_msg = OCI_list[5],
+		!IsMissing(oci_test)&oci_test<-1, oci_msg = OCI_list[3],
+		oci_msg = OCI_list[1]
+	);
+	oci_msg;
+);
+clsr_msg_fcn = Function({clsr_test}, {Default_Local},
+	//CLSR_list = {"", "Warning - Wide", "Warning - Narrow", "Flag - Wide", "Flag - Narrow"};
+	CLSR_list = {"", "Warning - Limits Too Wide", "Warning - Limits Too Narrow", "Flag - Limits Too Wide", "Flag - Limits Too Narrow"};
+	If(!IsMissing(clsr_test)&clsr_test>4.5, clsr_msg = clsr_list[4],
+		!IsMissing(clsr_test)&clsr_test>4, clsr_msg = clsr_list[2],
+		!IsMissing(clsr_test)&clsr_test<2, clsr_msg = clsr_list[5],
+		!IsMissing(clsr_test)&clsr_test<1.5, clsr_msg = clsr_list[3],
+		clsr_msg = clsr_list[1]
+	);
+	clsr_msg;
+);
+ttd_msg_fcn = Function({ttd_num, ttd_den}, {Default_Local},
+	TTD_list = {"", "Warning", "Flag", "Flag-CL too high"};
+	ttd_test = ttd_num/ttd_den;
+	If(!IsMissing(ttd_test)&(ttd_num<0 | ttd_den<0), ttd_msg = ttd_list[4],
+		!IsMissing(ttd_test)&ttd_test>1.6, ttd_msg = ttd_list[3],
+		!IsMissing(ttd_test)&ttd_test>1.3, ttd_msg = ttd_list[2],
+		ttd_msg = ttd_list[1]
+	);
+	ttd_msg;
+);
+
+/***************************   END FUNCTIONS   *****************************/
+/************************************************************************************************
+						Main Body
+************************************************************************************************/
+
+/***  Get data table, remove excluded, create temp data table  ***/
+If( N Table() == 0,
+	::dt_orig = Open(),
+	::dt_orig = Current Data Table()
+);
+
+:: dt_origname = dt_orig << GetName;
+dt_orig << ClearSelect;
+dt_orig << ClearColumnSelection;
+::dt = dt_orig << Subset( Rows( dt_orig << GetRowsWhere( !Excluded() ) ), AllColumns );
+dt << SetName( Char( dt_origname ) || "_" || "(Copy)" );
+Current Data Table( dt );
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+dt << clear row states;
+column_names = dt<<get column names(string);
+column_names2 = column_names;
+for(i=1, i<=nitems(column_names), i++,
+	column_names2[i] = uppercase(column_names2[i])
+);
+wait(0);
+
+/*** Input Dialog Box  ***/
+nc = N Col( dt );
+lbWidth = 130;
+CLType_List = {"UCL & LCL", "UCL only", "LCL only"};
+LimitType_List1 = {"Statistical", "Engineering based on Tool-to-Tool delta"};
+LimitType_List2 = {"Statistical", "Engineering based on Chart-to-Chart delta"};
+parmid = "Parameter ID";
+
+input_roles_ul= Expr(
+	YID = {};
+	ToolID = {};
+	LotID = {};
+	TimeID = {};
+	kscreen = .;
+
+	Border Box( Left( 3 ), top( 2 ),
+		V List Box(
+			H List Box(
+				V List Box(
+					Panel Box( "Select Columns",
+						colListData = Col List Box(
+							All,
+							width( lbWidth ),
+							nLines( Min( nc, 10 ) )
+						)
+					)
+				),
+				VListBox(
+							Text Box( "Choose between raw or summarized data" ),
+					Panel Box( "Raw Unit Level Data",
+						Lineup Box( N Col( 2 ), Spacing( 3 ),
+							Button Box( "Y, Response (Required)",
+								colListY << Append( colListData << GetSelected )
+							),
+							colListY = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), numeric, maxitems(1))
+						)
+					),
+					Panel Box( ",or Summarized Unit Level Data",
+						Lineup Box( N Col( 2 ), Spacing( 3 ),
+							Button Box( "Mean (Required)",
+								colListYm << Append( colListData << GetSelected )
+							),
+							colListYm = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), numeric, maxitems(1)),
+							Button Box( "Standard Deviation (Required)",
+								colListYsd << Append( colListData << GetSelected )
+							),
+							colListYsd = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), numeric, maxitems(1)),
+							Button Box( "N (Required)",
+								colListYn << Append( colListData << GetSelected )
+							),
+							colListYn = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), numeric, maxitems(1)),
+							Text Box("Enter name of parameter:"), parm_id = Text Edit Box( parmid )
+						)
+					)
+				),
+				Panel Box( "",
+					Lineup Box( N Col( 2 ), Spacing( 3 ),
+						Button Box( "Facility (Optional)", colListF << Append( colListData << GetSelected ) ),
+						colListF = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(0)),
+						If(nrows(loc(column_names2, "FACILITY"))==1, colListF<<append(column_names[loc(column_names2, "FACILITY")]));
+						Button Box( "Entity ID (Required)",colListE << Append( colListData << GetSelected )),
+						colListE = Col List Box( width( lbWidth ), maxselected(4), nLines( 4 ), maxitems(4), minitems(1)),
+						If(nrows(loc(column_names2, "ENTITY"))==1, colListE<<append(column_names[loc(column_names2, "ENTITY")]));
+						Button Box( "Lot ID (Required)", colListL << Append( colListData << GetSelected ) ),
+						colListL = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(1)),
+						If(nrows(loc(column_names2, "LOT"))==1, colListL<<append(column_names[loc(column_names2, "LOT")]));
+						Button Box( "Date and Time (Required)", colListD << Append( colListData << GetSelected ) ),
+						colListD = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(1))
+					)
+				)
+			),
+			HListBox(
+				Panel Box("",
+					Lineup Box( N Col( 3 ), Spacing( 3 ),
+						Text Box("Ideal Target "), target_input = NumberEditBox(.), Text Box("Optional: Leave empty to use grand mean for x-bar center line.")
+						//,Text Box("k for Outlier Screening"), kScreen_input = NumberEditBox( 4 ) , Text Box("Optional: Leave empty to skip outlier screening.")
+					)
+				),
+				Panel Box("",
+					Lineup Box( N Col( 2 ), Spacing( 3 ),
+						Text Box("X-bar Control Limits"), cl_input = Combo Box( CLType_List ), 
+						Text Box("Control Limit Type"), Limit_input = Combo Box( LimitType_List2 )
+					)
+				)
+			)
+			/*,
+			Panel Box("Date Handling",
+				dt_ck1 = Check Box( "Summarize by Unit/Time Stamp instead of Unit only", 0 )
+			)
+			*/
+		)
+	)
+);
+
+input_roles_ll= Expr(
+	YID = {};
+	ToolID = {};
+	LotID = {};
+	TimeID = {};
+
+	Border Box( Left( 3 ), top( 2 ),
+		V List Box(
+			H List Box(
+				V List Box(
+					Panel Box( "Select Columns",
+						colListDatal = Col List Box(
+							All,
+							width( lbWidth ),
+							nLines( Min( nc, 10 ) )
+						)
+					)
+				),
+				VListBox(
+					Panel Box( "Lot Level Data",
+						Lineup Box( N Col( 2 ), Spacing( 3 ),
+							Button Box( "Y, Response (Required)",
+								colListYl << Append( colListDatal << GetSelected )
+							),
+							colListYl = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), numeric, maxitems(1))
+						)
+					)
+				),
+				Panel Box( "",
+					Lineup Box( N Col( 2 ), Spacing( 3 ),
+						Button Box( "Facility (Optional)", colListFl << Append( colListDatal << GetSelected ) ),
+						colListFl = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(0)),
+						If(nrows(loc(column_names2, "FACILITY"))==1, colListFl<<append(column_names[loc(column_names2, "FACILITY")]));
+						Button Box( "Entity ID (Required)", colListEl << Append( colListDatal << GetSelected )),
+						colListEl = Col List Box(width( lbWidth ), maxselected(4), nLines( 4 ), maxitems(4), minitems(1)),
+						If(nrows(loc(column_names2, "ENTITY"))==1, colListEl<<append(column_names[loc(column_names2, "ENTITY")]));
+						Button Box( "Lot ID (Required)", colListLl << Append( colListDatal << GetSelected ) ),
+						colListLl = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(1)),
+						If(nrows(loc(column_names2, "LOT"))==1, colListLl<<append(column_names[loc(column_names2, "LOT")]));
+						Button Box( "Date and Time (Required)", colListDl << Append( colListDatal << GetSelected ) ),
+						colListDl = Col List Box( width( lbWidth ), maxselected(1), nLines( 1 ), maxitems(1), minitems(1))
+					)
+				)
+			),
+			HListBox(
+				Panel Box("",
+					Lineup Box( N Col( 3 ), Spacing( 3 ),
+						Text Box("Ideal Target "), target_inputl = NumberEditBox(.), Text Box("Optional: Leave empty to use grand mean for x-bar center line."),
+						Text Box("k for Outlier Screening"), kScreen_inputl = NumberEditBox( 4 ) , Text Box("Optional: Leave empty to skip outlier screening.")
+					)
+				),
+				Panel Box("",
+					OL_ck1l = Check Box( {"Enter Online Limits"}, <<Set(1,1) ),
+					Lineup Box( N Col( 2 ), Spacing( 3 ),
+						Text Box("X-bar Control Limits"), cl_inputl = Combo Box( CLType_List ), 
+						Text Box("Control Limit Type"), Limit_inputl = Combo Box( LimitType_List1 )
+					)
+				)
+			)
+			,
+			Panel Box("Date Handling",
+				dt_ck1l = Check Box( "Summarize by Lot/Time Stamp instead of Lot only", 0 )
+			)
+		)
+	)
+);
+
+input_expr = Expr(New Window( "Setting CE Control Limits", <<Modal, 
+	HListBox(
+	tb = TabBox(
+		"Lot Level Control Chart", eval(input_roles_ll),
+		"Unit Level Control Chart", eval(input_roles_ul)
+	);
+	,
+	Panel Box( "Action",
+		Lineup Box( N Col( 1 ),
+			Button Box( "OK",
+			LUlevel=tb<<getselected;
+			If(LUlevel == 1,
+				insertinto(YID , (colListYl << GetItems ));
+				insertinto(ToolID , (colListFl << GetItems ));
+				insertinto(ToolID , (colListEl << GetItems ));
+				insertinto(LotID , (colListLl << GetItems ));
+				insertinto(TimeID , (colListDl << GetItems ));
+				IdealT = target_inputl << Get;
+				kScreen = kscreen_inputl << Get ;
+				cl_type = cl_inputl << Get ;//use GetSelected to return text string
+				limitType = limit_inputl << Get;
+				OL_ck = OL_ck1l<< Get;
+				dt_ck = dt_ck1l << Get;
+				parmid = parm_id << Get text;
+				datatype = 1;
+				If(nitems(YID)==0|nitems(ToolID)==0|nitems(LotID)==0|nitems(TimeID)==0, closedb=2, closedb=0)
+				,
+				If( nitems(colListY << GetItems )==1,
+					insertinto(YID , (colListY << GetItems ));
+					datatype=2,
+					insertinto(YID , (colListYn << GetItems ));
+					insertinto(YID , (colListYm << GetItems ));
+					insertinto(YID , (colListYsd << GetItems ));
+					datatype=3
+				);
+				insertinto(ToolID , (colListF << GetItems ));
+				insertinto(ToolID , (colListE << GetItems ));
+				insertinto(LotID , (colListL << GetItems ));
+				insertinto(TimeID , (colListD << GetItems ));
+				IdealT = target_input << Get;
+				//kScreen = kscreen_input << Get ;
+				cl_type = cl_input << Get ;//use GetSelected to return text string
+				limitType = limit_input << Get;
+				parmid = parm_id << Get text;
+				dt_ck = 0;//dt_ck1<< Get;
+				If(nitems(YID)==0|nitems(ToolID)==0|nitems(LotID)==0|nitems(TimeID)==0, closedb=2, closedb=0);
+			)							
+			),
+			Button Box( "Cancel",closedb=0; If(!IsEmpty(dt),close(dt, nosave)); throw() ),
+			Text Box( " " ),
+			Button Box( "Remove",
+			LUlevel=tb<<getselected;
+			If(LUlevel == 1,
+				colListYl << RemoveSelected;
+				colListEl << RemoveSelected;
+				colListLl << RemoveSelected;
+				colListDl << RemoveSelected
+				,
+				colListY << RemoveSelected;
+				colListYn << RemoveSelected;
+				colListYm << RemoveSelected;
+				colListYsd << RemoveSelected;
+				colListE << RemoveSelected;
+				colListL << RemoveSelected;
+				colListD << RemoveSelected;
+			)
+			);
+			closedb=0
+		)
+	)
+)	
+)
+);
+
+closedb=1;
+While(closedb,
+	If(closedb==2, New Window("Warning!", <<Modal, Text Box("Insufficient parameters selected")));
+	eval(input_expr);
+);
+wait(0.01);
+//Call Lot level or unit level script based on LULevel
+/************************************************************************************************/
+
+If(LUlevel == 1, 
+	CE_Analysis = lot_level_fcn(YID, ToolID, LotID, TimeID, IdealT, kScreen, cl_type, limitType, dt_ck, parmid)
+	,
+	CE_Analysis = unit_level_fcn(YID, ToolID, LotID, TimeID, IdealT, kScreen, cl_type, limitType, dt_ck, parmid)
+);

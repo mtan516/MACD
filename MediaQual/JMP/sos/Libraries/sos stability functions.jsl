@@ -1,0 +1,5230 @@
+/***********************************************************************************
+	
+	Expressions called by stability analysis
+	Version 1.1
+	6/27/2014
+	Created by Philip Brown
+	Edited by Paul Wenz
+	TTD and CE! Limit Enhancements by John Xu (Latest updated 02/08/2014)
+	Bug fix when validate it in JMP14 by Xin Guan (Latest updated 3/5/2020)
+	JMP versions: 5.1 to 9.0.3 to 14
+	
+	Rev history: changed save limits sytnax to work in JMP 9
+	Updated %OOC flag and warning logic, Flag on %OOC > 5% instead of %OOC >= 5%
+	
+	
+	
+
+List of Stability Expressions
+  Initialize_stability_globals
+  cc
+  cc_grp
+  cc_grp_ttd
+  scattplt_expr
+  bxplt_expr
+  xcc_expr
+  scc_expr
+  S_ChartExpr
+  X_ChartExpr
+  Box_ChartExpr
+  Scatt_ChartExpr
+  Grp_Col_Vals_Expr
+  rept_expr
+  Grp_Rept_Gen
+  Agg_Indc_Box
+  Stability_MainDiag_Expr
+  Stability_PreProc_Expr
+  GenStabSummRpt
+  trend_cht_expr
+  XBar_Trend_Chart_Expr
+  S_Trend_Chart_Expr
+  Format_XBar_Trend_Chart
+  Format_S_Trend_Chart
+  GenerateTrendChart
+  Phase_cht_expr
+  XBar_Phase_Chart_Expr
+  S_Phase_Chart_Expr
+  Format_XBar_Phase_Chart
+  Format_S_Phase_Chart
+  GeneratePhaseCharts
+  SB_Main
+  SB_Anal_Proc
+************************************************************************************/
+
+
+////////////////////////////////// Initialize_stability_globals ////////////////////////////////////
+
+ :: Initialize_stability_globals = Expr(
+	::lclindx1 = 0;
+	::lclindx2 = 0;
+	::beg_m = .;
+	::beg_s = .;
+	::end_m = .;
+	::end_s = .;
+	::N_lotgrps = .;
+	::N_samples = .;
+	::minsamples = .;
+	::maxsamples = .;
+	::counter = .;
+	::cont = 1;
+	::Grp_List = {};
+	::Grp_Indx = {};
+	::Grp_Indx_Means = {};
+	::Grp_Indx_Std = {};
+	::Grp_Col_Names = {};
+	::All_Indx_Means = {};
+	::All_Indx_Std = {};
+	::All_OOC_Vals_Mean = {};
+	::All_OOC_Vals_Std = {};
+	::All_Indc_Vals_Mean = {};
+	::All_Indc_Vals_Std = {};
+	::Grp_OOC_Vals = {};
+	::Grp_OOC_Means_Box = {};
+	::Grp_OOC_Stds_Box = {};
+	::grp_OOC_means_tab_box = {};
+	::grp_OOC_std_tab_box = {};
+	::grp_col_vals_mean = {};
+	::grp_col_vals_std = {};
+	::Group_ID = {};
+	::N_Grp_List = .;
+	::N_Grp_Cols = {};
+	::N_Param_Groups = {};
+	::OCIstat = {};
+	::CLSRstat = {};
+	::K_Diag = {};
+	::ExcludedCount = 0;
+	::subxsort = 0;
+	::Sum_Choice = 1;
+	::counter = 1;
+	::inst_m = 1;
+	::inst_s = 1;
+	::colshift = .;
+	::x_LCL = 0;
+	::x_UCL = 0;
+	::Use_CL = 0;
+	::Use_TTD_X = 0;
+	::Use_TTD_S = 0;
+	::xOnLCL = {};
+	::xOnUCL = {};
+	::xOnCL = {};
+	::xOffLCL = {};
+	::xOffUCL = {};
+	::xOffCL = {};
+	::xOnSigma = {};
+	::xOnTTD = {};
+	::sOnTTD = {};
+	::Mean_Param_TTD = {};
+	::Std_Param_TTD = {};
+	::xOnTTDCalc = {};
+	::sOnTTDCalc = {};
+	::xOnTTD_GrandMean = {};
+	::sOnTTD_GrandMean = {};
+	::xOnTTD_SMR = {};
+	::sOnTTD_SMR = {};
+	::xOCI = {};
+	::xOCIStat = {};
+	::xCLSR = {};
+	::xCLSRStat = {};
+	::xTTDRatio = {};
+	::xTTDRatioStat = {};
+	::sOCI = {};
+	::sOCIStat = {};
+	::sCLSR = {};
+	::sCLSRStat = {};
+	::sTTDRatio = {};
+	::sTTDRatioStat = {};
+	::sOnLCL = {};
+	::sOnCL = {};
+	::sOnUCL = {};
+	::sOffLCL = {};
+	::sOffCL = {};
+	::sOffUCL = {};
+	::sOnSigma = {};
+	::isrng = {};
+	::x_Off_Sigma = .;
+	::x_Off_Mean = .;
+	::x_Off_LCL = .;
+	::x_Off_UCL = .;
+	::s_Off_Sigma = .;
+	::s_Off_Mean = .;
+	::s_Off_LCL = .;
+	::s_Off_UCL = .;
+	::s_Off_CL = .;
+	::TTD_x_Off_Sigma = .;
+	::TTD_x_Off_Mean = .;
+	::TTD_x_Off_LCL = .;
+	::TTD_x_Off_UCL = .;
+	::TTD_s_Off_Sigma = .;
+	::TTD_s_Off_Mean = .;
+	::TTD_s_Off_LCL = .;
+	::TTD_s_Off_UCL = .;
+	::TTD_s_Off_CL = .;
+	::boxsetmin = {};
+	::boxsetmax = {};
+	::box_Chart_Min = {};
+	::box_Chart_Max = {};
+	::boxnumper = .;
+	::boxnumpers = {};
+	::xmax = .;
+	::xmin = .;
+	::xsetmax = {};
+	::xsetmin = {};
+	::x_Chart_Max = {};
+	::x_Chart_Min = {};
+	::xnumper = .;
+	::xnumpers = {};
+	::smax = .;
+	::smin = .;
+	::ssetmax = {};
+	::ssetmin = {};
+	::s_Chart_Max = {};
+	::s_Chart_Min = {};
+	::snumper = .;
+	::snumpers = {};
+	::one_sided_flag = {};
+	::Param_List = {""};
+	::Param_Names = {};
+	::Param_Type = {};
+	::StatText = {"", "Mean Above CL", "Mean Below CL", "Limits Too Wide", "Limits Too Narrow"};
+	::IndicatorText = {"", "    Warning - ", "    Flag - "};
+	::statg_reprt = {};
+	::indc_reprt = {};
+	::ooc_reprt = {};
+	::ooc_params_mean = {};
+	::ooc_params_std = {};
+	::indc_params_mean = {};
+	::indc_params_std = {};
+	::indc_CLSRstat_mean = {};
+	::indc_CLSRstat_std = {};
+	::indc_OCIstat_mean = {};
+	::indc_OCIstat_std = {};
+	::ooc_vals_mean = {};
+	::ooc_vals_mean_grp = {};
+	::ooc_vals_std = {};
+	::ooc_vals_std_grp = {};
+	::indc_vals_mean = {};
+	::indc_vals_std = {};
+	::indc_vals_mean_grp = {};
+	::indc_vals_std_grp = {};
+	::sampsize_reprt = {};
+	::WS_param_indxs = {};
+
+	//::Grp_Header_List={};
+	//::Header_List={};
+	//::Grp_Head={};
+	:: X_Chart = {};
+	::S_Chart = {};
+	::AnalysisBox = V List Box();
+	::ReportBox = {};
+	::HeaderBox = {};
+	::SubBox1 = {};
+	::SubBox2 = {};
+	::SubBox3 = {};
+	::SubBox4 = {};
+	::Box_Plot = {};
+	::Box_Plot_alt = {};
+	::Scatt_Plot_alt = {};
+	::parms = {0, 0, 0};
+	::n_excl_parms = 0;
+	::OP_ID = 100;
+	::Online_Limit_Matrix = [];
+	::Offline_Limit_Matrix = [];
+	::XBar_Trend_Chart = {};
+	::S_Trend_Chart = {};
+	::Trend_Chart_Box = {};
+	::XBar_Phase_Chart = {};
+	::S_Phase_Chart = {};
+	::Phase_Chart_Box = {};
+	::Clr_Mrk = {};
+	::Stab_outname = "Stability Analysis";
+	::param_summ_rows = [];
+	::Param1 = {};
+	::Param1_ttd = {};
+	::ParamList_ttd = {};
+	::all_params = {};
+	::all_SigmaMR = [];
+	::all_GrandMean = [];
+	::all_MinTMean = [];
+	::all_MaxTMean = [];
+	::all_SigmaMR_s = [];
+	::all_GrandMean_s = [];
+	::all_MinTMean_s = [];
+	::all_MaxTMean_s = [];
+	::Lower_XTTDLine = .;
+	::Upper_XTTDLine = .;
+	::Lower_XOfflineTTDLine = .;
+	::Upper_XOfflineTTDLine = .;
+	::Upper_STTDLine = .;
+	::Upper_SofflineTTDLine = .;
+);
+
+////////////////////////////////// suggested offline control limits ///////////////////
+ :: LoadOfflineLimitMatrix = Expr(
+	Offline_Limit_Matrix |/= Transpose(
+		Matrix(
+			Eval List(
+				{Eval( xOffLCL[j] ), Eval( xOffCl[j] ), Eval( xOffUCL[j] ), Eval( sOffLCL[j] ),
+				Eval( sOffCL[j] ), Eval( sOffUCL[j] )}
+			)
+		)
+	)
+);
+
+
+////////////////////////////////// cc and cc_grp ////////////////////////////////////
+/*** Generic Control Chart ***/
+ :: cc = Expr(
+	Control Chart(
+		Sample Label( x ),
+		KSigma( 3 ),
+		Chart Col(
+			Eval( y ),
+			Individual Measurement(
+				Test 1( 1 ),
+				Test 2( 1 ),
+				Test 5( 1 ),
+				Test 6( 1 ),
+				Line Width( Thin ),
+				Name( "!Test 1" )(1),
+				Name( "!Test 2" )(1),
+				Name( "!Test 5" )(1),
+				Name( "!Test 6" )(1)
+			)
+		)
+	)
+);
+::cc_grp = Expr(
+	Control Chart(
+		Sample Label( x ),
+		KSigma( 3 ),
+		Chart Col(
+			Eval( y ),
+			Individual Measurement(
+				Test 1( 1 ),
+				Test 2( 1 ),
+				Test 5( 1 ),
+				Test 6( 1 ),
+				Line Width( Thin ),
+				Name( "!Test 1" )(1),
+				Name( "!Test 2" )(1),
+				Name( "!Test 5" )(1),
+				Name( "!Test 6" )(1)
+			)
+		),
+		Where( Selected() )
+	)
+);
+
+ :: cc_grp_ttd = Expr(
+	Control Chart(
+		Sample Label( x ),
+		KSigma( 3 ),
+		Chart Col( Eval( y ), Individual Measurement( Show Control Limits( 0 ) ) ),
+		Where( Selected() )
+	)
+);
+
+
+/////////////////////////////  scattplt_expr ///////////////////////////////////////
+ :: scattplt_expr = Expr(
+	V List Box(
+		Current Data Table( dt_ );
+		::scattplot = Bivariate( Y( Expr( y_arg ) ), X( Expr( x_arg ) ), Where( Selected() ) );
+		::scatt_report = scattplot << report;
+		scatt_report[AxisBox( 1 )] << ShowMajorGrid;
+		scatt_report[AxisBox( 2 )] << ShowMajorGrid;
+	)
+); //EndExpr
+
+/////////////////////////////  bxplt_expr //////////////////////////////////////
+/*** Raw data BoxPlot ***/
+ :: bxplt_expr = Expr(
+	V List Box(
+		Current Data Table( dt_ );
+		boxsetmin = Min( Column( Expr( dt ), Response )[x_rows] );
+		boxsetmax = Max( Column( Expr( dt ), Response )[x_rows] );
+		If( docht,
+			box_Chart_Max = Min( boxsetmax );
+			box_Chart_Min = Min( boxsetmin );
+			::bxrnd = Floor( Log( (box_Chart_Max - box_Chart_Min), 10 ) );
+			If( bxrnd == 1,
+				bxrnd = 2,
+				If( bxrnd >= 1 & bxrnd < 10,
+					bxrnd = 1,
+					If( bxrnd >= 10,
+						bxrnd = 0,
+						bxrnd = (-bxrnd) + 1
+					)
+				)
+			);
+			::bxfldw = If( bxrnd >= 6, bxrnd, 6 );
+			boxplot = Oneway(
+				Y( Expr( y_arg ) ),
+				X( Expr( x_arg ) ),
+				Box Plots( 1 ),
+				Means and Std Dev( 0 ),
+				Mean Lines( 1 ),
+				Mean Diamonds( 0 ),
+				Mean Error Bars( 0 ),
+				Std Dev Lines( 0 ),
+				X Axis proportional( 0 ),
+				Points Jittered( 1 ),
+				Where( Selected() )
+			);
+			box_report = boxplot << report;
+			box_report[NomAxisBox( 1 )] << RotatedTickLabels;
+			box_report[AxisBox( 1 )] << ShowMajorGrid;
+			box_report[AxisBox( 1 )] << ShowMinorTicks( 0 );
+			box_report[AxisBox( 1 )] << Decimal( bxfldw, bxrnd );
+			box_report[AxisBox( 1 )] << Format( "Best" );
+			box_report[AxisBox( 1 )] << Max(
+				Round( box_Chart_Max + 0.10 * (box_Chart_Max - box_Chart_Min), bxrnd )
+			);
+			box_report[AxisBox( 1 )] << Min(
+				Round( box_Chart_Min - 0.10 * (box_Chart_Max - box_Chart_Min), bxrnd )
+			);
+			//box_report[AxisBox(1)] << Inc( Round( 0.10 * (box_Chart_Max - box_Chart_Min),bxrnd ) );
+			box_report[FrameBox( 1 )] << Frame size( 910, 200 );
+		);
+	) //End VListBox
+); //EndExpr
+
+//////////////////////////// xcc_expr ////////////////////////////////////
+/************************* Xbar Chart ******************************/
+ :: xcc_expr = Expr(
+	V List Box(
+		Current Data Table( sumtable );
+		// Store max and min of dataset
+		xmin = Min( Column( sumtable, colindx )[param_summ_rows] );
+		xmax = Max( Column( sumtable, colindx )[param_summ_rows] );
+
+		If( docht,
+			If( Is Missing( x_on_TTD ),
+				x_cc = Eval(
+					Substitute( Name Expr( cc_grp ),
+						Expr( x ), x,
+						Expr( y ), Expr( Column( sumtable, colindx ) )
+					)
+				),
+				x_cc = Eval(
+					Substitute( Name Expr( cc_grp_ttd ),
+						Expr( x ), x,
+						Expr( y ), Expr( Column( sumtable, colindx ) )
+					)
+				)
+			);
+
+			// Extract limits from xbar chart
+			If( jmpvernum < 9,
+				x_cc << Save Limits( in New Table ),  // JMP 5-8
+				x_cc << in New Table;  // JMP 9
+			);
+			dtx = Current Data Table();
+			x_Off_Sigma = If( Contains( Column( dtx, 1 )[3], "Std Dev" ),
+				Column( dtx, 2 )[3],
+				Column( dtx, 2 )[4]
+			);
+			x_Off_Mean = Column( dtx, 2 )[5];
+			x_Off_LCL = Column( dtx, 2 )[6];
+			x_Off_UCL = Column( dtx, 2 )[7];
+			x_Off_CL = x_Off_Mean;
+			If( !Is Missing( x_on_TTD ),
+				x_Off_LCL -= x_on_TTD;
+				x_Off_UCL += x_on_TTD;
+			);
+
+			Close( dtx, NoSave );
+			x_Chart_Min = Min( xmin, x_Off_LCL, x_On_LCL );
+			x_Chart_Max = Max( xmax, x_Off_UCL, x_On_UCL );
+			::xrnd = Floor( Log( (x_Chart_Max - x_Chart_Min), 10 ) );
+			If( xrnd == 1,
+				xrnd = 2,
+				If( xrnd >= 1 & xrnd < 10,
+					xrnd = 1,
+					If( xrnd >= 10,
+						xrnd = 0,
+						xrnd = (-xrnd) + 1
+					)
+				)
+			);
+			::xfldw = If( xrnd >= 6, xrnd, 6 );
+			::xintvl = 0.10 * (x_Chart_Max - x_Chart_Min);
+		// Customize Control Chart
+			x_report = x_cc << report;
+			x_pic = x_report[Outline Box( 2 )];
+			x_pic[AxisBox( 2 )] << rotated labels( 1 );
+			x_pic[AxisBox( 2 )] << ShowMinorTicks( 0 );                 //axis box 2 is the x-axis
+			x_pic[AxisBox( 1 )] << Decimal( xfldw, xrnd );              //axis box 1 is the y-axis
+			x_pic[AxisBox( 1 )] << Format( "Best" );
+			x_pic[AxisBox( 1 )] << ShowMinorTicks( 0 );
+			x_pic[AxisBox( 1 )] << add ref line( x_On_LCL, "Dashed", "red" );
+			x_pic[AxisBox( 1 )] << add ref line( x_On_UCL, "Dashed", "red" );
+			x_pic[AxisBox( 1 )] << add ref line( x_On_CL, "Dashed", "green" );
+			If( !Is Missing( x_on_TTD ),
+				x_pic[AxisBox( 1 )] << add ref line( x_Off_LCL, "Solid", "red", "LCL" );
+				x_pic[AxisBox( 1 )] << add ref line( x_Off_UCL, "Solid", "red", "UCL" );
+				x_pic[AxisBox( 1 )] << add ref line( x_Off_CL, "Solid", "green", "CL" );
+			);
+
+			x_pic[AxisBox( 1 )] << Min(
+				Round( x_Chart_Min - 0.10 * (x_Chart_Max - x_Chart_Min), xrnd )
+			);
+			x_pic[AxisBox( 1 )] << Max(
+				Round( x_Chart_Max + 0.10 * (x_Chart_Max - x_Chart_Min), xrnd )
+			);
+			//x_pic[AxisBox(1)] << Inc( Round( 0.10 * (x_Chart_Max - x_Chart_Min),xrnd ) );
+			x_report[framebox( 1 )] << Frame size( 312, 150 );
+		); //EndIf
+	); //EndVListBox
+); //EndExpr
+
+/////////////////////////// scc_expr ///////////////////////////////
+/************************* S Chart ******************************/
+ :: scc_expr = Expr(
+	V List Box(
+		Current Data Table( sumtable );
+		// Store max and min of dataset
+		smin = Min( Column( sumtable, colindx + shft )[param_summ_rows] );
+		smax = Max( Column( sumtable, colindx + shft )[param_summ_rows] );
+
+		If( docht,
+			If( Is Missing( s_on_TTD ),
+				s_cc = Eval(
+					Substitute( Name Expr( cc_grp ),
+						Expr( x ), x,
+						Expr( y ), Expr( Column( sumtable, colindx + shft ) )
+					)
+				),
+				s_cc = Eval(
+					Substitute( Name Expr( cc_grp_ttd ),
+						Expr( x ), x,
+						Expr( y ), Expr( Column( sumtable, colindx + shft ) )
+					)
+				)
+			);
+
+			// Extract limits from schart
+			If( jmpvernum < 9,
+				s_cc << Save Limits( in New Table ), // JMP 5-8
+				s_cc << in New Table;  // JMP 9
+			);
+			dts = Current Data Table();
+			s_Off_Sigma = If( Contains( Column( dts, 1 )[3], "Std Dev" ),
+				Column( dts, 2 )[3],
+				Column( dts, 2 )[4]
+			);
+			s_Off_Mean = Column( dts, 2 )[5];
+			s_Off_LCL = Column( dts, 2 )[6];
+			s_Off_UCL = Column( dts, 2 )[7];
+			s_Off_CL = s_Off_Mean;
+			If( !Is Missing( s_on_TTD ),
+				s_Off_LCL -= s_on_TTD;
+				s_Off_UCL += s_on_TTD;
+			);
+
+
+			Close( dts, NoSave );
+			s_Chart_Min = Min( smin, s_On_CL );
+			s_Chart_Max = Max( smax, s_Off_UCL, s_On_UCL );
+			::srnd = Floor( Log( (s_Chart_Max - s_Chart_Min), 10 ) );
+			If( srnd == 0,
+				srnd = 2,
+				If( srnd >= 1 & srnd < 10,
+					srnd = 1,
+					If( srnd >= 10,
+						srnd = 0,
+						srnd = (-srnd) + 1
+					)
+				)
+			);
+			::sfldw = If( srnd >= 6, srnd, 6 );
+			::sintvl = 0.10 * (s_Chart_Max - s_Chart_Min);
+			::schtmin = If( (s_Chart_Min - sintvl) < 0,
+				0,
+				(s_Chart_Min - sintvl)
+			);
+			// Customize Control Chart
+			s_report = s_cc << report;
+			s_pic = s_report[Outline Box( 2 )];
+			s_pic[AxisBox( 2 )] << rotated labels( 1 ); //axis box 2 is the x-axis
+			s_pic[AxisBox( 2 )] << ShowMinorTicks( 0 );
+			s_pic[AxisBox( 1 )] << ShowMinorTicks( 0 );
+			s_pic[AxisBox( 1 )] << Decimal( xfldw, xrnd );
+			s_pic[AxisBox( 1 )] << Format( "Best" );
+			s_pic[AxisBox( 1 )] << add ref line( s_on_ucl, "Dashed", "red" );
+			s_pic[AxisBox( 1 )] << add ref line( s_on_cl, "Dashed", "green" );
+			If( !Is Missing( s_on_TTD ),
+				s_pic[AxisBox( 1 )] << add ref line( s_Off_UCL, "Solid", "red", "UCL" );
+				s_pic[AxisBox( 1 )] << add ref line( s_Off_CL, "Solid", "green", "CL" );
+			);
+
+
+			s_pic[AxisBox( 1 )] << Min( Round( schtmin, srnd ) );
+			s_pic[AxisBox( 1 )] << Max( Round( s_Chart_Max + sintvl, srnd ) );
+			//s_pic[AxisBox(1)]<<Inc( Round( 0.10 * (s_Chart_Max - s_Chart_Min),srnd ) );
+			s_report[framebox( 1 )] << Frame size( 312, 150 );
+		); //EndIf
+	); //EndVListBox
+); //EndExpr
+
+/////////////////////////////S_ChartExpr/////////////////////////////////
+/************************* Chart Creator Exprs *****************************/
+ :: S_ChartExpr = Expr(
+	S_Chart[i] = Eval(
+		Substitute( Name Expr( scc_expr ),
+			Expr( k ), i,
+			Expr( Grp_ID ), Group_ID[i][1],
+			Expr( s_On_LCL ), sOnLCL[j],
+			Expr( s_On_CL ), sOnCL[j],
+			Expr( s_On_UCL ), sOnUCL[j],
+			Expr( shft ), colshift,
+			Expr( docht ), schtQ,
+			Expr( s_on_TTD ), sonTTD[j]
+		)
+	);
+	S_Chart[i][Text Box( 1 )] << Delete;
+	S_Chart[i][Outline Box( 2 )] << SetTitle(
+		Munger( S_Chart[i][Outline Box( 2 )] << GetTitle, 1, y_name, Param_List[j] )
+	);
+	S_Chart[i][Outline Box( 2 )] << SetTitle(
+		Munger( S_Chart[i][Outline Box( 2 )] << GetTitle, 1, "Individual Measurement of ", "" )
+	);
+);
+
+///////////////////////////// X_ChartExpr /////////////////////////////////
+ :: X_ChartExpr = Expr(
+	X_Chart[i] = Eval(
+		Substitute( Name Expr( xcc_expr ),
+			Expr( k ), i,
+			Expr( Grp_ID ), Group_ID[i][1],
+			Expr( x_On_LCL ), xOnLCL[j],
+			Expr( x_On_CL ), xOnCL[j],
+			Expr( x_On_UCL ), xOnUCL[j],
+			Expr( param_list_elem ), Param_List[j],
+			Expr( docht ), xchtQ,
+			Expr( x_On_TTD ), xOnTTD[j]
+		)
+	);
+	X_Chart[i][Text Box( 1 )] << Delete;
+	X_Chart[i][Outline Box( 2 )] << SetTitle(
+		Munger( X_Chart[i][Outline Box( 2 )] << GetTitle, 1, y_name, Param_List[j] )
+	);
+	X_Chart[i][Outline Box( 2 )] << SetTitle(
+		Munger( X_Chart[i][Outline Box( 2 )] << GetTitle, 1, "Individual Measurement of ", "" )
+	);
+
+);
+
+///////////////////////////// Box_ChartExpr /////////////////////////////////
+ :: Box_ChartExpr = Expr(
+	Box_Plt_[i] = Eval(
+		Substitute( Name Expr( bxplt_expr ),
+			Expr( dt_ ), Expr( dt ),
+			Expr( x_arg ), Expr( x ),
+			Expr( y_arg ), Response,
+			Expr( docht ), boxchtQ
+		)
+	);
+	Box_Plt_[i][Text Box( 1 )] << Delete;
+	Box_Plt_[i][Outline Box( 1 )] << SetTitle(
+		Munger( Box_Plt_[i][Outline Box( 1 )] << GetTitle, 1, y_name, Param_List[j] )
+	);
+	If( Expr( rwlgnd_sw ),
+		Box_Plt_[i][FrameBox( 1 )] << RowLegend(
+			Column( dt, Clr_Mrk[1] ),
+			color( 1 ),
+			Marker( 1 )
+		)
+	);
+); //EndExpr
+
+///////////////////////////// Scatt_ChartExpr /////////////////////////////////
+ :: Scatt_ChartExpr = Expr(
+	Scatt_Plt_[i] = Eval(
+		Substitute( Name Expr( scattplt_expr ),
+			Expr( dt_ ), Expr( dt ),
+			Expr( x_arg ), Expr( x ),
+			Expr( y_arg ), Response
+		)
+	);
+	Scatt_Plt_[i][Text Box( 1 )] << Delete;
+	Scatt_Plt_[i][Outline Box( 1 )] << SetTitle(
+		Munger( Scatt_Plt_[i][Outline Box( 1 )] << GetTitle, 1, y_name, Param_List[j] )
+	);
+);
+
+///////////////////////////// Grp_Col_Vals_Expr ////////////////////////////////////////
+/************************* Xbar Chart ******************************/
+ :: Grp_Col_Vals_Expr = Expr(
+	curr_tab = Current Data Table();
+	Current Data Table( summ_grp_tab );
+	For( m = 1, m <= N_Grp_Cols, m++,
+		If( Expr( do ),
+			If( inst_expr == 1,
+				Insert Into(
+					grp_col_vals_texpr,
+					Eval List( {Eval List( Column( summ_grp_tab, m )[rowsexpr] )} )
+				);
+				grp_col_vals_texpr = Eval List( grp_col_vals_texpr );
+			,
+				grp_col_vals_texpr[m] = Insert(
+					grp_col_vals_texpr[m],
+					Column( summ_grp_tab, m )[rowsexpr]
+				)
+			)
+		,
+			grp_col_vals_texpr[m] = .
+		); //end if
+	); //end for(m = 1....
+	Current Data Table( curr_tab );
+);
+
+///////////////////////////////////////////////// rept_expr ////////////////////////////////////////
+ :: rept_expr = Expr(
+	V List Box(
+		//Unexclude Row States
+		Current Data Table( sumtable );
+		For Each Row( If( Selected( Row State() ), Excluded( Row State() ) = 0 ) );
+		Wait( 0 );
+
+		// Calculate Sigmas (updated 5/11/09)
+		x_On_Sigma = Choose( one_sided + 1,
+			(x_On_UCL - x_On_LCL) / 6,
+			(x_On_UCL - x_On_CL) / 3,
+			(x_On_CL - x_On_LCL) / 3
+		);
+		s_On_Sigma = (s_On_UCL - s_On_CL) / 3;
+		//x_OCI_Off_Sigma = (x_Off_Mean - x_On_CL) / x_Off_Sigma; // Commented Out 5/11/09
+		//s_OCI_Off_Sigma = (s_Off_Mean - s_On_CL) / s_Off_Sigma; // Commented Out 5/11/09
+			
+		// Calculate Indicators (updated 5/11/09)
+		If( Is Missing( x_on_TTD ),
+			x_CLSR = Choose( one_sided + 1,
+				3 * x_On_Sigma / x_Off_Sigma,  		// two sided
+				(x_On_UCL - x_Off_CL) / x_Off_Sigma,   // one sided +
+				(x_Off_CL - x_On_LCL) / x_Off_Sigma// one sided -
+			); //end Choose(...)
+		, 
+			
+			x_CLSR = .
+		);
+
+		If( Is Missing( s_on_TTD ),
+			s_CLSR = (s_On_UCL - s_Off_CL) / s_Off_Sigma,
+			s_CLSR = .
+		);
+		
+
+		x_OCI = (x_Off_Mean - x_On_CL) / x_On_Sigma;
+		s_OCI = (s_Off_Mean - s_On_CL) / s_On_Sigma;
+			
+		// Determine Status Flags for x_ (Create a Function for these ops)
+		If( !Is Missing( x_CLSR ),
+			If( x_CLSR > 4.5,
+				CLSRstat[1] = {4, 3},
+				If( (x_CLSR <= 4.5) & (x_CLSR > 4),
+					CLSRstat[1] = {4, 2},
+					If( (x_CLSR < 2.0) & (x_CLSR >= 1.5),
+						CLSRstat[1] = {5, 2},
+						If( x_CLSR < 1.5,
+							CLSRstat[1] = {5, 3},
+							CLSRstat[1] = {1, 1}
+						)
+					)
+				)
+			),
+			CLSRstat[1] = {1, 1}
+		);
+		
+		// Use Offline Sigma in OCI calculation if CLSR>4.5
+		// If( x_CLSR > 4.5, x_OCI = x_OCI_Off_Sigma ); // Commented Out 5/11/09
+ 
+		If( !Is Missing( x_OCI ),
+			If( x_OCI > 1.5,
+				OCIstat[1] = {2, 3},
+				If( (x_OCI <= 1.5) & (x_OCI > 1),
+					OCIstat[1] = {2, 2},
+					If( (x_OCI < -1.0) & (x_OCI >= -1.5),
+						OCIstat[1] = {3, 2},
+						If( x_OCI < -1.5,
+							OCIstat[1] = {3, 3},
+							OCIstat[1] = {1, 1}
+						)
+					)
+				)
+			),
+			OCIstat[1] = {1, 1}
+		);
+
+		// Determine Status Flags for s_
+		If( !Is Missing( s_CLSR ),
+			If( s_CLSR > 4.5,
+				CLSRstat[2] = {4, 3},
+				If( (s_CLSR <= 4.5) & (s_CLSR > 4),
+					CLSRstat[2] = {4, 2},
+					If( (s_CLSR < 2.0) & (s_CLSR >= 1.5),
+						CLSRstat[2] = {5, 2},
+						If( s_CLSR < 1.5,
+							CLSRstat[2] = {5, 3},
+							CLSRstat[2] = {1, 1}
+						)
+					)
+				)
+			),
+			CLSRstat[2] = {1, 1}
+		);
+
+		// Use Offline Sigma in OCI calculation if CLSR>4.5
+		// If( s_CLSR > 4.5, s_OCI = s_OCI_Off_Sigma ); // Commented Out 5/11/09
+
+		If( !Is Missing( s_OCI ),
+			If( s_OCI > 1.5,
+				OCIstat[2] = {2, 3},
+				If( (s_OCI <= 1.5) & (s_OCI > 1),
+					OCIstat[2] = {2, 3},
+					If( (s_OCI < -1.0) & (s_OCI >= -1.5),
+						OCIstat[2] = {3, 2},
+						If( s_OCI < -1.5,
+							OCIstat[2] = {3, 3},
+							OCIstat[2] = {1, 1}
+						)
+					)
+				)
+			),
+			OCIstat[2] = {1, 1}
+		);
+
+
+		// Calculate OOC
+		x_On_OOC = 0;
+		s_On_OOC = 0;
+		x_Off_OOC = 0;
+		s_Off_OOC = 0;
+		N_Runs = 0;
+
+
+		For( q = 1, q <= N Row( rowlist ), q++,
+			Choose( one_sided + 1,
+				If(
+					(Column( sumtable, colindx )[rowlist[q]] > x_On_UCL) | (
+					Column( sumtable, colindx )[rowlist[q]] < x_On_LCL),
+					x_On_OOC++
+				), 
+					
+				If( (Column( sumtable, colindx )[rowlist[q]] > x_On_UCL),
+					x_On_OOC++
+				), 
+
+				If( (Column( sumtable, colindx )[rowlist[q]] < x_On_LCL),
+					x_On_OOC++
+				)
+			);
+	
+			If( (Column( sumtable, colindx + 1 )[rowlist[q]] > s_On_UCL),
+				s_On_OOC++
+			);
+			If(
+				(Column( sumtable, colindx )[rowlist[q]] > x_Off_UCL) | (
+				Column( sumtable, colindx )[rowlist[q]] < x_Off_LCL),
+				x_Off_OOC++
+			);
+			If( (Column( sumtable, colindx + 1 )[rowlist[q]] > s_Off_UCL),
+				s_Off_OOC++
+			);
+			If( !Is Missing( Column( sumtable, colindx )[rowlist[q]] ),
+				N_Runs++
+			);
+		);
+
+
+		If( And( Is Missing( x_On_LCL ), Is Missing( x_On_UCL ) ),
+			x_On_OOC = 0
+		);
+		If( Is Missing( s_On_UCL ),
+			s_On_OOC = 0
+		);
+
+		If( And( Is Missing( x_Off_LCL ), Is Missing( x_Off_UCL ) ),
+			x_Off_OOC = 0
+		);
+		If( Is Missing( s_Off_UCL ),
+			s_Off_OOC = 0
+		);
+
+		x_On_OOC_Percent = 100 * x_On_OOC / N_runs;
+		s_On_OOC_Percent = 100 * s_On_OOC / N_runs;
+		x_Off_OOC_Percent = 100 * x_Off_OOC / N_runs;
+		s_Off_OOC_Percent = 100 * s_Off_OOC / N_runs;, 
+
+		If( n_excl_parms != 0,
+			excl_message = H List Box(
+				Text Box(
+					"	Note: " || Char( n_excl_parms ) ||
+					" run(s) excluded from limit calculation" ||
+					If( !clr_mrk_sw,
+						", indicated with red stars.",
+						"."
+					)
+				),
+				Text Box( "  (Using K = " || Char( K_Val ) || ")" )
+			),
+			excl_message = Text Box( "	Note: All Data used in limit calculation." )
+		), 
+
+		//Calc TTD Ratio and TTD Ratio flag
+
+		x_on_TTD_Ratio = .;
+
+		If( !Is Missing( x_on_TTD ) & !Is Missing( x_on_TTD_Calc ),
+			If( x_on_TTD_Calc > 0,
+				x_on_TTD_Ratio = x_on_TTD / x_on_TTD_Calc
+			),
+			x_on_TTD_Ratio = .
+		);
+		
+		s_on_TTD_Ratio = .;
+
+		If( !Is Missing( s_on_TTD ) & !Is Missing( s_on_TTD_Calc ),
+			If( s_on_TTD_Calc > 0,
+				s_on_TTD_Ratio = s_on_TTD / s_on_TTD_Calc
+			),
+			s_on_TTD_Ratio = .
+		); 
+
+		
+		If( !Is Missing( x_on_TTD_Ratio ),
+			If( x_on_TTD_Ratio > 1.6,
+				x_on_TTD_Ratio_Stat = "Flag",
+				If( x_on_TTD_Ratio > 1.3,
+					x_on_TTD_Ratio_Stat = "Warn",
+					x_on_TTD_Ratio_Stat = ""
+				)
+			),
+			x_on_TTD_Ratio_Stat = ""
+		);   
+
+		If( !Is Missing( s_on_TTD_Ratio ),
+			If( s_on_TTD_Ratio > 1.6,
+				s_on_TTD_Ratio_Stat = "Flag",
+				If( s_on_TTD_Ratio > 1.3,
+					s_on_TTD_Ratio_Stat = "Warn",
+					s_on_TTD_Ratio_Stat = ""
+				)
+			),
+			s_on_TTD_Ratio_Stat = ""
+		); 
+
+//modified Online Sigma by minus TTD/3   9/15/2013
+		If( !Is Missing( x_on_TTD ) & x_on_TTD > 0,
+			x_On_Sigma -= x_on_TTD / 3
+		);
+
+		If( !Is Missing( s_on_TTD ) & s_on_TTD > 0,
+			s_On_Sigma -= s_on_TTD / 3
+		);
+
+		N_Runs_arg = {N_Runs, N_Runs};
+		OOCon_arg = {x_On_OOC, s_On_OOC};
+		OOCoff_arg = {x_Off_OOC, s_Off_OOC};
+		PctOOCon_arg = {Round( x_On_OOC_Percent, 1 ), Round( s_On_OOC_Percent, 1 )};
+		PctOOCoff_arg = {Round( x_Off_OOC_Percent, 1 ), Round( s_Off_OOC_Percent, 1 )};
+		LCLon_arg = {x_On_LCL, s_On_LCL};
+		CLon_arg = {x_On_CL, s_On_CL};
+		UCLon_arg = {x_On_UCL, s_On_UCL};
+		S_on_arg = {x_On_Sigma, s_On_Sigma};
+		S_off_arg = {x_Off_Sigma, s_Off_Sigma};
+		X_off_arg = {x_Off_Mean, s_Off_Mean};
+
+		X_TTD_arg = {x_on_TTD, s_on_TTD};
+		X_TTD_Calc_arg = {x_on_TTD_Calc, s_on_TTD_Calc};
+		X_TTD_Ratio_arg = {x_on_TTD_Ratio, s_on_TTD_Ratio}; 
+
+		CLSR_arg = {Round( x_CLSR, 2 ), Round( s_CLSR, 2 )}; // add extra digit 5/9/09
+		OCI_arg = {Round( x_OCI, 2 ), Round( s_OCI, 2 )};  // add extra digit 5/9/09
+
+		TTD_Ratio_stat_arg = {Char( x_on_TTD_Ratio_Stat, s_on_TTD_Ratio_Stat )};
+
+		CLSR_stat_arg = {Char( IndicatorText[CLSRstat[1][2]] ) ||
+		Char( StatText[CLSRstat[1][1]] ), Char( IndicatorText[CLSRstat[2][2]] ) ||
+		Char( StatText[CLSRstat[2][1]] )};
+		OCI_stat_arg = {Char( IndicatorText[OCIstat[1][2]] ) || Char( StatText[OCIstat[1][1]] ),
+		Char( IndicatorText[OCIstat[2][2]] ) || Char( StatText[OCIstat[2][1]] )};
+
+		// Setup Report Output
+
+		// Graph Legend Report
+		Graph_Legend = Outline Box( "Graph Legend",
+			Outline Box( "Reference Lines",
+				Text Box( "	Red dashed lines are Online Limits." ),
+				" ",
+				Text Box( "	Red solid lines are Offline Limits." ),
+				" ",
+				Text Box( "	Green dashed line is Online Center Line." ),
+				" ",
+				Text Box( "	Green solid line is Mean calculated from data." )
+			),
+			If( !clr_mrk_sw,
+				Outline Box( "Data Points",
+					Text Box( "	Red stars indicate runs excluded from limit calculation." )
+				),
+				Text Box( "" )
+			)
+		);,
+		Graph_Legend << Close;
+
+		H List Box(
+			// OOC Report		
+			ooc_reprt[k] = Outline Box( "OOC Report",
+				Table Box(
+					String Col Box( "ParameterID", param1_arg ),
+					Number Col Box( "# Runs", Eval Expr( Expr( Remove( N_Runs_arg, rm ) ) ) ),
+					Number Col Box( "# OOC Online",
+						Eval Expr( Expr( Remove( OOCon_arg, rm ) ) )
+					),
+					Number Col Box( "% OOC Online",
+						Eval Expr( Expr( Remove( PctOOCon_arg, rm ) ) ),
+						<<SetFormat( 4, 1 )
+					),
+					Number Col Box( "# OOC Offline",
+						Eval Expr( Expr( Remove( OOCoff_arg, rm ) ) )
+					),
+					Number Col Box( "% OOC Offline",
+						Eval Expr( Expr( Remove( PctOOCoff_arg, rm ) ) ),
+						<<SetFormat( 4, 1 )
+					)
+				)
+			), 
+			//Sample Size Report
+			sampsize_reprt[k] = Outline Box( "Sample Size Report",
+				Table Box(
+					Number Col Box( "# Samples Per Run", N_samples ),
+					Number Col Box( "# of Runs", N_lotgrps )
+
+				)
+			)
+		);, 
+		// Status Indicator Report
+		indc_reprt[k] = Outline Box( "Indicator Report",
+			Table Box(
+				String Col Box( "ParameterID", param1_arg ),
+				Number Col Box( "LCL Online", Eval Expr( Expr( Remove( LCLon_arg, rm ) ) ) ),
+				Number Col Box( "CL Online", Eval Expr( Expr( Remove( CLon_arg, rm ) ) ) ),
+				Number Col Box( "UCL Online", Eval Expr( Expr( Remove( UCLon_arg, rm ) ) ) ),
+				Number Col Box( "Sigma Online", Eval Expr( Expr( Remove( S_on_arg, rm ) ) ) ),
+				Number Col Box( "Sigma Offline", Eval Expr( Expr( Remove( S_off_arg, rm ) ) ) ),
+				Number Col Box( "Mean Offline", Eval Expr( Expr( Remove( X_off_arg, rm ) ) ) ),
+				Number Col Box( "CLSR",
+					Eval Expr( Expr( Remove( CLSR_arg, rm ) ) ),
+					<<SetFormat( 5, 2 )
+				),
+				Number Col Box( "OCI",
+					Eval Expr( Expr( Remove( OCI_arg, rm ) ) ),
+					<<SetFormat( 5, 2 )
+				),
+				String Col Box( "    CLSR Status",
+					Eval Expr( Expr( Remove( CLSR_stat_arg, rm ) ) )
+				),
+				String Col Box( "    OCI Status",
+					Eval Expr( Expr( Remove( OCI_stat_arg, rm ) ) )
+				),
+				Number Col Box( "Ref TTD", Eval Expr( Expr( Remove( X_TTD_arg, rm ) ) ) )
+			)
+				//If( rm==2 | rm ==0, If( CLSRstat[1] == {4,3}, textbox("Note: OCI for Mean calculated with Sigma Offline since CLSR > 4.5") )), // Commented Out 5/11/09
+			//If( rm==1 | rm ==0, If( CLSRstat[2] == {4,3}, textbox("Note: OCI for Sigma calculated with Sigma Offline since CLSR > 4.5") ))
+		), 
+
+		// Aggregate OOC report table values
+		Choose( rm + 1, 
+			// Raw
+			lclindx1++;
+			lclindx2++;
+			Insert Into( ooc_params_mean, ooc_reprt[k][String Col Box( 1 )] << Get( 1 ) );
+			Insert Into( ooc_params_std, ooc_reprt[k][String Col Box( 1 )] << Get( 2 ) );
+			Insert Into( indc_params_mean, indc_reprt[k][String Col Box( 1 )] << Get( 1 ) );
+			Insert Into( indc_params_std, indc_reprt[k][String Col Box( 1 )] << Get( 2 ) );
+			Insert Into( indc_CLSRstat_mean, indc_reprt[k][String Col Box( 2 )] << Get( 1 ) );
+			Insert Into( indc_CLSRstat_std, indc_reprt[k][String Col Box( 2 )] << Get( 2 ) );
+			Insert Into( indc_OCIstat_mean, indc_reprt[k][String Col Box( 3 )] << Get( 1 ) );
+			Insert Into( indc_OCIstat_std, indc_reprt[k][String Col Box( 3 )] << Get( 2 ) );
+
+			ooc_vals_mean |/= (ooc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+			ooc_vals_std |/= (ooc_reprt[k][Table Box( 1 )] << GetAsMatrix)[2, 0];
+			indc_vals_mean |/= (indc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+			indc_vals_std |/= (indc_reprt[k][Table Box( 1 )] << GetAsMatrix)[2, 0];
+
+			Insert Into( all_indx_means, k );
+			Insert Into( all_indx_std, k );
+			If( tem,
+				Eval(
+					Substitute( Name Expr( Grp_Col_Vals_Expr ),
+						Expr( rowsexpr ), Matrix( all_indx_means ),
+						Expr( grp_col_vals_texpr ), Expr( grp_col_vals_mean ),
+						Expr( inst_expr ), inst_m,
+						Expr( do ), 1
+					)
+				);
+				inst_m++;
+				Eval(
+					Substitute( Name Expr( Grp_Col_Vals_Expr ),
+						Expr( rowsexpr ), Matrix( all_indx_std ),
+						Expr( grp_col_vals_texpr ), Expr( grp_col_vals_std ),
+						Expr( inst_expr ), inst_s,
+						Expr( do ), 1
+					)
+				);
+				inst_s++;
+
+				All_OOC_Vals_Mean |/= ooc_vals_mean;
+				All_OOC_Vals_Std |/= ooc_vals_std;
+				All_Indc_Vals_Mean |/= indc_vals_mean;
+				All_Indc_Vals_Std |/= indc_vals_std;
+				Grp_OOC_Vals |/= ooc_vals_mean;
+				Grp_OOC_Vals |/= ooc_vals_std;
+				ooc_vals_mean = {};
+				ooc_vals_std = {};
+				indc_vals_mean = {};
+				indc_vals_std = {};
+				all_indx_means = {};
+				all_indx_std = {};
+			);, 
+
+			// StdDev
+			lclindx2++;
+			Insert Into( ooc_params_std, ooc_reprt[k][String Col Box( 1 )] << Get( 1 ) );
+			Insert Into( indc_params_std, indc_reprt[k][String Col Box( 1 )] << Get( 1 ) );
+			Insert Into( indc_CLSRstat_std, indc_reprt[k][String Col Box( 2 )] << Get( 1 ) );
+			Insert Into( indc_OCIstat_std, indc_reprt[k][String Col Box( 3 )] << Get( 1 ) );
+
+			ooc_vals_std |/= (ooc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+			indc_vals_std |/= (indc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+
+			Insert Into( all_indx_std, k );
+			If( tem,
+				grp_indx_std |/= lclindx2;
+				Eval(
+					Substitute( Name Expr( Grp_Col_Vals_Expr ),
+						Expr( rowsexpr ), Matrix( all_indx_std ),
+						Expr( grp_col_vals_texpr ), Expr( grp_col_vals_std ),
+						Expr( inst_expr ), inst_s,
+						Expr( do ), 1
+					)
+				);
+				inst_s++;
+				All_OOC_Vals_Std |/= ooc_vals_std;
+				All_Indc_Vals_Std |/= indc_vals_std;
+				Grp_OOC_Vals |/= ooc_vals_std;
+				ooc_vals_std = {};
+				indc_vals_std = {};
+				all_indx_means = {};
+				all_indx_std = {};
+			);, 
+
+			// Mean
+			lclindx1++;
+			Insert Into( ooc_params_mean, ooc_reprt[k][String Col Box( 1 )] << Get );
+			Insert Into( indc_params_mean, indc_reprt[k][String Col Box( 1 )] << Get( 1 ) );
+			Insert Into( indc_CLSRstat_mean, indc_reprt[k][String Col Box( 2 )] << Get( 1 ) );
+			Insert Into( indc_OCIstat_mean, indc_reprt[k][String Col Box( 3 )] << Get( 1 ) );
+
+			ooc_vals_mean |/= (ooc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+			indc_vals_mean |/= (indc_reprt[k][Table Box( 1 )] << GetAsMatrix)[1, 0];
+
+			Insert Into( All_Indx_Means, k );
+			If( tem,
+				grp_indx_means |/= lclindx1;
+				Eval(
+					Substitute( Name Expr( Grp_Col_Vals_Expr ),
+						Expr( rowsexpr ), Matrix( all_indx_means ),
+						Expr( grp_col_vals_texpr ), Expr( grp_col_vals_mean ),
+						Expr( inst_expr ), inst_m,
+						Expr( do ), 1
+					)
+				);
+				inst_m++;
+				All_OOC_Vals_Mean |/= ooc_vals_mean;
+				All_Indc_Vals_Mean |/= indc_vals_mean;
+				Grp_OOC_Vals |/= ooc_vals_mean;
+				ooc_vals_mean = {};
+				indc_vals_mean = {};
+				all_indx_means = {};
+				all_indx_std = {};
+			);
+		), 
+
+		// Status Guidelines Report
+		statg_reprt[k] = Outline Box( "Status Guidelines",
+			Outline Box( "CLSR",
+				Table Box(
+					String Col Box( "Status", {"Warning", "Flag"} ),
+					String Col Box( "Limits Too Wide        ",
+						{"4.0 < CLSR <= 4.5", "CLSR > 4.5"}
+					),
+					String Col Box( "Limits Too Narrow      ",
+						{"1.5 <= CLSR < 2.0", "CLSR < 1.5"}
+					)
+				)
+			),
+			Outline Box( "OCI",
+				Table Box(
+					String Col Box( "Status", {"Warning", "Flag"} ),
+					String Col Box( "Mean Above Center Line  ",
+						{"1.0 < OCI <= 1.5", "OCI > 1.5"}
+					),
+					String Col Box( "Mean Below Center Line  ",
+						{"-1.5 <= OCI < -1.0", "OCI < -1.5"}
+					)
+				)
+			)
+		),
+		statg_reprt[k] << Close;
+		FooterBox;
+	)//End VListBox
+);//EndExpr
+
+///////////////////////////////////////// Grp_Rept_Gen /////////////////////////////////////////////////////////
+// Assemble group rollup report elements
+Grp_Rept_Gen = Expr(
+	For( r = N_Grp_Cols, r >= 2, r--,
+		If( Type( GetColAsTable( r, summ_grp_tab )[2] ) == "List",
+			grp_OOC_means_tab_box << Prepend(
+				String Col Box( GetColAsTable( r, summ_grp_tab )[1],
+					GetColAsTable( r, summ_grp_tab )[2][All_Indx_Means]
+				)
+			);
+			grp_stds_tab_box << Prepend(
+				String Col Box( GetColAsTable( r, summ_grp_tab )[1],
+					GetColAsTable( r, summ_grp_tab )[2][All_Indx_Std]
+				)
+			);
+		, 
+
+			grp_means_tab_box << Prepend(
+				Number Col Box( GetColAsTable( r, summ_grp_tab )[1],
+					GetColAsTable( r, summ_grp_tab )[2][All_Indx_Means]
+				)
+			);
+			grp_stds_tab_box << Prepend(
+				Number Col Box( GetColAsTable( r, summ_grp_tab )[1],
+					GetColAsTable( r, summ_grp_tab )[2][All_Indx_Std]
+				)
+			);
+		)
+	);
+	grp_means_tab_box << Prepend( String Col Box( "PARAMETERID", ooc_params_mean ) );
+	grp_stds_tab_box << Prepend( String Col Box( "PARAMETERID", ooc_params_std ) );
+);
+
+//////////////////////////////////////////////// Agg_Indc_Box ///////////////////////////////////////////////////////////////
+// Overall Indc Report
+Agg_Indc_Box = Expr(
+	Outline Box( "Overall Indicator Report",
+		V List Box(
+			Table Box(
+				String Col Box( "ParameterID", indc_params ),
+				Number Col Box( "LCL Online", indc_vals[0, 1] ),
+				Number Col Box( "CL Online", indc_vals[0, 2] ),
+				Number Col Box( "UCL Online", indc_vals[0, 3] ),
+				Number Col Box( "Sigma Online", indc_vals[0, 4] ),
+				Number Col Box( "Sigma Offline", indc_vals[0, 5] ),
+				Number Col Box( "Mean Offline", indc_vals[0, 6] ),
+				Number Col Box( "CLSR Offline", indc_vals[0, 7], <<SetFormat( 5, 2 ) ),
+				Number Col Box( "OCI Offline", indc_vals[0, 8], <<SetFormat( 5, 2 ) ),
+				String Col Box( "", {} ),
+				String Col Box( "CLSR Status", indc_CLSRstat ),
+				String Col Box( "OCI Status", indc_OCIstat )
+			)
+		)
+	)
+);
+
+/////////////////////////////////////////// Stability_MainDiag_Expr ////////////////////////////////////////////////////////////
+ :: Stability_MainDiag_Expr = Expr(
+	error_checking = 0;
+	While( error_checking == 0,
+		Result = Column Dialog(
+			Title( "Stability Analysis" ),
+			::Response = ColList( "Response Variable (Required)",
+				MinCol( 1 ),
+				Max Col( 1 ),
+				DataType( Numeric ),
+				Columns( :PARAMETERVALUE )
+			),
+			" ",
+			::x = ColList( "Run ID (Required)", MinCol( 1 ), MaxCol( 1 ), Columns( :LOT ) ),
+			" ",
+			::subx = ColList( "Sub RunID (Optional)", Max Col( 1 ) ),
+			"",
+			::Param = ColList( "Parameter ID",
+				MaxCol( 3 ),
+				DataType( Character ),
+				Columns( :PARAMETERNAME )
+			),
+			" ",
+			::t = ColList( "Order By (Required)",
+				MinCol( 1 ),
+				Max Col( 1 ),
+				DataType( Numeric ),
+				Columns( :Date Time )
+			),
+			" ",
+			::Col_List = ColList( "1. Facility and/or 2. Entity (Optional)",
+				Max Col( 2 ),
+				Min Col( 0 ),
+				DataType( Character ),
+				Columns( FACILITY, ENTITY )
+			),
+			::z = ColList( "Group By (Optional)" ), 
+			//	::Clr_Mrk = ColList("Color/Marker By (Optional)",Max Col(1),DataType(Character) ),
+			HList(
+				VList(
+					HList( ::subxsort = Check Box( "Use SUB RUNID as ORDER BY", 0 ) ),
+					VList(
+						::exclQ = Check Box( "Exclude Outliers From Limit Calculation", 1 ),
+						HList( "        Use K=", ::K_Val = EditNumber( 4 ), " for Exclusions" )
+					),
+					" ",
+					::savrsQ = Check Box( "Save Current Rowstates" )
+				),
+				VList(
+					VList(
+						"Choose Source of Control Limits",
+						ref_select = Combo Box(
+							"Enter Manually",
+							"Create Reference Table",
+							"Retrieve Saved Reference Table",
+							1
+						)
+					),
+					" ",
+					"NOTE: PARAMETERID is required when using a reference table to supply limits"
+				)
+			)
+		);
+		Eval List( Result );
+		button[1] = Result["Button"];
+		error_checking = 1;
+		
+		If(
+			button[1] == 1 & (jmpvernum >= 8) & N Items( Result["Col_List"] ) == 0 &
+			N Items( Result["Param"] ) == 0,
+			error_checking = 0;
+			Dialog(
+				Title( "Error" ),
+				"Parameter ID and Entity columns cannot both be empty",
+				Button( "cancel" )
+			);
+		);
+
+
+		If( button[1] == 1 & N Items( Result["z"] ) > 0 & N Items( Result["Param"] ) == 0,
+			error_checking = 0;
+			Dialog(
+				Title( "Error" ),
+				"Parameter ID column cannot be empty when using Group By option!",
+				Button( "cancel" )
+			);
+		);
+
+		If( button[1] == 1 & N Items( Result["Param"] ) == 0,
+			If( !Contains( dt << GetColumnNames( String ), "PARAMETERID" ),
+				dt << AddMultipleColumns( "PARAMETERID", 1, AfterLast, Character( 128 ) );
+				For Each Row( :PARAMETERID = Char( Response[1] ) );
+			);
+			::Param = {:PARAMETERID};
+		);	
+
+		 :: YID = Result["Response"];
+		::LotID = Result["x"];
+	//	::Param_ttd = Result["Param"];
+		 :: Param_ttd = Param;
+		::ToolID = Result["Col_List"];
+		::TimeID = Result["t"];
+	); //end while(error_checking...)
+
+); //EndExpr
+
+
+/***  Functions  ***/
+outlier_fcn1 = Function( {exc_list}, {Default Local}, exc_row = Loc( exc_list, "Yes" ) );
+
+outlier_fcn2 = Function( {exc_mat}, {Default Local}, exc_row = Loc( exc_mat ) );
+
+MR_fcn = Function( {ooc_rows, colymat},
+	{Default Local},
+	colymattemp = colymat;
+	colymattemp[ooc_rows] = [.];
+	ave_lot = Mean( colymattemp );
+	mdn_lot = Quantile( 0.5, colymattemp );
+	mr_mat2 = [];
+	For( i = 1, i <= entity_n, i++,
+		coly_mat2 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		coly_mat3 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		ent_mean = Mean( coly_mat2 );
+		coly_mat2[entity_nlots[i]] = [];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1] = [];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.] |/ Abs( coly_mat2 - coly_mat3 );
+		mr_mat2 = mr_mat2 |/ mr_mat;
+	);
+	ave_mr = Mean( mr_mat2 ) / 1.128;
+	mdn_mr = Quantile( 0.5, mr_mat2 ) / 0.954;
+	mr_res = ave_lot || mdn_lot || ave_mr || mdn_mr;
+);
+
+MR_entity_fcn = Function( {ooc_rows, colymat},
+	{Default Local},
+	ent_stats = J( entity_n, 5, . );
+	colymattemp = colymat;
+	colymattemp[ooc_rows] = [.];
+	For( i = 1, i <= entity_n, i++,
+		coly_mat2 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		coly_mat3 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		ent_mean = Mean( coly_mat2 );
+		coly_mat2[entity_nlots[i]] = [];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1] = [];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.] |/ Abs( coly_mat2 - coly_mat3 );
+		ent_stats[i, 1] = ent_mean; //mean
+		ent_stats[i, 2] = Mean( mr_mat ) / 1.128; //sigma MR
+		ent_stats[i, 3] = 3 * ent_stats[i, 2]; //3*sigma MR
+		ent_stats[i, 4] = Quantile( 0.5, mr_mat ) / 0.954; //sigma median MR
+		ent_stats[i, 5] = 3 * ent_stats[i, 4]; //3*sigma median MR
+	);
+	ent_stats;
+); //end function MR_entity_fcn
+
+////////////////////////////// TTD_PreCalc_Expr ///////////////////////////////////////////////////
+// TTD pre-Calc module
+::TTD_PreCalc_Expr = Expr(
+
+	For( k = 1, k <= N Items( ParamList_ttd ), k++,
+		dt_TTD = dt_TTD0 << Subset( Selected Columns ( 0 ), Output Table( "Copy " || Char( k ) || " of dt_TTD0 " ) ); // JMP 16 Defaults to subsetting selected columns
+		Current Data Table( dt_TTD );
+	
+		If( (N Items( ParamList_ttd ) > 1),
+			dt_TTD << select where( Column( dt_TTD, Param1_ttd )[] != ParamList_ttd[k] ) <<
+			delete rows
+		);
+/*** Data File View Handling ***/
+		unhide_close_dts = Expr(
+			If( !Is Empty( dtsj2 ),
+				Close( dtsj2, nosave )
+			);
+			If( !Is Empty( dtsjs ),
+				Close( dtsjs, nosave )
+			);
+			If( !Is Empty( dtsj ),
+				Close( dtsj, nosave )
+			);
+			If( !Is Empty( dts1 ),
+				Close( dts1, nosave )
+			);
+			If( !Is Empty( dts ),
+				Close( dts, nosave )
+			);
+			If( !Is Empty( dt_TTD ),
+				Close( dt_TTD, nosave )
+			);
+		);
+
+		dt_TTD << Sort(
+			By( Eval( ToolID ), Eval( TimeID ), Eval( LotID ) ),
+			Order( Ascending, Ascending, Ascending ),
+			Replace Table
+		);
+		Column( dt_TTD, Eval( LotID )[1] ) << set property( "Row Order Levels", 1 );
+		y_range = Col Max( Column( dt_TTD, Eval( YID ) ) ) -
+		Col Min( Column( dt_TTD, Eval( YID ) ) );
+		dplace = If( Floor( Log10( y_range ) ) < 1,
+			Abs( Floor( Log10( y_range ) ) ) + 2,
+			2
+		);
+
+// Summarize to Lot Level.
+		If( dt_ck == 1,
+			dts = dt_TTD << Summary(
+				Group( Eval( GrpList ) ),
+				Mean( Eval( YID ) ),
+				Std Dev( Eval( YID ) )
+			),
+			dtGrpList = Remove( GrpList, 2 );
+			dts = dt_TTD << Summary(
+				Group( Eval( dtGrpList ) ),
+				Min( Eval( GrpList[2] ) ),
+				Mean( Eval( YID ) ),
+				Std Dev( Eval( YID ) )
+			);
+			move_col = Column( dts, Char( Column Name( 4 ) ) );
+			move_col << set selected( 1 );
+			move_name = move_col << get name;
+			move_name = Char( TimeID[1] );
+			after_col = Char( Column Name( 1 ) );
+			dts << move selected columns( After( Eval( after_col ) ) );
+			move_col << set selected( 0 ) << set name( move_name );
+			dts << Sort(
+				By( Eval( ToolID ), Eval( TimeID ), Eval( LotID ) ),
+				Order( Ascending, Ascending, Ascending ),
+				Replace Table
+			);
+		);
+		Column( dts, "N Rows" ) << set name( "N Samples" );
+
+// Calculate Outlier Screen Limits
+		dts1 = dts << Summary(
+			Group( Eval( ToolID ) ),
+			Median( Column( 5 ) ),
+			Quantiles( 25, Column( 5 ) ),
+			Quantiles( 75, Column( 5 ) ),
+			Median( Column( 6 ) ),
+			Quantiles( 75, Column( 6 ) )
+		);
+
+// Check # of Entities  //
+		 :: entity_n = N Rows( dts1 );
+		Column( dts1, "N Rows" ) << set name( "# Total Lots" );
+		dts1 << run formulas;
+		entity_nlots = Column( dts1, "# Total Lots" ) << get as matrix;
+		entity_range = J( N Rows( entity_nlots ), 2, . );
+		entity_list = Column( dts1, Eval( ToolID ) ) << get values;
+		start = 1;
+		end = 0;
+		For( i = 1, i <= N Rows( entity_nlots ), i++,
+			end = end + entity_nlots[i];
+			entity_range[i, 1] = start;
+			entity_range[i, 2] = end;
+			start = start + entity_nlots[i];
+		);
+
+// Exclude tools with less than 3 lots.
+		dts1 << clear row states << clear select << clear column selection;
+		ent_exc_rows = Loc( entity_nlots < 3 );
+		ent_exc = Column( dts1, Eval( ToolID ) )[ent_exc_rows];
+		NEnt_Exc = N Rows( ent_exc_rows );
+		dts1 << select rows( ent_exc_rows );
+		dts1 << New Column( "rowstate data", rowstate );
+		For Each Row(
+			If( Selected( Row State() ) == 1,
+				Row State() = Excluded State( 1 );
+				:rowstate data[] = Excluded State( 1 );
+			)
+		);
+		If( NEnt_Exc > 0,
+			Wait( 0.1 );
+			DLGNoti = Dialog(
+				VList(
+					"Warning:  " || Char( NEnt_Exc ) ||
+					" tool(s) excluded for insufficient number of lots (less than 3)."
+				),
+				"",
+				Button( "OK" )
+			);
+		);
+
+// Calc Screeing Limits.
+		dts1 << New Column( "Mean Upper Screen Limit",
+			numeric,
+			continuous,
+			formula(
+				Column( dts1, 3 )[] + Eval( kScreen ) * ((:column( dts1, 5 )[] -
+				Column( dts1, 3 )[]) / 0.6745)
+			)
+		);
+
+		dts1 << New Column( "Mean Lower Screen Limit",
+			numeric,
+			continuous,
+			formula(
+				Column( dts1, 3 )[] - Eval( kScreen ) * ((:column( dts1, 3 )[] -
+				Column( dts1, 4 )[]) / 0.6745)
+			)
+		);
+
+		dts1 << New Column( "Std Dev Upper Screen Limit",
+			numeric,
+			continuous,
+			formula(
+				Column( dts1, 6 )[] + Eval( kScreen ) * ((:column( dts1, 7 )[] -
+				Column( dts1, 6 )[]) / 0.6745)
+			)
+		);
+
+		dts1 << run formulas;
+
+// Join in screen limits to Lot Level data.
+		dtsname = dts << GetName;
+		dtsJ = dts << Join(
+			With( Data Table( dts1 ) ),
+			Merge Same Name Columns,
+			By Matching Columns( Eval( ToolID ) = Eval( ToolID ) ),
+			Drop multiples( 0, 0 ),
+			Name( "Include non-matches" )(0, 0),
+			Output Table( "Joined" )
+		);
+
+		dtsJ << SetName( Char( dtsname ) || "1" );
+
+// Identify Outliers.
+		dtsJ << delete column( "Match Flag" );
+
+		For Each Row( Row State() = :rowstate data );
+
+		dtsJ << New Column( "Outlier",
+			character,
+			nominal,
+			formula(
+				If(
+					Is Missing( kscreen ), "No",
+					Column( 5 )[Empty()] > :Mean Upper Screen Limit | Column( 5 )[Empty()] <
+					:Mean Lower Screen Limit | !Is Missing( Column( 6 )[Empty()] ) & Column( 6 )
+					[Empty()] > :Std Dev Upper Screen Limit | Excluded( Row State( Empty() ) )
+					 == 1, "Yes",
+					"No"
+				)
+			)
+		);
+		dtsJ << run formulas;
+
+// Exclude and marker Outliers, save row states.
+		For Each Row(
+			If( :Outlier[] == "Yes",
+				Row State() = Combine States(
+					Color State( 3 ),
+					Marker State( 11 ),
+					Excluded State( 1 )
+				), 
+
+			);
+			:rowstate data[] = Row State();
+		);
+//dtsJ<<clear row states;
+
+		colym = Column( dtsJ, 5 );
+		colym << set name( "Lot Mean of " || Char( Eval( YID ) ) );
+		colys = Column( dtsJ, 6 );
+		colys << set name( "Lot Std Dev of " || Char( Eval( YID ) ) );
+		colym_mat = colym << get as matrix;
+		colys_mat = colys << get as matrix;
+		exc_lot = Column( "Outlier" ) << get values;
+		exc_rows = outlier_fcn1( exc_lot );
+		exc_lotID = Column( dtsJ, Eval( LotID ) )[exc_rows];//Remove?
+		NLots_exc = N Rows( exc_rows );
+
+		mr_lm = mr_fcn( exc_rows, colym_mat );
+		mr_ls = mr_fcn( exc_rows, colys_mat );
+		mr_entity_lm = mr_entity_fcn( exc_rows, colym_mat );
+		mr_entity_ls = mr_entity_fcn( exc_rows, colys_mat );
+
+		Grand_Mean = mr_lm[1];
+		GrandMean_s = mr_ls[1];
+		GrandMdn_s = mr_ls[2];
+		IdealMdn = mr_lm[2];
+		If( Is Missing( IdealT ),
+			IdealT1 = Grand_Mean;
+			CL_text = "Center Line";
+		,
+			IdealT1 = IdealT;
+			CL_text = "Target";
+		);
+
+		Column( dtsJ, "Outlier" ) << delete formula;
+
+//Merge Outlier Info into raw data.
+		GrpHolder1 = {YID, ToolID, LotID, TimeID};
+		GrpList1 = Eval List( GrpHolder1 );
+		colToolIDRaw = Column( dt_TTD, Eval( ToolID ) );
+		colToolIDSum = Column( dtsj, Eval( ToolID ) );
+		ColLotIDRaw = Column( dt_TTD, Eval( LotID ) );
+		ColLotIDSum = Column( dtsj, Eval( LotID ) );
+		ColTimeIDRaw = Column( dt_TTD, Eval( TimeID ) );
+		ColTimeIDSum = Column( dtsj, Eval( TimeID ) );
+
+/***  Create data table for entity summary plots   ***/		
+		//////// Calc TTD
+
+		entity_sigmamr = Matrix( mr_entity_lm[0, 2] );
+		entity_3sigmamr = Matrix( mr_entity_lm[0, 3] );
+		entity_sigmamr_mdn = Matrix( mr_entity_lm[0, 4] );
+		entity_3sigmamr_mdn = Matrix( mr_entity_lm[0, 5] );
+		entity_sigmamr_s = Matrix( mr_entity_ls[0, 2] );
+		entity_3sigmamr_s = Matrix( mr_entity_ls[0, 3] );
+		entity_sigmamr_s_mdn = Matrix( mr_entity_ls[0, 4] );
+		entity_3sigmamr_s_mdn = Matrix( mr_entity_ls[0, 5] );
+
+		ent_means = Matrix( mr_entity_lm[0, 1] );
+		ent_sigmas = Matrix( mr_entity_ls[0, 1] );
+		dtsJs = New Table( "Entity Summary" );
+		dtsJs << New Column( entity_name, character, values( entity_list ) );
+		dtsJs << New Column( "Means of Lot Means by Entity", values( ent_means ) );
+		dtsJs << New Column( "Sigma MR of Lot Means by Entity", values( entity_sigmamr ) );
+		dtsJs << New Column( "Means of Lot Sigma by Entity", values( ent_sigmas ) );
+		dtsJs << New Column( "Sigma MR of Lot Sigmas by Entity", values( entity_sigmamr_s ) );
+
+		NLots_Total = Sum( entity_nlots ); //# lots analyzed
+
+/***  TTD Calculation  ***/
+		/////////////
+		entity_gmean = Mean( mr_entity_lm[0, 1] );
+		min_ent_lm = Min( mr_entity_lm[0, 1] ); //minimum entity lot mean
+		max_ent_lm = Max( mr_entity_lm[0, 1] ); //maximum entity lot mean
+		entity_gmean_s = Mean( mr_entity_ls[0, 1] ); //mean entity lot sigma
+		max_ent_lsd = Max( mr_entity_ls[0, 1] ); //maximum entity lot sigma
+		min_ent_lsd = Min( mr_entity_ls[0, 1] ); //minimum entity lot sigma
+
+		Insert Into( all_params, Eval List( {"Mean of " || ParamList_ttd[k]} ) );
+		all_SigmaMR |/= mr_lm[3];
+		all_GrandMean |/= Grand_Mean;
+		all_MinTMean |/= min_ent_lm;
+		all_MaxTMean |/= max_ent_lm;
+
+		Insert Into( all_params, Eval List( {"Std Dev of " || ParamList_ttd[k]} ) );
+		all_SigmaMR |/= mr_ls[3];
+		all_GrandMean |/= GrandMean_s;
+		all_MinTMean |/= min_ent_lsd;
+		all_MaxTMean |/= max_ent_lsd;
+
+		Try( Close( dts1, no save ) );
+		Try( Close( dtsJ, no save ) );
+		Try( Close( dtsJs, no save ) );
+		Try( Close( dt_TTD, no save ) );
+
+	); //end for (k =1, k <= N Item(ParamList_ttd)
+
+	//	dtsJs << minimize window;
+	Try( Close( dtsJs, no save ) );
+
+); //End Expr
+
+
+////////////////////////////// TTD_PreProc_Exp ///////////////////////////////////////////////////
+// TTD Pre-Processor module
+::TTD_PreProc_Expr = Expr(
+
+	 :: dt_orig_TTDname = dt << GetName;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+	::dt_TTD0 = dt << Subset( Rows( dt << GetRowsWhere( !Excluded() ) ), AllColumns );
+	dt_TTD0 << SetName( Char( dt ) || "_" || "Copy ttd" );
+	Current Data Table( dt_TTD0 );
+	dt_TTD0 << BringWindowToFront;
+	dt_TTD0 << ClearSelect;
+	dt_TTD0 << ClearColumnSelection;
+	Wait( 0 );
+
+	IdealT = .;
+	kScreen = 4;
+	dt_ck = 0;
+
+//delete missing data
+	//	dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << delete rows;
+	rows_tmp = dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << get selected Rows();
+	If( N Rows( rows_tmp ) > 0,
+		dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << delete rows
+	);
+
+	If( N Items( ToolID ) > 1,
+		entity_name = Char( ToolID[1] );
+		entity_expr = ":" || entity_name;
+		For( i = 2, i <= N Items( ToolID ), i++,
+			entity_name = entity_name || "_" || Char( ToolID[i] );
+			entity_expr = entity_expr || "||\!"_\!"||" || ":" || Char( ToolID[i] );
+		);
+		dt_TTD0 << New Column( entity_name,
+			character,
+			formula( Eval( Parse( entity_expr ) ) ),
+			eval formula
+		);
+		ent_col = ":" || entity_name;
+		ToolID = Eval List( {Parse( ent_col )} );
+	,
+		entity_name = Char( ToolID[1] )
+	);
+
+	GrpHolder = {ToolID, TimeID, LotID};
+	GrpList = Eval List( GrpHolder );
+
+
+//Generate a param_name list
+
+	Summarize( ParamList_ttd = by( dt_TTD0:PARAMETERID ) );
+	ii = N Items( paramlist_ttd );
+
+	If( (N Items( ParamList_ttd ) > 1 | !Is Missing( ParamList_ttd[1] )),
+		Param1_ttd = {:PARAMETERID};
+
+	, 
+	//ELSE
+		Param_name = Char( YID[1] );
+		param_col = ":" || param_name;
+		Param1_ttd = Eval List( {Parse( param_col )} );
+		ParamList_ttd = {};
+		ParamList_ttd[1] = Char( Param1_ttd[1] );
+	); //end if	
+
+
+	N_params = N Items( ParamList_ttd );
+
+	totalParam = N Items( ParamList_ttd );
+
+	Eval( TTD_PreCalc_Expr );
+	Try( Close( dt_TTD0, no save ) );
+
+); //End TTD_PreProc_Expr
+
+
+/////////////////////////////////////////// Stability_PreProc_Expr ////////////////////////////////////////////////////////////
+ :: Stability_PreProc_Expr = Expr(
+
+	If( button[1] == 1,
+		::x_name = Char( x[1] );
+		::y_name = Char( Response[1] );
+		::N_z = N Items( z );
+		::subxQ = 0;
+		::Date_X = "";
+		::Sort_List = {};
+		::parmid_arg = "";
+		::infix = .;
+		If( savrsQ,
+			SaveRowStatCol( "Row State Save" ),
+			dt << ClearRowStates
+		);
+		Current Data Table( dt );
+		Eval( Substitute( Name Expr( Generate_ParamID ), Expr( p_arg ), Expr( Param ) ) );
+
+		tt = N Items( param );
+		Column( dt, Eval( x ) ) << Set Property( "Row Order Levels", (1) );
+	
+		//Check for existence of subx. IF true and sortsubx=1 then sort by {subx,x}
+		If( N Items( subx ) != 0,
+			subxQ = 1;
+			{Date_X, Grp_List} = CreateDateRunIDCol( dt, x, subx, subxsort );
+			If( do_altQ,
+				alt_op_info = GetAltOpID( dt );
+				If( N Items( alt_op_info[1] ) != 0,
+					If( alt_op_info[1][1] == "",
+						alt_op_info[1] = Remove( alt_op_info[1], 1 )
+					);
+					alt_op_text = " At OPER=" || alt_op_info[1][1];
+				,
+					alt_op_text = ""
+				);
+			);
+		, 
+		/*ELSE*/
+			Grp_List = x;
+			subxsort = 0;
+		); // EndIF NItems(subx)
+
+		If( !subxsort,
+			If( N Items( t ) != 0,
+				Sort_List = Insert( Grp_List, t, 1 );
+				dt << Sort( By( Eval( Sort_List ) ), Order( Ascending ), Replace Table );
+				If( Type( Column( dt, t[1] )[1] ) != "String",
+					Sum_Choice = 2,
+					Grp_List = Sort_List
+				);
+			, 
+
+			/* ELSE Create TimeOrder Column (Row Order) and Set Property(RowOrderLevels) */
+				dt << New Column( "__TimeOrder__", Numeric, Continuous );
+				t = {__TimeOrder__};
+				counter = 1;
+				For( i = 1, i <= N Row(), i++,
+					If( i != N Row(),
+						If( x[1][i] == x[1][i + 1],
+							:__TimeOrder__[i] = counter,
+							:__TimeOrder__[i] = counter;
+							counter++;
+						)
+					,
+						:__TimeOrder__[i] = counter
+					)
+				);
+				Sum_Choice = 2;
+			); //EndIf NItems(t)
+			t_name = Char( t[1] );
+		); //EndIf subxsort
+	
+		If( N Items( Col_List ) != 0,
+			Insert Into( Grp_List, Col_List, 1 ),
+			Col_List[1] = ""
+		);
+		If( N Items( Param ) != 0,
+			Insert Into( Grp_List, Parse( parmid << GetName ), 1 );
+			parmid_arg = "PARAMETERID";
+			infix = 3;
+		,
+			parmid_arg = "";
+			infix = 2;  //PARAMETER and Index to be inserted later
+		);
+
+		If( N_z != 0,
+			Insert Into( Grp_List, z, 1 );
+			infix += N_z;
+		);
+		N_Grp_List = N Items( Grp_List );
+		colindx = N_Grp_List + 3; // Set column offset
+
+		If( jmpvernum >= 8,
+			summ_param_tab = dt << Summary(
+				Group( Param_Grp_List[1 :: N Items( Param_Grp_List )] )
+			), // JMP 8
+			summ_param_tab = dt << Summary( Group( Eval( Param_Grp_List ) ) ); // JMP 5-7
+		);
+		
+		TrackTable( summ_param_tab );
+	); //EndIf Button[1]
+	Eval( TTD_PreProc_Expr );
+
+);//EndExpr Stability_PreProc_Expr
+
+
+///////////////////////////////////////////// GenStabSummRpt ////////////////////////////////////////////////////
+GenStabSummRpt = Expr(
+	::grpset = {:Index, Expr( _p_arg ), :PARAMETER, Expr( _sumcol )};
+	For( i = N Items( _z_arg ), i >= 1, i--,
+		Insert Into( grpset, Expr( _z_arg )[i], 2 )
+	);
+	
+	If( JMPvernum >= 8,
+		_s_ID = _stab_summ_dt << Summary(
+			Group( grpset[1 :: N Items( grpset )] ),
+			Sum( :Name( "# Runs" ) ),
+			Sum( :Name( "OOC Online" ) ),
+			Sum( :Name( "OOC Offline" ) ),
+			Sum( :Name( "# OOC Online > 2%" ) ),
+			Sum( :Name( "# CLSR - Limits Narrow" ) ),
+			Sum( :Name( "# CLSR - Limits Wide" ) ),
+			Sum( :Name( "# OCI - Mean Above CL" ) ),
+			Sum( :Name( "# OCI - Mean Below CL" ) ),
+			Sum( :Name( "# OOC Online > 5%" ) ),
+			Sum( :Name( "# CLSR - Limits Narrow2" ) ),
+			Sum( :Name( "# CLSR - Limits Wide2" ) ),
+			Sum( :Name( "# OCI - Mean Above CL2" ) ),
+			Sum( :Name( "# OCI - Mean Below CL2" ) )
+		), // JMP 8
+	
+		_s_ID = _stab_summ_dt << Summary(
+			Group( Eval( grpset ) ),
+			Sum( :Name( "# Runs" ) ),
+			Sum( :Name( "OOC Online" ) ),
+			Sum( :Name( "OOC Offline" ) ),
+			Sum( :Name( "# OOC Online > 2%" ) ),
+			Sum( :Name( "# CLSR - Limits Narrow" ) ),
+			Sum( :Name( "# CLSR - Limits Wide" ) ),
+			Sum( :Name( "# OCI - Mean Above CL" ) ),
+			Sum( :Name( "# OCI - Mean Below CL" ) ),
+			Sum( :Name( "# OOC Online > 5%" ) ),
+			Sum( :Name( "# CLSR - Limits Narrow2" ) ),
+			Sum( :Name( "# CLSR - Limits Wide2" ) ),
+			Sum( :Name( "# OCI - Mean Above CL2" ) ),
+			Sum( :Name( "# OCI - Mean Below CL2" ) )
+		);  // JMP 5-7
+	);
+
+	_s_ID << AddMultipleColumns(
+		"% OOC Online",
+		1,
+		After( :Name( "Sum(OOC Online)" ) ),
+		Numeric
+	);
+	_s_ID << AddMultipleColumns(
+		"% OOC Offline",
+		1,
+		After( :Name( "Sum(OOC Offline)" ) ),
+		Numeric
+	);
+	_s_ID << AddMultipleColumns(
+		"OOC Online > 5%",
+		1,
+		After( :Name( "Sum(# OOC Online > 5%)" ) ),
+		Numeric
+	);
+	_s_ID << AddMultipleColumns(
+		"OOC Online > 2%",
+		1,
+		After( :Name( "Sum(# OOC Online > 2%)" ) ),
+		Numeric
+	);
+
+	Column( _s_ID, "OOC Online > 5%" ) << SetFormula(
+		(:Name( "Sum(# OOC Online > 5%)" )) * 100 / :N Rows
+	) << EvalFormula;
+	Column( _s_ID, "OOC Online > 2%" ) << SetFormula(
+		(:Name( "Sum(# OOC Online > 2%)" ) + :Name( "Sum(# OOC Online > 5%)" )) * 100 /
+		:N Rows
+	) << EvalFormula;
+	Column( _s_ID, "% OOC Online" ) << SetFormula(
+		(:Name( "Sum(OOC Online)" ) / :Name( "Sum(# Runs)" )) * 100
+	) << EvalFormula;
+	Column( _s_ID, "% OOC Offline" ) << SetFormula(
+		(:Name( "Sum(OOC Offline)" ) / :Name( "Sum(# Runs)" )) * 100
+	) << EvalFormula;
+
+	Column( _s_ID, "N Rows" ) << SetName( Char( Expr( _ntext ) ) );
+
+	num_stab_summ_cols = N Col( _s_ID );
+	charoffset = Expr( Munger( Column( _s_ID, r ) << GetName, 1, "(" ) + 1 );
+	For( r = 1, r <= num_stab_summ_cols, r++,
+		If( Contains( Column( _s_ID, r ) << GetName, "Sum" ),
+			Column( _s_ID, r ) << SetName(
+				Munger(
+					Column( _s_ID, r ) << GetName,
+					charoffset,
+					(Munger( Column( _s_ID, r ) << GetName, 1, ")" ) - charoffset)
+				)
+			)
+		)
+	);
+); //EndExpr
+
+//////////////////////////////////// Stability_Summary_Report //////////////////////////////////////////////
+ :: Stability_Summary_Report = Expr(
+
+	/////Declarations//////
+	::Col_List_Names = {};
+	For( i = 1, i <= N Items( Col_List ), i++,
+		Insert Into( Col_List_Names, Parse( Uppercase( Char( Col_List[i] ) ) ) )
+	);
+
+	::stab_lev2summ_box = Outline Box(
+		Char(
+			"Stability Analysis Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER"
+			 || If( Col_List[1] != "",
+				", " || Munger( Munger( Char( Col_List_Names ), 1, "{", "" ), 1, "}", "" ),
+				" "
+			)
+		),
+		::stablev2tab_box = Table Box()
+	);
+
+	::stab_lev1p5summ_box = Outline Box(
+		Char(
+			"Stability Analysis Flag Indicator Report by " || Eval( grp_head_txtexpr ) ||
+			"PARAMETER, FACILITY"
+		),
+		::stablev1p5tab_box = Table Box()
+	);
+
+	::stab_lev1_ooc_summ_box = Outline Box(
+		Char(
+			"Stability Analysis Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER"
+		),
+		::stablev1_ooc_tab_box = Table Box()
+	);
+
+	::stab_lev1_findc_summ_box = Outline Box(
+		Char(
+			"Stability Analysis Flag Indicator Report by " || Eval( grp_head_txtexpr ) ||
+			"PARAMETER"
+		),
+		::stablev1_findc_tab_box = Table Box()
+	);
+
+	::stab_lev1_wfindc_summ_box = Outline Box(
+		Char(
+			"Stability Analysis Warning+Flag Indicator Report by " || Eval( grp_head_txtexpr )
+			 || "PARAMETER"
+		),
+		::stablev1_wfindc_tab_box = Table Box(),
+		<<Close( 1 )
+	);
+
+	grp_params_std_expr = Expr(
+		::grp_params_std = Insert( grp_col_vals_std, Eval List( {ooc_params_std} ), infix );
+		grp_params_std = Insert(
+			grp_params_std,
+			Eval List( {indc_CLSRstat_std, indc_OCIstat_std} )
+		);
+		::grp_vals_std = All_OOC_Vals_Std || All_Indc_Vals_Std[0, 4
+		::N Col( All_Indc_Vals_Std )];
+	);
+
+	grp_params_mean_expr = Expr(
+		::grp_params_mean = Insert( grp_col_vals_mean, Eval List( {ooc_params_mean} ), infix );
+		grp_params_mean = Insert(
+			grp_params_mean,
+			Eval List( {indc_CLSRstat_mean, indc_OCIstat_mean} )
+		);
+		::grp_vals_mean = All_OOC_Vals_Mean || All_Indc_Vals_Mean[0, 4
+		::N Col( All_Indc_Vals_Mean )];
+	);
+
+	::stb_fmt2 = {., ., ., ., 1, ., 1, 2, 2, ., ., .};
+	::stb_fmt1 = {., ., ., 1, ., 1};
+//	::stb_fmt11 = {., ., ., 1, ., 1, ., ., ., ., ., ., ., ., 1, .};
+	::stb_fmt11 = {., ., 2, 2, ., ., ., ., ., ., ., ., 1, .};
+	::stb_fmt10 = {., ., 2, 2, ., ., ., ., ., .};
+
+	::grp_params = {};
+	::grp_vals = {};
+
+	// Re-order of existing summary cols {Char,Num}
+	::newcol_list = {"    CLSR Status", "    OCI Status", "# Runs", "OOC Online", "% OOC Online",
+	"OOC Offline", "% OOC Offline", "Sigma Online", "Sigma Offline", "Mean Offline", "CLSR",
+	"OCI"};
+
+	// Create additonal summary cols 
+	summ_col_headings = {"OOC Online Status", "# OOC Online > 2%", "# CLSR - Limits Wide ",
+	"# CLSR - Limits Narrow", "# OCI - Mean Above CL", "# OCI - Mean Below CL",
+	"# OOC Online > 5%", "# CLSR - Limits Wide2", "# CLSR - Limits Narrow2",
+	"# OCI - Mean Above CL2", "# OCI - Mean Below CL2", "Type"};
+
+	// Insert all grp tab cols in newcol_list
+	::new_grp_col_list = Insert( Grp_Col_Names, newcol_list, N Items( Grp_Col_Names ) - 1 );
+	Insert Into( new_grp_col_list, "PARAMETER", infix );
+
+	// Create lists of cols for each custom summary display
+	Lev2_Cols = {};
+	Lev1p5_Indc_Cols = {};
+	Lev1_OOC_Cols = {"PARAMETER", "# Runs", "OOC Online", "% OOC Online", "OOC Offline",
+	"% OOC Offline"};
+
+//	Lev1_OOC_Cols1 = {"PARAMETER", "# Runs", "OOC Online", "% OOC Online", "OOC Offline",
+	//	"% OOC Offline", "OCI", "OCI Status", "Grand Mean", "Pooled SigmaMR", "CLSR", "CLSR Status", "Ref TTD", "Offline TTD",
+	//	"TTD Ratio", "TTD Ratio Status"};
+
+	Lev1_OOC_Cols0 = {"PARAMETER", "# Runs", "Online OOC", "Offline OOC", "OCI", "OCI Status",
+	"Grand Mean", "Pooled SigmaMR", "CLSR", "CLSR Status"};
+
+
+	Lev1_OOC_Cols1 = {"PARAMETER", "# Runs", "Online OOC", "Offline OOC", "OCI", "OCI Status",
+	"Grand Mean", "Pooled SigmaMR", "CLSR", "CLSR Status", "Ref TTD", "Offline TTD",
+	"TTD Ratio", "TTD Ratio Status"};
+
+	Lev1_Indc_Cols = {};
+	Lev1_wfIndc_Cols = Lev1_Indc_Cols;
+
+	// Set the "base" number of cols (sans grp)
+	lev2_base_col_count = N Items( Col_List ) + infix;	//(FAC+ENT+(INDX+PARM+PARMID)
+	If( Col_List[1] == "",
+		lev2_base_col_count--
+	);
+	lev1p5_base_col_count = lev2_base_col_count;
+
+	//Auto size stb_fmt1 and 2.
+	For( ::fill = 1, fill <= N_z + N Items( Col_List ), fill++,
+		Insert Into( stb_fmt2, Expr( . ), 1 )
+	);
+	For( ::fill = 1, fill <= N_z, fill++,
+		Insert Into( stb_fmt1, Expr( . ), 1 )
+	);
+
+	// make unified structure for values and params (source for display) 
+	If( All( Matrix( Param_Type ) == 3 ),
+		Eval( grp_params_std_expr );
+		::grp_vals = grp_vals_std;
+		grp_params = grp_params_std;
+	, 
+
+		If( All( Matrix( Param_Type ) == 2 ),
+			Eval( grp_params_mean_expr );
+			::grp_vals = grp_vals_mean;
+			grp_params = grp_params_mean;
+		, 
+
+			Eval( grp_params_mean_expr );
+			Eval( grp_params_std_expr );
+			::grp_vals = grp_vals_mean |/ grp_vals_std;
+			For( ::o = 1, o <= N Items( grp_params_mean ), o++,
+				grp_params[o] = Insert( grp_params_mean[o], grp_params_std[o] )
+			);
+		)
+	);
+
+	Try(
+  // Create level 2 summary table
+		stab_summ_lev2 = New Table( "Stability Analysis Summary", Invisible );
+		TrackTable( stab_summ_lev2 );
+		If( N Row( grp_vals ) == 1,
+			grp_vals_expr = Expr( Eval List( {grp_vals[0, (o - p_end)]} ) ),
+			grp_vals_expr = Expr( grp_vals[0, (o - p_end)] )
+		);
+		For( o = 1, o <= N Items( new_grp_col_list ) - 2, o++,
+			If( o <= N Items( grp_params ),
+				stab_summ_lev2 << New Column( Char( new_grp_col_list[o] ), Character( 16 ) );
+				Column( stab_summ_lev2, Char( new_grp_col_list[o] ) ) <<
+				SetValues( grp_params[o] );
+				::p_end = o;
+			, 
+
+				stab_summ_lev2 << New Column( Char( new_grp_col_list[o] ), Numeric );
+				Column( stab_summ_lev2, Char( new_grp_col_list[o] ) ) <<
+				SetValues( Eval( grp_vals_expr ) );
+			);
+
+		);
+
+		Column( stab_summ_lev2, "Index" ) << DataType( Numeric );
+		stab_summ_lev2 << Sort( By( :Index ), Order( Ascending ), Replace Table );
+		stab_summ_lev2 << New Column( "OOC Online Status", Character );
+		stab_summ_lev2 << New Column( "# OOC Online > 2%", Numeric );
+		stab_summ_lev2 << New Column( "# CLSR - Limits Wide ", Numeric );
+		stab_summ_lev2 << New Column( "# CLSR - Limits Narrow", Numeric );
+		stab_summ_lev2 << New Column( "# OCI - Mean Above CL", Numeric );
+		stab_summ_lev2 << New Column( "# OCI - Mean Below CL", Numeric );
+		stab_summ_lev2 << New Column( "# OOC Online > 5%", Numeric );
+		stab_summ_lev2 << New Column( "# CLSR - Limits Wide2", Numeric );
+		stab_summ_lev2 << New Column( "# CLSR - Limits Narrow2", Numeric );
+		stab_summ_lev2 << New Column( "# OCI - Mean Above CL2", Numeric );
+		stab_summ_lev2 << New Column( "# OCI - Mean Below CL2", Numeric );
+		stab_summ_lev2 << New Column( "Type", Character );
+
+		For Each Row(
+			Column( stab_summ_lev2, "OOC Online Status" )[] =
+			Char(
+				If( :Name( "% OOC Online" )[] <= 5 & :Name( "% OOC Online" )[] > 2,
+					"Warning - OOC Online > 2%",
+					If( :Name( "% OOC Online" )[] > 5,
+						"Flag - OOC Online > 5%",
+						""
+					)
+				)
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OOC Online > 2%" )[] = If(
+				Contains( :OOC Online Status[], "Warning" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OOC Online > 5%" )[] = If(
+				Contains( :OOC Online Status[], "Flag" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# CLSR - Limits Wide" )[] =
+			If( Contains( :CLSR Status[], "Warning - Limits Too Wide" ),
+				1,
+				If( Contains( :CLSR Status[], "." ),
+					.,
+					0
+				)
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# CLSR - Limits Narrow" )[] =
+			If( Contains( :CLSR Status[], "Warning - Limits Too Narrow" ),
+				1,
+				If( Contains( :CLSR Status[], "." ),
+					.,
+					0
+				)
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# CLSR - Limits Wide2" )[] =
+			If( Contains( :CLSR Status[], "Flag - Limits Too Wide" ),
+				1,
+				If( Contains( :CLSR Status[], "." ),
+					.,
+					0
+				)
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# CLSR - Limits Narrow2" )[] =
+			If( Contains( :CLSR Status[], "Flag - Limits Too Narrow" ),
+				1,
+				If( Contains( :CLSR Status[], "." ),
+					.,
+					0
+				)
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OCI - Mean Above CL" )[] =
+			If( Contains( :OCI Status[], "Warning - Mean Above CL" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OCI - Mean Below CL" )[] =
+			If( Contains( :OCI Status[], "Warning - Mean Below CL" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OCI - Mean Above CL2" )[] =
+			If( Contains( :OCI Status[], "Flag - Mean Above CL" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "# OCI - Mean Below CL2" )[] =
+			If( Contains( :OCI Status[], "Flag - Mean Below CL" ),
+				1,
+				0
+			)
+		);
+		For Each Row(
+			Column( stab_summ_lev2, "Type" )[] = Munger(
+				:PARAMETER[],
+				1,
+				Munger( :PARAMETER[], 1, "of" ) - 2
+			)
+		);
+		
+		stab_summ_lev2 << Clear Column Selection;
+		stab_summ_lev2_sorted = stab_summ_lev2 << Subset(
+			Selected Columns ( 0 ),
+			AllRows,
+			Invisible,
+			CopyFormula( 1 ),
+			SuppressFormulaEvaluation( 0 )
+		);
+		TrackTable( stab_summ_lev2_sorted );
+		If( N_z != 0,
+			z_arg = z,
+			z_arg = {""}
+		);
+		Choose( N Items( Col_List ),
+			Eval(
+				Substitute( Name Expr( GenStabSummRpt ),
+					Expr( _stab_summ_dt ), Expr( stab_summ_lev2_sorted ),
+					Expr( _s_ID ), Expr( stab_summ_lev1s ),
+					Expr( _p_arg ), parmid_arg,
+					Expr( _z_arg ), z_arg,
+					Expr( _sumcol ), Expr( "" ),
+					Expr( _ntext ), Expr( "# Tools" )
+				)
+			);
+			// JMP 16 defaults to subsetting selected columns
+			stab_summ_lev1s << Clear Column Selection; 
+			
+			stab_summ_lev1 = stab_summ_lev1s << Subset(
+				Selected Columns( 0 ),
+				AllRows,
+				Invisible,
+				CopyFormula( 1 ),
+				SuppressFormulaEvaluation( 0 )
+			);, 
+			// Create level 1.5 summary table
+			Eval(
+				Substitute( Name Expr( GenStabSummRpt ),
+					Expr( _stab_summ_dt ), Expr( stab_summ_lev2_sorted ),
+					Expr( _s_ID ), Expr( stab_summ_lev1p5s ),
+					Expr( _p_arg ), parmid_arg,
+					Expr( _z_arg ), z_arg,
+					Expr( _sumcol ), Col_List[1],
+					Expr( _ntext ), Expr( "# Tools" )
+				)
+			);
+			
+			// JMP 16 defaults to subsetting selected columns 
+			stab_summ_lev1p5s << Clear Column Selection; 
+			
+			stab_summ_lev1p5 = stab_summ_lev1p5s << Subset(
+				Selected Columns( 0 ),
+				AllRows,
+				//Invisible,
+				CopyFormula( 1 ),
+				SuppressFormulaEvaluation( 0 )
+			);
+			TrackTable( stab_summ_lev1p5s );
+			TrackTable( stab_summ_lev1p5 );
+		
+			// Load default column names for level 1p5
+			stab_summ_lev1p5 << Clear Column Selection; 
+			num_stab_summ1p5_cols = N Col( stab_summ_lev1p5 );
+			lev1p5_summ_colnames = stab_summ_lev1p5 << GetColumnNames( String );
+			For( i = 2, i <= lev1p5_base_col_count, i++,
+				Insert Into( Lev1p5_Indc_Cols, lev1p5_summ_colnames[i] )
+			);
+			Column( stab_summ_lev1p5, "OOC Online > 5%" ) << delete property(formula); //get ride of locking error --Xin
+			Column( stab_summ_lev1p5, "OOC Online > 5%" ) << Format( "Best", 4 );
+			Column( stab_summ_lev1p5, "OOC Online > 5%" ) << DataType( Character ) <<
+			SetFieldWidth( 17 );  
+			Current Data Table( stab_summ_lev1p5 );
+				For Each Row(
+				Column( stab_summ_lev1p5, "OOC Online > 5%" )[] =
+				Char( Column( stab_summ_lev1p5, "OOC Online > 5%" )[] ) || "% (" ||
+				Char( Column( stab_summ_lev1p5, "# OOC Online > 5%" )[] ) || ")";
+				spc_pad = "";
+				If(
+					Contains(
+						Substr( Column( stab_summ_lev1p5, "OOC Online > 5%" )[], 1, 3 ),
+						"%"
+					),
+					spc_pad ||= " "
+				);
+				For( k = 1, k <= 23 - Length( Column( stab_summ_lev1p5, "OOC Online > 5%" )[] ),
+					k++,
+					spc_pad ||= " "
+				);
+				Column( stab_summ_lev1p5, "OOC Online > 5%" )[] = spc_pad ||
+				Column( stab_summ_lev1p5, "OOC Online > 5%" )[];
+			);  //end for each row
+			
+			// Create level 1 summary table, stab_summ_lev1s
+			Eval(
+				Substitute( Name Expr( GenStabSummRpt ),
+					Expr( _stab_summ_dt ), Expr( stab_summ_lev2_sorted ),
+					Expr( _s_ID ), Expr( stab_summ_lev1s ),
+					Expr( _p_arg ), parmid_arg,
+					Expr( _z_arg ), z_arg,
+					Expr( _sumcol ), Expr( "" ),
+					Expr( _ntext ), Expr( "# Tools" )
+				)
+			);
+			
+			// JMP 16 defaults to subsetting selected columns 
+			stab_summ_lev1s << Clear Column Selection; 
+			stab_summ_lev1 = stab_summ_lev1s << Subset( Selected Columns( 0 ), AllRows, Invisible );
+
+			TrackTable( stab_summ_lev1s );
+			TrackTable( stab_summ_lev1 );
+			Column( stab_summ_lev1, "OOC Online > 5%" ) << Format( "Best", 4 );
+			Column( stab_summ_lev1, "OOC Online > 2%" ) << Format( "Best", 4 );
+			Column( stab_summ_lev1, "OOC Online > 5%" ) << DataType( Character );
+			Column( stab_summ_lev1, "OOC Online > 2%" ) << DataType( Character );
+			Current Data Table( stab_summ_lev1 );
+			Column( stab_summ_lev1, "OOC Online > 5%" ) << delete property(formula); //get ride of locking error --Xin
+			Column( stab_summ_lev1, "OOC Online > 2%" ) << delete property(formula); //get ride of locking error --Xin
+			For Each Row(
+				Column( stab_summ_lev1, "OOC Online > 5%" )[] =
+				Char( Column( stab_summ_lev1, "OOC Online > 5%" )[] ) || "% (" ||
+				Char( Column( stab_summ_lev1, "# OOC Online > 5%" )[] ) || ")";
+				Column( stab_summ_lev1, "OOC Online > 2%" )[] =
+				Char( Column( stab_summ_lev1, "OOC Online > 2%" )[] ) || "% (" ||
+				Char(
+					Column( stab_summ_lev1, "# OOC Online > 2%" )[] +
+					Column( stab_summ_lev1, "# OOC Online > 5%" )[]
+				) || ")";
+				spc_pad = "";
+				If(
+					Contains(
+						Substr( Column( stab_summ_lev1, "OOC Online > 5%" )[], 1, 3 ),
+						"%"
+					),
+					spc_pad ||= " "
+				);
+				For( k = 1, k <= 23 - Length( Column( stab_summ_lev1, "OOC Online > 5%" )[] ),
+					k++,
+					spc_pad ||= " "
+				);
+				Column( stab_summ_lev1, "OOC Online > 5%" )[] = spc_pad ||
+				Column( stab_summ_lev1, "OOC Online > 5%" )[];
+
+				spc_pad = "";
+				If(
+					Contains(
+						Substr( Column( stab_summ_lev1, "OOC Online > 2%" )[], 1, 3 ),
+						"%"
+					),
+					spc_pad ||= " "
+				);
+				For( k = 1, k <= 23 - Length( Column( stab_summ_lev1, "OOC Online > 2%" )[] ),
+					k++,
+					spc_pad ||= " "
+				);
+				Column( stab_summ_lev1, "OOC Online > 2%" )[] = spc_pad ||
+				Column( stab_summ_lev1, "OOC Online > 2%" )[];
+			);
+
+		); //EndChoose
+
+			
+		stab_summ_lev2 << Clear Column Selection;  // JMP 16 defaults to subsetting selected columns 
+		stab_summ_lev2_sorted = stab_summ_lev2 << Subset(
+			Selected Columns( 0 ),
+			AllRows,
+			Invisible,
+			CopyFormula( 1 ),
+			SuppressFormulaEvaluation( 0 )
+		);
+		TrackTable( stab_summ_lev2_sorted );
+		Column( stab_summ_lev2_sorted, "OOC Online" ) << DataType( "Character" ) <<
+		SetFieldwidth( 12 );
+		Column( stab_summ_lev2_sorted, "OOC Offline" ) << DataType( "Character" ) <<
+		SetFieldwidth( 12 );
+		//Column( stab_summ_lev2_sorted, "# Runs")<<DataType("Character");
+		ooc_on_temp = Column( stab_summ_lev2_sorted, "% OOC Online" ) << GetValues;
+		ooc_off_temp = Column( stab_summ_lev2_sorted, "% OOC Offline" ) << GetValues;
+		For( i = 1, i <= N Row( stab_summ_lev2 ), i++,
+			Column( stab_summ_lev2_sorted, "OOC Online" )[i] = Char( ooc_on_temp[i] ) || "% ("
+			 || Char( Column( stab_summ_lev2_sorted, "OOC Online" )[i] ) || ")";
+			Column( stab_summ_lev2_sorted, "OOC Offline" )[i] = Char( ooc_off_temp[i] ) || "% ("
+			 || Char( Column( stab_summ_lev2_sorted, "OOC Offline" )[i] ) || ")";
+
+			spc_pad = "";
+			//	If(Contains(Column( stab_summ_lev2_sorted, "OOC Offline")[i],"."), spc_pad ||= " ");	
+			If(
+				Contains(
+					Substr( Column( stab_summ_lev2_sorted, "OOC Offline" )[i], 1, 3 ),
+					"%"
+				),
+				spc_pad ||= " "
+			);
+			For( k = 1, k <= 12 - Length( Column( stab_summ_lev2_sorted, "OOC Offline" )[i] ),
+				k++,
+				spc_pad ||= " "
+			);
+			Column( stab_summ_lev2_sorted, "OOC Offline" )[i] = spc_pad ||
+			Column( stab_summ_lev2_sorted, "OOC Offline" )[i];
+
+			spc_pad = "";
+			//	If(Contains(Column( stab_summ_lev2_sorted, "OOC Online")[i],"."), spc_pad ||= " ");	
+			If(
+				Contains(
+					Substr( Column( stab_summ_lev2_sorted, "OOC Online" )[i], 1, 3 ),
+					"%"
+				),
+				spc_pad ||= " "
+			);
+			For( k = 1, k <= 12 - Length( Column( stab_summ_lev2_sorted, "OOC Online" )[i] ),
+				k++,
+				spc_pad ||= " "
+			);
+			Column( stab_summ_lev2_sorted, "OOC Online" )[i] = spc_pad ||
+			Column( stab_summ_lev2_sorted, "OOC Online" )[i];
+
+			If( Column( stab_summ_lev2_sorted, "OOC Online Status" )[i] != "",
+				Column( stab_summ_lev2_sorted, "OOC Online Status" )[i] =
+				Munger(
+					Column( stab_summ_lev2_sorted, "OOC Online Status" )[i],
+					1,
+					"OOC Online ",
+					""
+				)
+			);
+			If(
+				Column( stab_summ_lev2_sorted, "CLSR Status" )[i] != " " &
+				Column( stab_summ_lev2_sorted, "CLSR Status" )[i] != ".",
+				Column( stab_summ_lev2_sorted, "CLSR Status" )[i] =
+				Munger(
+					Column( stab_summ_lev2_sorted, "CLSR Status" )[i],
+					1,
+					"Limits Too ",
+					""
+				)
+			);
+			If( Column( stab_summ_lev2_sorted, "OCI Status" )[i] != "",
+				Column( stab_summ_lev2_sorted, "OCI Status" )[i] =
+				Munger(
+					Munger( Column( stab_summ_lev2_sorted, "OCI Status" )[i], 1, "Mean ", "" ),
+					1,
+					" CL",
+					""
+				)
+			);
+		);  //end for i
+
+
+		///// Set up column headings for summary report displays //////
+		num_stab_summ1_cols = N Col( stab_summ_lev1 );
+		lev2_summ_colnames = stab_summ_lev2_sorted << GetColumnNames( String );
+		lev1_summ_colnames = stab_summ_lev1 << GetColumnNames( String );
+
+
+		/** Load default column names for level 2 **/
+		For( i = 2, i <= lev2_base_col_count, i++,
+			Insert Into( Lev2_Cols, lev2_summ_colnames[i] )
+		);
+
+		/** Build Level 2 column name list **/
+		Insert Into(
+			Lev2_Cols,
+			{"# Runs", "OOC Offline", "OOC Online", "OOC Online Status", "CLSR",
+			"    CLSR Status", "OCI", "    OCI Status"}
+		);
+
+		/**  Build Level 1 and 1p5 column name lists **/
+		Lev1_Indc_Cols = Insert( {"PARAMETER"}, "# Tools" );
+		If( N_z != 0,
+			For( i = N_z, i >= 1, i--,
+				Insert Into( Lev1_Indc_Cols, Char( z[i] ), 1 );
+				Insert Into( Lev1_OOC_Cols, Char( z[i] ), 1 );
+				Insert Into( Lev1_OOC_Cols0, Char( z[i] ), 1 );
+				Insert Into( Lev1_OOC_Cols1, Char( z[i] ), 1 );
+			)
+		);
+
+		Lev1_wfIndc_Cols = Lev1_Indc_Cols;
+		For( i = num_stab_summ1_cols - 4, i <= num_stab_summ1_cols, i++,
+			Insert Into( Lev1_Indc_Cols, lev1_summ_colnames[i] );
+			Insert Into( Lev1p5_Indc_Cols, lev1_summ_colnames[i] );
+		);
+		For( i = num_stab_summ1_cols - 10, i <= num_stab_summ1_cols - 6, i++,
+			Insert Into( Lev1_wfIndc_Cols, lev1_summ_colnames[i] )
+		);
+
+		/** Save column count for all report levels **/
+		N_Lev2_Cols = N Items( Lev2_Cols );
+		N_Lev1_OOC_Cols1 = N Items( Lev1_OOC_Cols1 );
+		N_Lev1_OOC_Cols = N Items( Lev1_OOC_Cols );
+		N_Lev1_OOC_Cols0 = N Items( Lev1_OOC_Cols0 );
+		N_Lev1_Indc_Cols = N Items( Lev1_Indc_Cols );
+		N_Lev1p5_Indc_Cols = N Items( Lev1p5_Indc_Cols );
+		N_Lev1_wfIndc_Cols = N Items( Lev1_wfIndc_Cols );
+
+		 :: param_sum = Eval( Column( stab_summ_lev1, Lev1_wfIndc_Cols[N_z + 1] ) << GetValues );
+		//::grp_sum = Eval(Column(stab_summ_lev1,infix-1)<<GetValues);
+		 :: ngrps_sum = Eval( Column( stab_summ_lev1, Lev1_wfIndc_Cols[N_z + 2] ) << GetValues );
+		::ooc_sum = Eval( Column( stab_summ_lev1, summ_col_headings[2] ) << GetValues ) +
+		Eval( Column( stab_summ_lev1, summ_col_headings[7] ) << GetValues );
+		::clsr_wide_sum = Eval( Column( stab_summ_lev1, summ_col_headings[3] ) << GetValues ) +
+		Eval( Column( stab_summ_lev1, summ_col_headings[8] ) << GetValues );
+		::clsr_narrow_sum = Eval( Column( stab_summ_lev1, summ_col_headings[4] ) << GetValues )
+		 + Eval( Column( stab_summ_lev1, summ_col_headings[9] ) << GetValues );
+		::oci_above_sum = Eval( Column( stab_summ_lev1, summ_col_headings[5] ) << GetValues ) +
+		Eval( Column( stab_summ_lev1, summ_col_headings[10] ) << GetValues );
+		::oci_below_sum = Eval( Column( stab_summ_lev1, summ_col_headings[6] ) << GetValues ) +
+		Eval( Column( stab_summ_lev1, summ_col_headings[11] ) << GetValues );
+		::indc_wflg_cols_vals = {param_sum, ngrps_sum, ooc_sum, clsr_narrow_sum, clsr_wide_sum,
+		oci_above_sum, oci_below_sum};
+		For( i = 1, i <= N_z, i++,
+			Insert Into( indc_wflg_cols_vals, "", 1 )
+		);
+
+		// Build Report Display Boxes
+/** Build Level 2 Summary ReportBox **/
+		For( r = 1, r <= N_Lev2_Cols, r++,
+			If( Type( GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[2] ) == "List",
+				If( GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[1] != "PARAMETERID",
+					stablev2tab_box << Append(
+						String Col Box( GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[1],  
+							GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[2]
+						)
+					)  //no else
+				), 
+
+				If( !Is Missing( stb_fmt2[r] ),
+					stablev2tab_box << Append(
+						Number Col Box( GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[1],
+							GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[2],
+							<<SetFormat( 5, stb_fmt2[r] )
+						)
+					), 
+
+					stablev2tab_box << Append(
+						Number Col Box( GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[1],
+							GetColAsTable( Lev2_Cols[r], stab_summ_lev2_sorted )[2]
+						)
+					)
+				)
+			)  //end if type
+		);   //end for
+
+		/** Build level 1p5 (Facility) Summary report box **/
+		If( N Items( Col_List ) == 2,
+			For( r = 1, r <= N_Lev1p5_Indc_Cols, r++,
+				If( Type( GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[2] ) == "List",
+					If(
+						GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1] !=
+						"PARAMETERID",
+						stablev1p5tab_box << Append(
+							String Col Box(
+								GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1],
+								GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[2]
+							)
+						)
+					), 
+
+					If(
+						!Contains(
+							GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1],
+							"#"
+						),
+						stablev1p5tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1],
+								GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[2],
+								<<SetFormat( 4, 2 )
+							)
+						), 
+
+						If(
+							Munger(
+								GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1],
+								Length(
+									GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1]
+								),
+								1
+							) == "2",
+							stablev1p5tab_box << Append(
+								Number Col Box(
+									Munger(
+										GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1
+										],
+										1,
+										Length(
+											GetColAsTable(
+												Lev1p5_Indc_Cols[r],
+												stab_summ_lev1p5
+											)[1]
+										) //- 1
+									),
+									GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[2]
+								)
+							), 
+
+							stablev1p5tab_box << Append(
+								Number Col Box(
+									GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[1],
+									GetColAsTable( Lev1p5_Indc_Cols[r], stab_summ_lev1p5 )[2]
+								)
+							)
+						)
+					)
+				)  //end if type
+			)  //end for r
+		); //EndIf
+
+
+
+/** set up OOC Summary Table **/
+		//		TrackTable( stab_summ_lev1 );
+
+		Current Data Table( stab_summ_lev1 );
+
+		stab_summ_lev1 << New Column( "Online OOC", Character );
+		stab_summ_lev1 << New Column( "Offline OOC", Character );
+
+		Column( stab_summ_lev1, "Online OOC" ) << SetFieldwidth( 12 );
+		Column( stab_summ_lev1, "Offline OOC" ) << SetFieldwidth( 12 );
+
+		stab_summ_lev1 << New Column( "OCI", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "OCI Status", Character, Nominal );
+		stab_summ_lev1 << New Column( "Grand Mean", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "Pooled SigmaMR", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "CLSR", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "CLSR Status", Character, Nominal );
+		stab_summ_lev1 << New Column( "Ref TTD", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "Offline TTD", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "TTD Ratio", Numeric, Continuous );
+		stab_summ_lev1 << New Column( "TTD Ratio Status", Character, Nominal );
+
+		For( m = 1, m <= N Row( stab_summ_lev1 ), m++, 
+
+			If( Contains( Substr( Column( stab_summ_lev1, "PARAMETER" )[m], 1, 8 ), "Mean of" ),
+				param_ttd = Munger(
+					Column( stab_summ_lev1, "PARAMETER" )[m],
+					1,
+					"Mean of ",
+					""
+				);
+
+				Column( stab_summ_lev1, "Online OOC" )[m] = Char(
+					Round( Column( stab_summ_lev1, "% OOC Online" )[m], 1 )
+				) || "% (" || Char( Column( stab_summ_lev1, "OOC Online" )[m] ) || ")";
+				Column( stab_summ_lev1, "Offline OOC" )[m] = Char(
+					Round( Column( stab_summ_lev1, "% OOC Offline" )[m], 1 )
+				) || "% (" || Char( Column( stab_summ_lev1, "OOC Offline" )[m] ) || ")";
+
+				spc_pad = "";
+
+				If( Contains( Substr( Column( stab_summ_lev1, "Offline OOC" )[m], 1, 3 ), "%" ),
+					spc_pad ||= " "
+				);
+				For( k = 1, k <= 12 - Length( Column( stab_summ_lev1, "Offline OOC" )[m] ), k++,
+					spc_pad ||= " "
+				);
+				Column( stab_summ_lev1, "Offline OOC" )[m] = spc_pad ||
+				Column( stab_summ_lev1, "Offline OOC" )[m];
+
+				spc_pad = "";
+	
+				If( Contains( Substr( Column( stab_summ_lev1, "Online OOC" )[m], 1, 3 ), "%" ),
+					spc_pad ||= " "
+				);
+				For( k = 1, k <= 12 - Length( Column( stab_summ_lev1, "Online OOC" )[m] ), k++,
+					spc_pad ||= " "
+				);
+				Column( stab_summ_lev1, "Online OOC" )[m] = spc_pad ||
+				Column( stab_summ_lev1, "Online OOC" )[m];
+
+				//ii = Eval( Loc( Param_List, param_ttd ) );
+				ii = Eval( Contains( Param_List, param_ttd ) );  //bug fix for jmp14 ---Xin
+				
+				Column( stab_summ_lev1, "OCI" )[m] = xOCI[ii];
+				Column( stab_summ_lev1, "OCI Status" )[m] = xOCIStat[ii];
+				Column( stab_summ_lev1, "Grand Mean" )[m] = XonTTD_GrandMean[ii];
+				Column( stab_summ_lev1, "Pooled SigmaMR" )[m] = XonTTD_SMR[ii];
+				Column( stab_summ_lev1, "CLSR" )[m] = xCLSR[ii];
+				Column( stab_summ_lev1, "CLSR Status" )[m] = xCLSRStat[ii];
+				Column( stab_summ_lev1, "Ref TTD" )[m] = xonTTD[ii];
+				Column( stab_summ_lev1, "Offline TTD" )[m] = xonTTDCalc[ii];
+				Column( stab_summ_lev1, "TTD Ratio" )[m] = xTTDRatio[ii];
+				Column( stab_summ_lev1, "TTD Ratio Status" )[m] = xTTDRatioStat[ii];
+			,
+				If(
+					Contains(
+						Substr( Column( stab_summ_lev1, "PARAMETER" )[m], 1, 11 ),
+						"Std Dev of"
+					),
+					param_ttd = Munger(
+						Column( stab_summ_lev1, "PARAMETER" )[m],
+						1,
+						"Std Dev of ",
+						""
+					);
+
+					Column( stab_summ_lev1, "Online OOC" )[m] =
+					Char( Round( Column( stab_summ_lev1, "% OOC Online" )[m], 1 ) ) || "% (" ||
+					Char( Column( stab_summ_lev1, "OOC Online" )[m] ) || ")";
+					Column( stab_summ_lev1, "Offline OOC" )[m] =
+					Char( Round( Column( stab_summ_lev1, "% OOC Offline" )[m], 1 ) ) || "% ("
+					 || Char( Column( stab_summ_lev1, "OOC Offline" )[m] ) || ")";
+
+					spc_pad = "";
+	
+					If(
+						Contains(
+							Substr( Column( stab_summ_lev1, "Offline OOC" )[m], 1, 3 ),
+							"%"
+						),
+						spc_pad ||= " "
+					);
+					For( k = 1, k <= 12 - Length( Column( stab_summ_lev1, "Offline OOC" )[m] ),
+						k++,
+						spc_pad ||= " "
+					);
+					Column( stab_summ_lev1, "Offline OOC" )[m] = spc_pad ||
+					Column( stab_summ_lev1, "Offline OOC" )[m];
+
+					spc_pad = "";
+		
+					If(
+						Contains(
+							Substr( Column( stab_summ_lev1, "Online OOC" )[m], 1, 3 ),
+							"%"
+						),
+						spc_pad ||= " "
+					);
+					For( k = 1, k <= 12 - Length( Column( stab_summ_lev1, "Online OOC" )[m] ),
+						k++,
+						spc_pad ||= " "
+					);
+					Column( stab_summ_lev1, "Online OOC" )[m] = spc_pad ||
+					Column( stab_summ_lev1, "Online OOC" )[m];
+
+					//ii = Eval( Loc( Param_List, param_ttd ) );
+					ii = Eval( Contains( Param_List, param_ttd ) );  //bug fix for jmp14 ---Xin
+					Column( stab_summ_lev1, "OCI" )[m] = sOCI[ii];
+					Column( stab_summ_lev1, "OCI Status" )[m] = sOCIStat[ii];
+					Column( stab_summ_lev1, "Grand Mean" )[m] = SonTTD_GrandMean[ii];
+					Column( stab_summ_lev1, "Pooled SigmaMR" )[m] = SonTTD_SMR[ii];
+					Column( stab_summ_lev1, "CLSR" )[m] = sCLSR[ii];
+					Column( stab_summ_lev1, "CLSR Status" )[m] = sCLSRStat[ii];
+					Column( stab_summ_lev1, "Ref TTD" )[m] = sonTTD[ii];
+					Column( stab_summ_lev1, "Offline TTD" )[m] = sonTTDCalc[ii];
+					Column( stab_summ_lev1, "TTD Ratio" )[m] = sTTDRatio[ii];
+					Column( stab_summ_lev1, "TTD Ratio Status" )[m] = sTTDRatioStat[ii];
+				,
+					MissingLine = 1
+				); //end if
+
+			); //end if
+		); //end for (m)
+
+/** Build OOC Summary ReportBox **/
+		If( (Use_TTD_X == 0) & (Use_TTD_S == 0),
+			For( r = 1, r <= N_Lev1_OOC_Cols0, r++,
+				If( Type( GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[2] ) == "List",
+					stablev1_ooc_tab_box << Append(
+						String Col Box( GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[1],
+							GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[2]
+						)
+					), 
+
+					If( !Is Missing( stb_fmt10[r] ),
+						stablev1_ooc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[1],
+								GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[2],
+								<<SetFormat( 5, stb_fmt10[r] )
+							)
+						), 
+	
+						stablev1_ooc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[1],
+								GetColAsTable( Lev1_OOC_Cols0[r], stab_summ_lev1 )[2]
+							)
+						)
+					)
+				)
+			); //end of For (r=1, ....)
+		,  //ELSE if TTD usage
+
+			For( r = 1, r <= N_Lev1_OOC_Cols1, r++,
+				If( Type( GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[2] ) == "List",
+					stablev1_ooc_tab_box << Append(
+						String Col Box( GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[1],
+							GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[2]
+						)
+					), 
+
+					If( !Is Missing( stb_fmt11[r] ),
+						stablev1_ooc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[1],
+								GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[2],
+								<<SetFormat( 5, stb_fmt11[r] )
+							)
+						), 
+	
+						stablev1_ooc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[1],
+								GetColAsTable( Lev1_OOC_Cols1[r], stab_summ_lev1 )[2]
+							)
+						)
+					)
+				)
+			)
+		); //end if (TTD...)
+
+/** Build Level 1 Summary Report Box **/
+		For( r = 1, r <= N_Lev1_Indc_Cols, r++,
+			If( Type( GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[2] ) == "List",
+				stablev1_findc_tab_box << Append(
+					String Col Box( GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1],
+						GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[2]
+					)
+				), 
+
+				If( !Contains( GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1], "#" ),
+					stablev1_findc_tab_box << Append(
+						Number Col Box( GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1],
+							GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[2],
+							<<SetFormat( 4, 2 )
+						)
+					), 
+
+					If(
+						Munger(
+							GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1],
+							Length( GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1] ),
+							1
+						) == "2",
+						stablev1_findc_tab_box << Append(
+							Number Col Box(
+								Munger(
+									GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1],
+									1,
+									Length(
+										GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1]
+									) - 1
+								),
+								GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[2]
+							)
+						), 
+
+						stablev1_findc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[1],
+								GetColAsTable( Lev1_Indc_Cols[r], stab_summ_lev1 )[2]
+							)
+						)
+					)
+				)
+			)
+		);   //end for r
+
+		/** Build Warning+Flag Level 1 Summary Report Box **/
+		For( r = 1, r <= N_Lev1_wfIndc_Cols, r++,
+			If( Type( GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[2] ) == "List",
+				stablev1_wfindc_tab_box << Append(
+					String Col Box( GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1],
+						GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[2]
+					)
+				), 
+
+				If( !Contains( GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1], "#" ),
+					stablev1_wfindc_tab_box << Append(
+						Number Col Box( GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1],
+							Eval( indc_wflg_cols_vals[r] ),
+							<<SetFormat( 4, 2 )
+						)
+					), 
+
+					If(
+						Munger(
+							GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1],
+							Length( GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1] ),
+							1
+						) == "2",
+						stablev1_wfindc_tab_box << Append(
+							Number Col Box(
+								Munger(
+									GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1],
+									1,
+									Length(
+										GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1]
+									) - 1
+								),
+								Eval( indc_wflg_cols_vals[r] )
+							)
+						), 
+
+						stablev1_wfindc_tab_box << Append(
+							Number Col Box(
+								GetColAsTable( Lev1_wfIndc_Cols[r], stab_summ_lev1 )[1],
+								Eval( indc_wflg_cols_vals[r] )
+							)
+						)
+					)
+				)
+			)
+		);   //end for r
+
+		/**** Make indicator charts ****/
+		Current Data Table( stab_summ_lev2_sorted );
+		/** X-Axis expr for indicator var-chart **/
+		If( N Items( Col_List ) == 1,
+			If( N Items( Param ) != 0,
+				x_indc_vcht = Insert(
+					z,
+					Eval List(
+						{Column( stab_summ_lev2_sorted, parmid_arg ),
+						Column( stab_summ_lev2_sorted, "Type" )}
+					)
+				),
+				x_indc_vcht = Insert(
+					z,
+					Eval List( {Column( stab_summ_lev2_sorted, "Type" )} )
+				)
+			);
+			rwlgnd_indx = 1;
+		, 
+
+			If( N Items( Param ) != 0,
+				x_indc_vcht = Insert(
+					z,
+					Eval List(
+						{parmid_arg, Column( stab_summ_lev2_sorted, "Type" ), Col_List[1]}
+					)
+				),
+				x_indc_vcht = Insert(
+					z,
+					Eval List( {Column( stab_summ_lev2_sorted, "Type" ), Col_List[1]} )
+				)
+			);
+			rwlgnd_indx = 2;
+		);  //end If (N items)
+		chk_colcnt = Try(
+			Column( stab_summ_lev2_sorted, Col_List[rwlgnd_indx] ) << GetValues,
+			{""}
+		);
+
+		/** OCI Indicator var-chart **/
+		OCI_x_min = Min(
+			-3,
+			-Max( Abs( Column( stab_summ_lev2_sorted, "OCI" ) << GetValues ) )
+		);
+		OCI_x_max = Max( 3, Max( Abs( Column( stab_summ_lev2_sorted, "OCI" ) << GetValues ) ) );
+		OCI_var_chart = H List Box(
+			Variability Chart(
+				Y( Column( stab_summ_lev2_sorted, "OCI" ) ),
+				X( Eval( x_indc_vcht ) ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				ShowGrandMean( 0 ),
+				SendToReport(
+					Dispatch(
+						{"Variability Chart for OCI"},
+						"2",
+						ScaleBox,
+						{Scale( Linear ), Format( Fixed Dec, 1 ), Min( OCI_x_min ),
+						Max( OCI_x_max ), Inc( 0.5 ), Minor Ticks( 0 ),
+						Add Ref Line( 1.5, Dashed, Gray ), Add Ref Line( 0, Solid, Gray ),
+						Add Ref Line( -1.5, Dashed, Gray ), Add Ref Line( 1.0, Dotted, Gray ),
+						Add Ref Line( -1.0, Dotted, Gray )}
+					)
+				)
+			)
+		);
+		If( N Items( chk_colcnt ) != N Row( Loc( chk_colcnt, "" ) ),
+			OCI_var_chart[FrameBox( 1 )] << RowLegend(
+				Column( stab_summ_lev2_sorted, Col_List[rwlgnd_indx] ),
+				color( 1 ),
+				Marker( 1 )
+			)
+		);
+
+		/** CLSR Indicator var-chart **/
+		Try(
+			CLSR_x_min_value = Col Min( Column( stab_summ_lev2_sorted, "CLSR" ) );
+			CLSR_x_max_value = Col Max( Column( stab_summ_lev2_sorted, "CLSR" ) );
+			If( !Is Missing( CLSR_x_min_value ) & !Is Missing( CLSR_x_max_value ),
+				CLSR_x_min = Min( 0, Col Min( Column( stab_summ_lev2_sorted, "CLSR" ) ) );
+				CLSR_x_max = Max( 6, Col Max( Column( stab_summ_lev2_sorted, "CLSR" ) ) );
+				CLSR_var_chart = H List Box(
+					Variability Chart(
+						Y( Column( stab_summ_lev2_sorted, "CLSR" ) ),
+						X( Eval( x_indc_vcht ) ),
+						Std Dev Chart( 0 ),
+						Points Jittered( 1 ),
+						ShowGrandMean( 0 ),
+						SendToReport(
+							Dispatch(
+								{"Variability Chart for CLSR"},
+								"2",
+								ScaleBox,
+								{Scale( Linear ), Format( Fixed Dec, 1 ), Min( CLSR_x_min ),
+								Max( CLSR_x_max ), Inc( 0.5 ), Minor Ticks( 0 ),
+								Add Ref Line( 1.5, Dashed, Gray ),
+								Add Ref Line( 3, Solid, Gray ),
+								Add Ref Line( 4.5, Dashed, Gray ),
+								Add Ref Line( 2, Dotted, Gray ), Add Ref Line( 4, Dotted, Gray )
+								}
+							)
+						)
+					)
+				);
+				If( N Items( chk_colcnt ) != N Row( Loc( chk_colcnt, "" ) ),
+					CLSR_var_chart[FrameBox( 1 )] << RowLegend(
+						Column( stab_summ_lev2_sorted, Col_List[rwlgnd_indx] ),
+						color( 1 ),
+						Marker( 1 )
+					)
+				);
+
+			); //end if
+		); //end try
+
+/** OOC Indicator var-chart **/
+		OOC_x_min = Min( 0, Col Min( Column( stab_summ_lev2_sorted, "% OOC Online" ) ) );
+		OOC_x_max = Max( 10, Col Max( Column( stab_summ_lev2_sorted, "% OOC Online" ) ) );
+		OOC_var_chart = H List Box(
+			Variability Chart(
+				Y( Column( stab_summ_lev2_sorted, "% OOC Online" ) ),
+				X( Eval( x_indc_vcht ) ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				ShowGrandMean( 0 ),
+				SendToReport(
+					Dispatch(
+						{"Variability Chart for % OOC Online"},
+						"2",
+						ScaleBox,
+						{Scale( Linear ), Format( Fixed Dec, 1 ), Min( OOC_x_min ),
+						Max( OOC_x_max ), Inc( 1 ), Minor Ticks( 0 ),
+						Add Ref Line( 2, Dotted, Gray ), Add Ref Line( 5, Dashed, Gray )}
+					)
+				)
+			)
+		);
+		If( N Items( chk_colcnt ) != N Row( Loc( chk_colcnt, "" ) ),
+			OOC_var_chart[FrameBox( 1 )] << RowLegend(
+				Column( stab_summ_lev2_sorted, Col_List[rwlgnd_indx] ),
+				color( 1 ),
+				Marker( 1 )
+			)
+		);
+
+		/** Output the analysis summary window **/
+		 :: stab_summary = New Window( "Stability Analysis Indicator Summary",
+			V List Box(
+				stab_lev2summ_box,
+				If( N Items( Col_List ) == 2,
+					stab_lev1p5summ_box
+				),
+				stab_lev1_ooc_summ_box,
+				stab_lev1_findc_summ_box,
+				stab_lev1_wfindc_summ_box,
+				Text Box( "" ),
+				Outline Box( "PCS Indicator Charts",
+					If( !Is Missing( CLSR_x_min_value ) & !Is Missing( CLSR_x_max_value ),
+						V List Box(
+							OOC_var_chart[Outline Box( 1 )],
+							OCI_var_chart[Outline Box( 1 )],
+							CLSR_var_chart[Outline Box( 1 )]
+						),
+						V List Box(
+							OOC_var_chart[Outline Box( 1 )],
+							OCI_var_chart[Outline Box( 1 )]
+						)
+
+					)
+	
+				),
+				FooterBox
+			)
+		);
+		//stab_summary << ZoomWindow;
+	); //EndTry
+);//End Expr
+
+/////////////Trend Chart Exprs/////////////////////////////////////
+/** Generic trend chart expr **/
+trend_cht_expr = Expr(
+	Current Data Table( sumtable_alt );
+	// JMP 16 FIX: Overlay plot outdated.
+	/// For some unknown reason graph builder solution not working for JMP 12
+	if(JMPvernum >= 14, 
+		Outline Box( Char( _title_arg ),
+			V List Box(
+				Graph Builder(
+					Size( 450, 260 ), 
+					Show Control Panel( 0 ),
+					Automatic Recalc( 0 ),
+					Show Legend( 0 ),
+					Variables( X( _trend_cht_x_arg ), Y(  _trend_cht_y_arg ) ),
+					Elements( Points( X, Y, Legend ( 1 )  ) )
+				)
+			)
+		);
+	, // JMP 12
+		Outline Box( Char( _title_arg ),
+			V List Box(
+				Overlay Plot(
+					X( Expr( _trend_cht_x_arg ) ),
+					Y( Expr( _trend_cht_y_arg ) ), 
+					Separate Axes( 1 ),
+					UnGroupPlots( 0 ),
+					UniformYScale( 0 ),
+					ConnectThruMissing( 0 ),
+					RangePlot( 0 ),
+					ArrangePlots( 0 ),
+					Show Points( 1 ),
+					Connect Points( 0 ),
+					Needle( 0 ),
+					Step( 0 ),
+					Function Plot( 0 ),
+					Where( Selected() )
+				)
+			)
+		);
+	)	
+); //EndExpr
+
+////////////////////////////////// XBar_Trend_Chart_Expr //////////////////////////////////
+/** XBar trend chart expr **/
+XBar_Trend_Chart_Expr = Expr(
+	Current Data Table( sumtable_alt );
+	If( Expr( _docht ),
+		XBar_Trend_Chart[u] = Eval(
+			Substitute( Name Expr( trend_cht_expr ),
+				Expr( _trend_cht_x_arg ), trend_cht_x_arg,
+				Expr( _trend_cht_y_arg ), Expr( Column( sumtable_alt, colindx ) ),
+				Expr( _title_arg ), Expr( "Mean" )
+			)
+		);
+		xbar_trend_chart_min = Round(
+			Min(
+				Min( Column( sumtable_alt, colindx )[data_rowlist] ),
+				limit_row[1] - Ceiling( Log10( limit_row[1] ) ),
+				limit_row[2] - Ceiling( Log10( limit_row[2] ) )
+			),
+			1
+		);
+		xbar_trend_chart_max = Round(
+			Max(
+				Max( Column( sumtable_alt, colindx )[data_rowlist] ),
+				limit_row[3] + Ceiling( Log10( limit_row[3] ) ),
+				limit_row[2] + Ceiling( Log10( limit_row[2] ) )
+			),
+			1
+		);
+		tc_box << Append( XBar_Trend_Chart[u] );
+	); //EndIf
+); //EndExpr
+
+////////////////////////////////// S_Trend_Chart_Expr //////////////////////////////////
+/** S trend chart expr **/
+S_Trend_Chart_Expr = Expr(
+	Current Data Table( sumtable_alt );
+	If( Expr( _docht ),
+		S_Trend_Chart[u] = Eval(
+			Substitute( Name Expr( trend_cht_expr ),
+				Expr( _trend_cht_x_arg ), trend_cht_x_arg,
+				Expr( _trend_cht_y_arg ), Expr( Column( sumtable_alt, colindx + shft ) ),
+				Expr( _title_arg ), Expr( _s_trend_name )
+			)
+		);
+		S_trend_chart_min = Round(
+			Min(
+				Min( Column( sumtable_alt, colindx + shft )[data_rowlist] ),
+				0,
+				limit_row[5] - Ceiling( Log10( limit_row[5] ) )
+			),
+			1
+		);
+		S_trend_chart_max = Round(
+			Max(
+				Max( Column( sumtable_alt, colindx + shft )[data_rowlist] ),
+				0,
+				limit_row[6] + Ceiling( Log10( limit_row[6] ) )
+			),
+			1
+		);
+		tc_box << Append( S_Trend_Chart[u] );
+	); //EndIf
+); //EndExpr
+
+////////////////////////////////// Format_XBar_Trend_Chart //////////////////////////////////
+//Format_XBar_Trend_Chart = Expr( 
+//	//XBar_Trend_Chart_Box<<Append(XBar_Trend_Chart[u]);
+//	XBar_Trend_Chart[u][Outline Box( 1 )] << SetTitle( "Mean" );
+//	If( rwlgnd_sw,
+//		XBar_Trend_Chart[u][FrameBox( 1 )] << RowLegend(
+//			Eval( col_list_2 ),
+//			color( 1 ),
+//			Marker( 1 )
+//		)
+//	);
+//	XBar_Trend_Chart[u][FrameBox( 1 )] << FrameSize( 350, 200 );
+//	XBar_Trend_Chart[u][Text Box( 1 )] << Delete;
+//	XBar_Trend_Chart[u][AxisBox( 1 )] << AddRefLine( limit_row[1], Dashed, "Grey" );
+//	XBar_Trend_Chart[u][AxisBox( 1 )] << AddRefLine( limit_row[2], Dotted, "Grey" );
+//	XBar_Trend_Chart[u][AxisBox( 1 )] << AddRefLine( limit_row[3], Dashed, "Grey" );
+//	XBar_Trend_Chart[u][AxisBox( 1 )] << AxisSettings(
+//		Min( xbar_trend_chart_min ),
+//		Max( xbar_trend_chart_max )
+//	);
+//
+//	If( Contains( Char( _x_arg << GetFormat ), "m/d" ) >= 9,
+//		Try(
+//			XBar_Trend_Chart[u][AxisBox( 3 )] << AxisSettings(
+//				Format( "m/d/y" ),
+//				Interval( Week ),
+//				ShowMajorGrid( 1 )
+//			),
+//			XBar_Trend_Chart[u][AxisBox( 2 )] << AxisSettings(
+//				Format( "m/d/y" ),
+//				Interval( Week ),
+//				ShowMajorGrid( 1 )
+//			)
+//		)
+//	);
+//); //EndExpr
+
+Format_XBar_Trend_Chart = Expr( 
+	//XBar_Trend_Chart_Box<<Append(XBar_Trend_Chart[u]);
+	XBar_Trend_Chart[u][Outline Box( 1 )] << SetTitle( "Mean" );
+	If( rwlgnd_sw,
+		XBar_Trend_Chart[u][FrameBox( 1 )] << RowLegend(
+			Eval( col_list_2 ),
+			color( 1 ),
+			Marker( 1 )
+		)
+	);
+	// JMP 16 Fix: Overlay plot is outdated: Change from Overlay to Graph builder in trend_cht_expr. 
+	// However, have to flip AxisBox values. Do not understand why -- there may be somewhere in this code
+	// where we are flipping the trend chart?
+	if(JMPvernum >= 14, 
+		x_axis_num_fix = 1;
+		y_axis_num_fix = 2;
+	, // ELSE JMP 12
+		x_axis_num_fix = 2;
+		y_axis_num_fix = 1;
+	);
+	
+	XBar_Trend_Chart[u][FrameBox( 1 )] << FrameSize( 350, 200 );
+	XBar_Trend_Chart[u][Text Box( 1 )] << Delete;
+	XBar_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AddRefLine( limit_row[1], Dashed, "Grey" );
+	XBar_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AddRefLine( limit_row[2], Dotted, "Grey" );
+	XBar_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AddRefLine( limit_row[3], Dashed, "Grey" );
+	XBar_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AxisSettings(
+		Min( xbar_trend_chart_min ),
+		Max( xbar_trend_chart_max )
+	);
+
+	If( Contains( Char( _x_arg << GetFormat ), "m/d" ) >= 9,
+		Try(
+			XBar_Trend_Chart[u][AxisBox( 3 )] << AxisSettings(
+				Format( "m/d/y" ),
+				Interval( Week ),
+				ShowMajorGrid( 1 )
+			),
+			XBar_Trend_Chart[u][AxisBox( x_axis_num_fix )] << AxisSettings(
+				Format( "m/d/y" ),
+				Interval( Week ),
+				ShowMajorGrid( 1 )
+			)
+		)
+	);
+); //EndExpr
+
+
+////////////////////////////////// Format_S_Trend_Chart //////////////////////////////////
+Format_S_Trend_Chart = Expr( 
+	//S_Trend_Chart_Box<<Append(S_Trend_Chart[u]);
+	S_Trend_Chart[u][Outline Box( 1 )] << SetTitle( Char( _s_trend_name ) );
+	If( rwlgnd_sw,
+		S_Trend_Chart[u][FrameBox( 1 )] << RowLegend(
+			Eval( col_list_2 ),
+			color( 1 ),
+			Marker( 1 )
+		)
+	);
+    // JMP 16 Fix: Overlay plot is outdated: Change from Overlay to Graph builder in trend_cht_expr. 
+	// However, have to flip AxisBox values. Do not understand why -- there may be somewhere in this code
+	// where we are flipping the trend chart?
+	if(JMPvernum >= 14, 
+		x_axis_num_fix = 1;
+		y_axis_num_fix = 2;
+	, // ELSE JMP 12
+		x_axis_num_fix = 2;
+		y_axis_num_fix = 1;
+	);
+	
+	
+	S_Trend_Chart[u][FrameBox( 1 )] << FrameSize( 350, 200 );
+	S_Trend_Chart[u][Text Box( 1 )] << Delete;
+	//S_Trend_Chart[u][AxisBox(1)]<<AddRefLine( limit_row[4], Dashed, "Grey" );
+	S_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AddRefLine( limit_row[5], Dotted, "Grey" );
+	S_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AddRefLine( limit_row[6], Dashed, "Grey" );
+	S_Trend_Chart[u][AxisBox( y_axis_num_fix )] << AxisSettings(
+		Min( S_trend_chart_min ),
+		Max( S_trend_chart_max )
+	);
+	If( Contains( Char( _x_arg << GetFormat ), "m/d" ) >= 9,
+		Try(
+			S_Trend_Chart[u][AxisBox( 3 )] << AxisSettings(
+				Format( "m/d/y" ),
+				Interval( Week ),
+				ShowMajorGrid( 1 )
+			),
+			S_Trend_Chart[u][AxisBox( x_axis_num_fix )] << AxisSettings(
+				Format( "m/d/y" ),
+				Interval( Week ),
+				ShowMajorGrid( 1 )
+			)
+		)
+	);
+	S_Trend_Chart[u][FrameBox( 1 )] << FrameSize( 350, 200 );
+); //EndExpr
+
+
+////////////////////////////////// GenerateTrendCharts //////////////////////////////////
+/** Trend chart function **/
+GenerateTrendCharts = Function( {},
+	::Trend_Chart_Box = {};
+	::rwlgnd_sw = 1;
+	::col_list_1 = "";
+	::col_list_2 = col_list_1;
+
+	sumtable << ClearSelect;
+	sumtable << ClearColumnSelection;
+	sumtable_alt = sumtable << Subset( sumtable, AllRows, Invisible );
+
+	trend_cht_x_arg = If( subxQ & subxsort,
+		Expr( Column( sumtable_alt, Eval( subx ) ) ),
+		Expr( Column( sumtable_alt, "Max of " || t_name ) )
+	);
+
+	If( N Items( Col_List ) == 1,
+		If( Col_List[1] != "",
+			col_list_1 = Column( sumtable_alt, Col_List[1] ),
+			rwlgnd_sw = 0
+		);
+		col_list_2 = col_list_1;
+
+		sumtable_alt << Sort( By( Eval( col_list_2 ) ), Order( Ascending ), Replace Table );
+
+		If( N Items( Param ) != 0,
+			trend_grp_cols = {Column( sumtable_alt, "PARAMETERID" )},
+			trend_grp_cols = {}
+		);
+	, 
+	
+	/*ELSE*/
+		col_list_1 = Column( sumtable_alt, Col_List[1] );
+		col_list_2 = Column( sumtable_alt, Col_List[2] );
+
+		If( N Items( Param ) != 0,
+			trend_grp_cols = {Column( sumtable_alt, "PARAMETERID" ), Eval( col_list_1 )},
+			trend_grp_cols = {Eval( col_list_1 )}
+		); //EndIf
+	); //EndIf
+
+	
+	If( N_z != 0,
+		For( w = N_z, w >= 1, w--,
+			Insert Into( trend_grp_cols, Char( z[w] ), 2 )
+		)
+	);
+
+	If( JMPvernum >= 8,
+		temp_grp_tab = sumtable_alt << Summary(
+			Group( trend_grp_cols[1 :: N Items( trend_grp_cols )] )
+		), // JMP 8
+		temp_grp_tab = sumtable_alt << Summary( Group( Eval List( trend_grp_cols ) ) ); //JMP 5-7
+	);
+	
+	Trend_Group_ID = GetTableAsText( temp_grp_tab );
+	New Window( "", Trend_Analysis_Box = V List Box() );
+
+	/** Loop Starts here **/
+	v = 1;
+	v_indx = v;
+	For( u = 1, u <= N Items( Trend_Group_ID ), u++,
+		Trend_Chart_Box[u] = Outline Box( Char( Trend_Group_ID[u][1] ), tc_box = H List Box() );
+		limit_row = Online_Limit_Matrix[v, 0];
+
+		Current Data Table( temp_grp_tab );
+		temp_grp_tab << Clear Select;
+		Selected( Row State( u ) ) = 1;
+		If( (N_Params > 1),
+			v_indx = v;
+			If( Trim( Column( temp_grp_tab, 1 )[u] ) != Trim( Column( temp_grp_tab, 1 )[u + 1] ),
+				If( u != N Row(), v++ )
+			);
+		);
+		data_rowlist = sumtable_alt << GetSelectedRows;
+
+		s_axis_name = Column( sumtable_alt, colindx ) << GetName;
+
+
+		/** Switch for raw, mean, std **/
+
+
+		Choose( Param_Type[v_indx],
+			colshift = 1;
+			Eval( Substitute( Name Expr( XBar_Trend_Chart_Expr ), Expr( _docht ), 1 ) );
+			Eval(
+				Substitute( Name Expr( S_Trend_Chart_Expr ),
+					Expr( _s_trend_name ), "Std Dev",
+					Expr( shft ), 1,
+					Expr( _docht ), 1
+				)
+			);
+
+			Trend_Analysis_Box << Append( Trend_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_XBar_Trend_Chart ),
+					Expr( _x_arg ), trend_cht_x_arg
+				)
+			);
+			Eval(
+				Substitute( Name Expr( Format_S_Trend_Chart ),
+					Expr( _x_arg ), trend_cht_x_arg,
+					Expr( _s_trend_name ), "Std Dev"
+				)
+			);, 
+
+			Eval( Substitute( Name Expr( XBar_Trend_Chart_Expr ), Expr( _docht ), 1 ) );
+			Eval( Substitute( Name Expr( S_Trend_Chart_Expr ), Expr( _docht ), 0 ) );
+			S_Trend_Chart[u] = .;
+			Trend_Analysis_Box << Append( Trend_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_XBar_Trend_Chart ),
+					Expr( _x_arg ), trend_cht_x_arg
+				)
+			);, 
+
+			Column( sumtable_alt, colindx ) << SetName(
+				Munger(
+					s_axis_name,
+					1,
+					(Munger( s_axis_name, 1, Munger( s_axis_name, 1, "of" ) - 2 )),
+					"Std Dev"
+				)
+			);
+
+			Eval( Substitute( Name Expr(  ), Expr( _docht ), 0 ) );
+			Eval(
+				Substitute( Name Expr( S_Trend_Chart_Expr ),
+					Expr( _s_trend_name ), "Std Dev",
+					Expr( shft ), 0,
+					Expr( _docht ), 1
+				)
+			);
+			XBar_Trend_Chart[u] = .;
+			Trend_Analysis_Box << Append( Trend_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_S_Trend_Chart ),
+					Expr( _x_arg ), trend_cht_x_arg,
+					Expr( _s_trend_name ), "Std Dev"
+				)
+			);
+			Column( sumtable_alt, colindx ) << SetName( s_axis_name );, 
+
+			Column( sumtable_alt, colindx ) << SetName(
+				Munger(
+					s_axis_name,
+					1,
+					(Munger( s_axis_name, 1, Munger( s_axis_name, 1, "of" ) - 2 )),
+					"Range"
+				)
+			);
+			Eval( Substitute( Name Expr( XBar_Trend_Chart_Expr ), Expr( _docht ), 0 ) );
+			Eval(
+				Substitute( Name Expr( S_Trend_Chart_Expr ),
+					Expr( _s_trend_name ), "Range",
+					Expr( shft ), 0,
+					Expr( _docht ), 1
+				)
+			);
+			XBar_Trend_Chart[u] = .;
+			Trend_Analysis_Box << Append( Trend_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_S_Trend_Chart ),
+					Expr( _x_arg ), trend_cht_x_arg,
+					Expr( _s_trend_name ), "Range"
+				)
+			);
+			Column( sumtable_alt, colindx ) << SetName( s_axis_name );
+
+		); //EndChoose
+
+		Current Data Table( temp_grp_tab );
+		Selected( Row State( u ) ) = 0;
+	); //EndFor
+	Close( temp_grp_tab, NoSave );
+	Trend_Analysis_Object = H List Box( Trend_Analysis_Box );
+	Close( sumtable_alt, NoSave );
+	Trend_Analysis_Object;
+); //EndFunction GenerateTrendCharts
+
+
+/////////////Phase Chart Exprs/////////////////////////////////////
+/** Generic phase chart expr **/
+phase_cht_expr = Expr(
+
+//	Current Data Table( sumtable_alt );
+	Outline Box( Char( _title_arg ),
+		V List Box(
+			Control Chart(
+				Sample Label( Eval( _phase_cht_x_arg ) ),
+				Phase( Expr( _phase_cht_x1_arg ) ),
+				Group Size( 1 ),
+				KSigma( 3 ),
+				Chart Col( _phase_cht_y_arg, Individual Measurement( Test 1( 0 ) ) ),
+				where( Selected() )
+			)
+		)
+	);
+); //EndExpr
+
+
+////////////////////////////////// XBar_Phase_Chart_Expr //////////////////////////////////
+/** XBar phase chart expr **/
+XBar_Phase_Chart_Expr = Expr(
+	Current Data Table( sumtable_alt );
+
+	If( Expr( _doPcht ),
+		XBar_Phase_Chart[u] = Eval(
+			Substitute( Name Expr( phase_cht_expr ),
+				Expr( _phase_cht_x_arg ), phase_cht_x_arg,
+				Expr( _phase_cht_x1_arg ), phase_cht_x1_arg,
+				Expr( _phase_cht_y_arg ), Column( sumtable_alt, colindx ),
+				Expr( _title_arg ), Expr( "Mean" )
+			)
+		);
+		xbar_phase_chart_min = Round(
+			Min(
+				Min( Column( sumtable_alt, colindx )[data_rowlist] ),
+				limit_row[1] - Ceiling( Log10( limit_row[1] ) ),
+				limit_row[2] - Ceiling( Log10( limit_row[2] ) ),
+				offline_limit_row[1] - Ceiling( Log10( offline_limit_row[1] ) ),
+				offline_limit_row[2] - Ceiling( Log10( offline_limit_row[2] ) )
+			),
+			1
+		);
+		xbar_phase_chart_max = Round(
+			Max(
+				Max( Column( sumtable_alt, colindx )[data_rowlist] ),
+				limit_row[3] + Ceiling( Log10( limit_row[3] ) ),
+				limit_row[2] + Ceiling( Log10( limit_row[2] ) ),
+				offline_limit_row[3] + Ceiling( Log10( offline_limit_row[3] ) ),
+				offline_limit_row[2] + Ceiling( Log10( offline_limit_row[2] ) )
+
+			),
+			1
+		);
+
+		phase_tc_box << Append( XBar_Phase_Chart[u] );
+	); //EndIf
+
+); //EndExpr
+
+////////////////////////////////// S_Phase_Chart_Expr //////////////////////////////////
+/** S phase chart expr **/
+S_Phase_Chart_Expr = Expr(
+	Current Data Table( sumtable_alt );
+
+	sumtable_alt_new = sumtable_alt << Subset( sumtable_alt, Selected Columns ( 0 ), AllRows, Invisible, Output Table( "tmp copy of table for phase charts" ) );
+	sumtable_alt_new << invertRowSelection;
+	sumtable_alt_new << delete selected;
+
+	If( Expr( _doPcht ),
+		S_Phase_Chart[u] = Eval(
+			Substitute( Name Expr( phase_cht_expr ),
+				Expr( _phase_cht_x_arg ), phase_cht_x_arg,
+				Expr( _phase_cht_x1_arg ), phase_cht_x1_arg,
+				Expr( _phase_cht_y_arg ), Expr( Column( sumtable_alt_new, colindx + shft ) ),
+				Expr( _title_arg ), Expr( _s_phase_name )
+			)
+		);
+		S_phase_chart_min = Round(
+			Min(
+				Col Minimum ( Column( sumtable_alt_new, colindx + shft ) ),
+				0,
+				limit_row[5] - Ceiling( Log10( limit_row[5] ) ),
+				offline_limit_row[5] - Ceiling( Log10( offline_limit_row[5] ) )
+			),
+			3
+		);
+		S_phase_chart_max = Round(
+			Max(
+				Col Maximum ( Column( sumtable_alt_new, colindx + shft ) ),
+				0,
+				limit_row[6] + Ceiling( Log10( limit_row[6] ) ),
+				offline_limit_row[6] + Ceiling( Log10( offline_limit_row[6] ) )
+			),
+			3
+		);
+		phase_tc_box << Append( S_Phase_Chart[u] );
+	); //EndIf
+//	Try(Close(sumtable_alt_new, no save));
+
+); //EndExpr
+
+////////////////////////////////// Format_XBar_Trend_Chart //////////////////////////////////
+Format_XBar_Phase_Chart = Expr( 
+	
+	XBar_Phase_Chart[u][Outline Box( 1 )] << SetTitle( "Mean" );
+//	If( rwlgnd_sw,
+	//		XBar_Phase_Chart[u][FrameBox( 1 )] << RowLegend(
+	//			Eval( col_list_2 ),
+	//			color( 1 ),
+	//			Marker( 1 )
+	//		)
+	//	);
+
+	XBar_Phase_Chart[u][FrameBox( 1 )] << FrameSize( 700, 300 );
+	XBar_Phase_Chart[u][Text Box( 1 )] << Delete;
+
+	If( !Is Missing( limit_row[2] ),
+		XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			limit_row[2],
+			Solid,
+			"Medium Dark Green",
+			"Online CL"
+		)
+	);
+
+/* more the text inside the chart
+	XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		limit_row[1],
+		Dashed,
+		"Medium Dark Green",
+		"Online LCL"
+	);
+
+	XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		limit_row[3],
+		Dashed,
+		"Medium Dark Green",
+		"Online UCL"
+	);
+
+*/
+	XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		offline_limit_row[1],
+		Dashed,
+		"Medium Dark Red",
+		"Suggested LCL"
+	);
+	If( limit_row[2] == offline_limit_row[2],
+		XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			offline_limit_row[2],
+			Solid,
+			"Medium Dark Red",
+			"Suggested and Online CLs"
+		),
+		XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			offline_limit_row[2],
+			Solid,
+			"Medium Dark Red",
+			"Suggested CL"
+		);
+
+	);
+	XBar_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		offline_limit_row[3],
+		Dashed,
+		"Medium Dark Red",
+		"Suggested UCL"
+	);
+	XBar_Phase_Chart[u][AxisBox( 1 )] << AxisSettings(
+		Min( xbar_phase_chart_min )
+//		Max( xbar_phase_chart_max )
+	);
+
+	If( !Is Missing( xOnTTD[v_indx] ) & (xOnTTD[v_indx] > 0), 
+
+		If(
+			!Is Missing( xOffCL[v_indx] ) & !Is Missing( xOnTTDCalc[v_indx] ) & (xOnTTDCalc[
+			v_indx] > 0), 
+	
+			XBar_Phase_Chart[u][FrameBox( 1 )] <<
+			Add Graphics Script(
+				2,
+				Description( "Script" ),
+				Transparency( 0.2 );
+				Pen Color( "red" );
+				Pen Size( 3 );
+				Y Function( _x_lower_offline_ttd_line, x, fill( 2, _x_upper_offline_ttd_line ) );
+			)
+		)
+	);
+
+	If( !Is Missing( limit_row[1] ) & !Is Missing( limit_row[3] ), 
+
+		XBar_Phase_Chart[u][FrameBox( 1 )] << Add Graphics Script(
+			2,
+			Description( "Script" ),
+			Pen Color( "Medium Dark Green" );
+			Pen Size( 2 );
+			Line Style( 0 );
+//			H Line( limit_row[2] );
+			Line Style( 1 );
+//			H Line( limit_row[3] );
+			//			H Line( limit_row[1] );
+			H Line( _x_online_ucl );
+			H Line( _x_online_lcl );
+			Text Color( "Medium Dark Green" );
+			Text Size( 7 );
+			Text( {1, _x_online_ucl}, "Online UCL" );
+			Text( {1, _x_online_lcl}, "Online LCL" );
+		)
+	);
+
+	If( !Is Missing( xOnCL[v_indx] ) & !Is Missing( xOnTTD[v_indx] ) & (xOnTTD[v_indx] > 0), 
+
+		XBar_Phase_Chart[u][AxisBox( 1 )] << add ref line(
+			_x_lower_ttd_line,
+			"Dotted",
+			"Medium Dark Green",
+			"Online CL-TTD"
+		);
+		XBar_Phase_Chart[u][AxisBox( 1 )] << add ref line(
+			_x_upper_ttd_line,
+			"Dotted",
+			"Medium Dark Green",
+			"Online CL+TTD"
+		);
+	); //end if
+
+); //EndExpr
+
+
+////////////////////////////////// Format_S_Phase_Chart //////////////////////////////////
+Format_S_Phase_Chart = Expr( 
+
+	S_Phase_Chart[u][Outline Box( 1 )] << SetTitle( Char( _s_phase_name ) );
+//	If( rwlgnd_sw,
+	//		S_Phase_Chart[u][FrameBox( 1 )] << RowLegend(
+	//			Eval( col_list_2 ),
+	//			color( 1 ),
+	//			Marker( 1 )
+	//		)
+	//	);
+
+	S_Phase_Chart[u][FrameBox( 1 )] << FrameSize( 700, 300 );
+	S_Phase_Chart[u][Text Box( 1 )] << Delete;
+
+	If( !Is Missing( limit_row[5] ),
+		S_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			limit_row[5],
+			Solid,
+			"Medium Dark Green",
+			"Online CL"
+		)
+	);
+
+/* move text inside the chart
+	S_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		limit_row[6],
+		Dashed,
+		"Medium Dark Green",
+		"Online UCL"
+	);
+
+*/
+	If( limit_row[5] == offline_limit_row[5],
+		S_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			offline_limit_row[5],
+			Solid,
+			"Medium Dark Red",
+			"Suggested and Online CLs"
+		),
+		S_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+			offline_limit_row[5],
+			Solid,
+			"Medium Dark Red",
+			"Suggested CL"
+		)
+	);
+	S_Phase_Chart[u][AxisBox( 1 )] << AddRefLine(
+		offline_limit_row[6],
+		Dashed,
+		"Medium Dark Red",
+		"Suggested UCL"
+	);
+	S_Phase_Chart[u][AxisBox( 1 )] << AxisSettings(
+		Min( S_Phase_chart_min )
+//		Max( S_Phase_chart_max )
+	);
+
+	If( !Is Missing( sOnTTD[v_indx] ) & (sOnTTD[v_indx] > 0), 
+
+		If(
+			!Is Missing( sOffCL[v_indx] ) & !Is Missing( sOnTTDCalc[v_indx] ) & (sOnTTDCalc[
+			v_indx] > 0), 
+	
+			S_Phase_Chart[u][FrameBox( 1 )] <<
+			Add Graphics Script(
+				2,
+				Description( "Script" ),
+				Transparency( 0.2 );
+				Pen Color( "red" );
+				Pen Size( 3 );
+				Y Function( 0, x, fill( 2, _s_upper_offline_ttd_line ) );
+			)
+		)
+	);
+
+	If( !Is Missing( limit_row[6] ),
+		S_Phase_Chart[u][FrameBox( 1 )] << Add Graphics Script(
+			2,
+			Description( "Script" ),
+			Pen Color( "Medium Dark Green" );
+			Pen Size( 2 );
+			Line Style( 0 );
+//			H Line( limit_row[5] );
+			Line Style( 1 );
+//			H Line( limit_row[6] );
+			H Line( _s_online_ucl );
+			Text Color( "Medium Dark Green" );
+			Text Size( 7 );
+			Text( {1, _s_online_ucl}, "Online UCL" );
+		)
+	);
+
+	If( !Is Missing( sOnCL[v_indx] ) & !Is Missing( sOnTTD[v_indx] ) & (sOnTTD[v_indx] > 0), 
+
+		S_Phase_Chart[u][AxisBox( 1 )] << add ref line(
+			_s_upper_ttd_line,
+			"Dotted",
+			"Medium Dark Green",
+			"Online CL+TTD"
+		)
+	); //end if
+
+
+); //EndExpr
+
+
+////////////////////////////////// GeneratePhaseCharts //////////////////////////////////
+/** Phase Control chart function **/
+GeneratePhaseCharts = Function( {},
+	::Phase_Chart_Box = {};
+	::rwlgnd_sw = 1;
+	::col_list_1 = "";
+	::col_list_2 = col_list_1;
+
+	sumtable << ClearSelect;
+	sumtable << ClearColumnSelection;
+
+	If( N Items( Col_List ) == 1,
+		If( Col_List[1] != "",
+			col_list_1 = Column( sumtable, Col_List[1] ),
+			rwlgnd_sw = 0
+		);
+		col_list_2 = col_list_1;
+		entity_col = Char( Col_List[1] );
+	, 
+	
+	/*ELSE*/
+		col_list_1 = Column( sumtable, Col_List[1] );
+		col_list_2 = Column( sumtable, Col_List[2] );
+		entity_col = Char( Col_List[2] );
+	); //EndIf
+
+	sumtable1 = sumtable << Sort(
+		By( Eval( col_list_2 ) ),
+		Order( Ascending ),
+		Output Table( "table for phase charts" )
+	);
+
+	sumtable_alt = sumtable1 << Subset( sumtable1, Selected Columns ( 0 ), AllRows, Invisible, Output Table( "copy of table for phase charts" ) );
+	sumtable_alt << clear row states;
+
+
+	phase_cht_x_arg = Expr( Column( sumtable_alt, Char( LotID[1] ) ) );
+
+	phase_cht_x1_arg = Expr( Column( sumtable_alt, Eval( entity_col ) ) );
+
+/*
+	If( N Items( Col_List ) == 1,
+		If( N Items( Param ) != 0,
+			phase_grp_cols = {Column( sumtable_alt, "PARAMETERID" )},
+			phase_grp_cols = {}
+		), 
+	
+	/*ELSE*/
+		If( N Items( Param ) != 0,
+			phase_grp_cols = {Column( sumtable_alt, "PARAMETERID" ), Eval( col_list_1 )},
+			phase_grp_cols = {Eval( col_list_1 )}
+		); //EndIf
+	); //EndIf
+*/
+
+	If( N Items( Param ) != 0,
+		phase_grp_cols = {Column( sumtable_alt, "PARAMETERID" )},
+		phase_grp_cols = {}
+	);
+
+	
+	If( N_z != 0,
+		For( w = N_z, w >= 1, w--,
+			Insert Into( phase_grp_cols, Char( z[w] ), 2 )
+		)
+	);
+
+	If( JMPvernum >= 8,
+		temp_grp_tab = sumtable_alt << Summary(
+			Group( phase_grp_cols[1 :: N Items( phase_grp_cols )] )
+		), // JMP 8
+		temp_grp_tab = sumtable_alt << Summary( Group( Eval List( phase_grp_cols ) ) ); //JMP 5-7
+	);
+	
+	Phase_Group_ID = GetTableAsText( temp_grp_tab );
+
+	Temp_PhaseAnalysis=New Window( "Phase Analysis", Phase_Analysis_Box = V List Box() );
+
+	/** Loop Starts here **/
+	v = 1;
+	v_indx = v;
+
+	For( u = 1, u <= N Items( Phase_Group_ID ), u++,
+
+		Phase_Chart_Box[u] = Outline Box( Char( Phase_Group_ID[u][1] ), 
+//			phase_tc_box = H List Box()
+			phase_tc_box = V List Box()
+
+		);
+		::limit_row = Online_Limit_Matrix[v, 0];
+		::Offline_limit_row = Offline_Limit_Matrix[v, 0];
+
+		Current Data Table( temp_grp_tab );
+		temp_grp_tab << ClearSelect;
+		Selected( Row State( u ) ) = 1;
+		If( (N_Params > 1),
+			v_indx = v;
+			If( Trim( Column( temp_grp_tab, 1 )[u] ) != Trim( Column( temp_grp_tab, 1 )[u + 1] ),
+				If( u != N Row(), v++ )
+			);
+		);
+		data_rowlist = sumtable_alt << GetSelectedRows;
+		s_axis_name = Column( sumtable_alt, colindx ) << GetName;
+
+		If( !Is Missing( xOnCL[v_indx] ) & !Is Missing( xOnTTD[v_indx] ) & (xOnTTD[v_indx] > 0),
+			::Upper_XTTDLine = xOnCL[v_indx] + xOnTTD[v_indx];
+			::Lower_XTTDLine = xOnCL[v_indx] - xOnTTD[v_indx];
+		,
+			::Upper_XTTDLine = xOnCL[v_indx];
+			::Lower_XTTDLine = xOnCL[v_indx];
+
+		);
+
+		If( !Is Missing( sOnCL[v_indx] ) & !Is Missing( sOnTTD[v_indx] ) & (sOnTTD[v_indx] > 0),
+			::Upper_STTDLine = sOnCL[v_indx] + sOnTTD[v_indx],
+			::Upper_STTDLine = 0
+		);
+
+		If(
+			!Is Missing( xOffCL[v_indx] ) & !Is Missing( xOnTTDCalc[v_indx] ) & (xOnTTDCalc[
+			v_indx] > 0),
+			::Upper_XofflineTTDLine = xOffCL[v_indx] + xOnTTDCalc[v_indx];
+			::Lower_XofflineTTDLine = xOffCL[v_indx] - xOnTTDCalc[v_indx];
+		,
+			::Upper_XofflineTTDLine = xOffCL[v_indx];
+			::Lower_XofflineTTDLine = xOffCL[v_indx];
+
+		);
+
+		If(
+			!Is Missing( sOffCL[v_indx] ) & !Is Missing( SOnTTDCalc[v_indx] ) & (SOnTTDCalc[
+			v_indx] > 0),
+			::Upper_SofflineTTDLine = sOffCL[v_indx] + SOnTTDCalc[v_indx],
+			::Upper_SofflineTTDLine = 0
+		);
+
+		
+		If( !Is Missing( limit_row[1] ) & !Is Missing( limit_row[3] ),
+			x_online_lcl = limit_row[1];
+			x_online_ucl = limit_row[3];
+		,
+			x_online_lcl = .;
+			x_online_ucl = .;
+		);
+
+		If( !Is Missing( limit_row[6] ),
+			s_online_ucl = limit_row[6],
+			s_online_ucl = .
+		);
+
+
+		/** Switch for raw, mean, std **/
+
+		Choose( Param_Type[v_indx],
+
+			colshift = 1;
+
+			Eval( Substitute( Name Expr( XBar_Phase_Chart_Expr ), Expr( _doPcht ), 1 ) );
+
+			Eval(
+				Substitute( Name Expr( S_Phase_Chart_Expr ),
+					Expr( _s_phase_name ), "Std Dev",
+					Expr( shft ), 1,
+					Expr( _doPcht ), 1
+				)
+			);
+
+			Phase_Analysis_Box << Append( Phase_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_XBar_Phase_Chart ),
+					Expr( _x_arg ), phase_cht_x_arg,
+					Expr( _x_lower_ttd_line ), Lower_XTTDLine,
+					Expr( _x_upper_ttd_line ), Upper_XTTDLine,
+					Expr( _x_lower_offline_ttd_line ), Lower_XofflineTTDLine,
+					Expr( _x_upper_offline_ttd_line ), Upper_XofflineTTDLine,
+					Expr( _x_online_ucl ), x_online_ucl,
+					Expr( _x_online_lcl ), x_online_lcl
+				)
+			);
+			Eval(
+				Substitute( Name Expr( Format_S_Phase_Chart ),
+					Expr( _x_arg ), phase_cht_x_arg,
+					Expr( _s_phase_name ), "Std Dev",
+					Expr( _s_upper_ttd_line ), Upper_STTDLine,
+					Expr( _s_upper_offline_ttd_line ), Upper_SofflineTTDLine,
+					Expr( _s_online_ucl ), s_online_ucl
+				)
+			);, 
+
+			Eval( Substitute( Name Expr( XBar_Phase_Chart_Expr ), Expr( _doPcht ), 1 ) );
+			Eval( Substitute( Name Expr( S_Phase_Chart_Expr ), Expr( _doPcht ), 0 ) );
+			S_Phase_Chart[u] = .;
+			Phase_Analysis_Box << Append( Phase_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_XBar_Phase_Chart ),
+					Expr( _x_arg ), phase_cht_x_arg,
+					Expr( _x_lower_ttd_line ), Lower_XTTDLine,
+					Expr( _x_upper_ttd_line ), Upper_XTTDLine,
+					Expr( _x_lower_offline_ttd_line ), Lower_XofflineTTDLine,
+					Expr( _x_upper_offline_ttd_line ), Upper_XofflineTTDLine,
+					Expr( _x_online_ucl ), x_online_ucl,
+					Expr( _x_online_lcl ), x_online_lcl
+				)
+			);, 
+
+			Column( sumtable_alt, colindx ) << SetName(
+				Munger(
+					s_axis_name,
+					1,
+					(Munger( s_axis_name, 1, Munger( s_axis_name, 1, "of" ) - 2 )),
+					"Std Dev"
+				)
+			);
+
+			Eval( Substitute( Name Expr( XBar_Phase_Chart_Expr ), Expr( _doPcht ), 0 ) );
+			Eval(
+				Substitute( Name Expr( S_Phase_Chart_Expr ),
+					Expr( _s_phase_name ), "Std Dev",
+					Expr( shft ), 0,
+					Expr( _doPcht ), 1
+				)
+			);
+			XBar_Phase_Chart[u] = .;
+			Phase_Analysis_Box << Append( Phase_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_S_Phase_Chart ),
+					Expr( _x_arg ), phase_cht_x_arg,
+					Expr( _s_phase_name ), "Std Dev",
+					Expr( _s_upper_ttd_line ), Upper_STTDLine,
+					Expr( _s_upper_offline_ttd_line ), Upper_SofflineTTDLine,
+					Expr( _s_online_ucl ), s_online_ucl
+				)
+			);
+			Column( sumtable_alt, colindx ) << SetName( s_axis_name );, 
+
+			Column( sumtable_alt, colindx ) << SetName(
+				Munger(
+					s_axis_name,
+					1,
+					(Munger( s_axis_name, 1, Munger( s_axis_name, 1, "of" ) - 2 )),
+					"Range"
+				)
+			);
+
+			Eval( Substitute( Name Expr( XBar_Phase_Chart_Expr ), Expr( _doPcht ), 0 ) );
+			Eval(
+				Substitute( Name Expr( S_Phase_Chart_Expr ),
+					Expr( _s_phase_name ), "Range",
+					Expr( shft ), 0,
+					Expr( _doPcht ), 1
+				)
+			);
+			XBar_Phase_Chart[u] = .;
+			Phase_Analysis_Box << Append( Phase_Chart_Box[u] );
+			Eval(
+				Substitute( Name Expr( Format_S_Phase_Chart ),
+					Expr( _x_arg ), phase_cht_x_arg,
+					Expr( _s_phase_name ), "Range",
+					Expr( _s_upper_ttd_line ), Upper_STTDLine,
+					Expr( _s_upper_offline_ttd_line ), Upper_SofflineTTDLine,
+					Expr( _s_online_ucl ), s_online_ucl
+				)
+			);
+			Column( sumtable_alt, colindx ) << SetName( s_axis_name );
+
+		); //EndChoose
+		Current Data Table( temp_grp_tab );
+		Selected( Row State( u ) ) = 0;
+	); //EndFor u=1,....
+	Close( temp_grp_tab, NoSave );
+	Phase_Analysis_Object = H List Box( Phase_Analysis_Box );
+	Try( Close( sumtable_alt_new, NoSave ) );
+	Try( Close( sumtable_alt, NoSave ) );
+	Close( sumtable1, NoSave );
+	Phase_Analysis_Object;
+); //EndFunction GeneratePhaseCharts
+
+///////////////////////////  SB_Main  ////////////////////////////////////////////
+// Stability Analysis Main Expr
+ :: SB_Main = Expr(
+	Current Data Table( dt );
+	If( ref_select > 1,
+		ref_tab_join = dt << Join(
+			With( ref_tab ),
+			Merge Same Name Columns,
+			Select( :PARAMETERID ),
+			SelectWith(
+				:Parameter Type,
+				:Mean Parameter LCL,
+				:Mean Parameter CL,
+				:Mean Parameter UCL,
+				:StdDev Parameter CL,
+				:StdDev Parameter UCL,
+				:Mean Parameter TTD,
+				:StdDev Parameter TTD
+			),
+			By Matching Columns( :PARAMETERID = :PARAMETERID ),
+			Drop Multiples( 1, 0 ),
+			Include Non Matches( 1, 0 )
+		);
+
+		// Find which parameters  are in Ref Table
+		Choose( button[1],   
+
+		/* button[1]==1 */
+			matchflgvals = Column( ref_tab_join, "Match Flag" ) << GetValues;
+			delrows = ref_tab_join << GetRowsWhere( :Match Flag != 3 );
+			If( N Row( delrows ) != 0,
+				param_nomatch = Column( ref_tab_join, param_name_arg )[delrows];
+				If( N Row( delrows ) == N Row( ref_tab_join ),
+					warn_msg << Append(
+						V List Box(
+							Text Box(
+								"None of the parameters were found in the Reference Value Table!",
+								<<FontColor( "Red" ),
+								<<SetFontSize( 8 )
+							),
+							Text Box( "" )
+						)
+					)
+				);
+				warn_msg << Append(
+					V List Box(
+						String Col Box(
+							"The following parameter(s) were not found in the Reference Value Table:",
+							Eval( param_nomatch )
+						),
+						Text Box( "" )
+					)
+				);
+				button[1] = 2;
+			);,   
+
+			/* button[1]==2 */
+			If( JMPvernum >= 8,
+				ref_tab_join = dt << Summary(
+					Group( Param_Grp_List[1 :: N Items( Param_Grp_List )] )
+				),  // JMP 8
+				ref_tab_join = dt << Summary( Group( Eval( Param_Grp_List ) ) ); // JMP 5-7
+			);
+			
+			Current Data Table( ref_tab_join );
+			ref_tab_join << AddMultipleColumns( "Parameter_Type", 1, AfterLast, Character( 8 ) );
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_Mean_Parameter_LCL",
+				1,
+				AfterLast,
+				Numeric
+			);
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_StdDev_Parameter_LCL",
+				1,
+				AfterLast,
+				Numeric
+			);
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_Mean_Parameter_UCL",
+				1,
+				AfterLast,
+				Numeric
+			);
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_StdDev_Parameter_UCL",
+				1,
+				AfterLast,
+				Numeric
+			);
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_Mean_Parameter_TTD",
+				1,
+				AfterLast,
+				Numeric
+			);
+			ref_tab_join << AddMultipleColumns(
+				"Parameter_StdDev_Parameter_TTD",
+				1,
+				AfterLast,
+				Numeric
+			);
+			matchflgvals = J( N Row( ref_tab_join ), 1, 3 );
+		); //EndChoose
+
+		// Get Reference Table Values
+		If( col_offset == 0,
+			ParamID_Ref = Param_List[1],
+			ParamID_Ref = Column( ref_tab_join, param_name_arg ) << GetValues
+		);
+
+		Param_Type_Ref = Column( ref_tab_join, "Parameter Type" ) << GetValues;
+		Mean_Param_LCL_Ref = Column( ref_tab_join, "Mean Parameter LCL" ) << GetValues;
+		Mean_Param_CL_Ref = Column( ref_tab_join, "Mean Parameter CL" ) << GetValues;
+		Mean_Param_UCL_Ref = Column( ref_tab_join, "Mean Parameter UCL" ) << GetValues;
+		Std_Param_CL_Ref = Column( ref_tab_join, "StdDev Parameter CL" ) << GetValues;
+		Std_Param_UCL_Ref = Column( ref_tab_join, "StdDev Parameter UCL" ) << GetValues;
+		Mean_Param_TTD = Column( ref_tab_join, "Mean Parameter TTD" ) << GetValues;
+		Std_Param_TTD = Column( ref_tab_join, "StdDev Parameter TTD" ) << GetValues;
+
+
+		// Check for reference table parameters that have no values
+		If( button[1] != 2,
+			missrows = [];
+			chkval_list = Mean_Param_LCL_Ref || Mean_Param_UCL_Ref || Std_Param_CL_Ref ||
+			Std_Param_UCL_Ref;
+			For( nchk = 1, nchk <= N Row( chkval_list ), nchk++,
+				If( All( Is Missing( chkval_list[nchk, 0] ) ),
+					missrows |/= nchk
+				)
+			);
+			If( N Row( missrows ) != 0,
+				param_novals = Column( ref_tab_join, param_name_arg )[missrows];
+				If( N Row( missrows ) == N Row( ref_tab_join ),
+					warn_msg << Append(
+						V List Box(
+							Text Box(
+								"For all the parameters, No reference values were found in the Reference Value Table!",
+								<<FontColor( "Red" ),
+								<<SetFontSize( 8 )
+							),
+							Text Box( "" )
+						)
+					)
+				);
+				warn_msg << Append(
+					V List Box(
+						String Col Box(
+							"The following parameter(s) have no values entered in Reference Value Table:",
+							Eval( param_novals )
+						),
+						Text Box( "" )
+					)
+				);
+				button[1] = 2;
+			);
+		);
+		//Close(ref_tab, Save(Ref_Table_Name)); // delete for windows7
+		Close( ref_tab, NoSave );
+		Close( ref_tab_join, NoSave );
+	
+		//Resize param table to only matching parameters
+		summ_param_tab << AddMultipleColumns( "Match Flag", 1, AfterLast, Numeric );
+		Column( summ_param_tab, "Match Flag" ) << SetValues( matchflgvals );
+		Match_Flag_Col = Column( summ_param_tab, "Match Flag" );
+		delrows = summ_param_tab << GetRowsWhere( :Match Flag != 3 );
+
+		Param_List = Column( summ_param_tab, 1 ) << GetValues;
+		N_Params = N Items( Param_List );
+		If( N Row( summ_param_tab ) == 0,
+			button[1] = -1;
+			button[2] = -1;
+		);
+	); //EndIf Ref_Select
+
+
+	//Get Control limits for each paramid group
+	Use_CL = 0;
+	If( button[2] == 1,
+		OP_ID++;
+		::n = 1;
+		While( n <= N_Params & cont == 1,
+			Param_Type[n] = 1;
+			If( ref_select > 1,
+				If( Uppercase( Param_Type_Ref[n] ) == "MEAN",
+					Param_Type[n] = 2
+				);
+				If( Uppercase( Param_Type_Ref[n] ) == "STD",
+					Param_Type[n] = 3
+				);
+				If( Uppercase( Param_Type_Ref[n] ) == "RANGE",
+					Param_Type[n] = 4
+				);
+				xOnLCL[n] = Mean_Param_LCL_Ref[n];
+				xOnCL[n] = Mean_Param_CL_Ref[n];
+				xOnUCL[n] = Mean_Param_UCL_Ref[n];
+				sOnCL[n] = Std_Param_CL_Ref[n];
+				sOnUCL[n] = Std_Param_UCL_Ref[n];
+				xOnTTD[n] = Mean_Param_TTD[n];  //new line added for TTD
+				sOnTTD[n] = Std_Param_TTD[n];  //new line added for TTD
+				parm_name = Char( Param_List[n] );
+
+				If(
+					!Is Missing( sOnUCL[n] ) & (!Is Missing( xOnLCL[n] ) | !
+					Is Missing( xOnUCL[n] )),
+					Use_CL += 1;
+
+				);
+
+				Button[3] = 1;
+			,   
+
+		/*ELSE*/
+				parm_name = Char( Param_List[n] );
+				error_checking = 0;
+				While( error_checking == 0,
+					Limits_Diag = Dialog(
+						Title( "Online Control Limits" ),
+						LineUp( 2, "Enter Control Limits for:", parm_name ),
+						"",
+						"",
+						VList(
+							HList(
+								"Xbar Chart",
+								"LCL",
+								x_LCL = EditNumber(),
+								"CL",
+								x_CL = EditNumber(),
+								"UCL",
+								x_UCL = EditNumber(),
+								"TTD",
+								X_TTD = EditNumber()
+							),
+							HList(
+								"S Chart",
+								"                                 ",
+								" CL",
+								s_CL = EditNumber(),
+								"UCL",
+								s_UCL = EditNumber(),
+								"TTD",
+								S_TTD = EditNumber()
+							),
+							"",
+							"NOTE: Limits and/or TTDs may be left blank if desired;but",
+							"          Xbar and S charts should BOTH have limits, or BOTH have no limits;",  
+						//		rng_switch=CheckBox("Plot R Chart instead of S Chart"),
+							HList( Button( "OK" ), Button( "Cancel" ) )
+						); //EndVList
+					); //EndLimitsDialog
+					Button[3] = Limits_Diag["Button"]; //Unload dialog values directly
+					xOnLCL[n] = Limits_Diag["x_LCL"];
+					xOnCL[n] = Limits_Diag["x_CL"];
+					xOnUCL[n] = Limits_Diag["x_UCL"];
+					xOnTTD[n] = Limits_Diag["X_TTD"];  //new line added for TTD
+					sOnTTD[n] = Limits_Diag["S_TTD"];  //new line added for TTD
+					sOnCL[n] = Limits_Diag["s_CL"];
+					sOnUCL[n] = Limits_Diag["s_UCL"];
+
+					If(
+						!Is Missing( sOnUCL[n] ) & (!Is Missing( xOnLCL[n] ) | !
+						Is Missing( xOnUCL[n] )),
+						error_checking = 1;
+						Use_CL += 1;
+					,
+						If(
+							Is Missing( sOnUCL[n] ) & Is Missing( xOnLCL[n] ) &
+							Is Missing( xOnUCL[n] ),
+							error_checking = 1
+						)
+					);
+
+				); //end while (error_checking == 0...)
+	
+				//	isrng[n] = Limits_Diag["rng_switch"];
+				If(
+					Is Missing( xOnLCL[n] ) & Is Missing( xOnUCL[n] ) & !Is Missing( sOnCL[n] )
+					 & !Is Missing( sOnUCL[n] ),
+					Param_Type[n] = 3
+				);
+				If(
+					(!Is Missing( xOnLCL[n] ) | !Is Missing( xOnUCL[n] )) &
+					Is Missing( sOnCL[n] ) & Is Missing( sOnUCL[n] ),
+					Param_Type[n] = 2
+				);
+
+			); //EndIf ref_select
+
+			If( Is Missing( xOnCL[n] ),
+				xOnCL[n] = (xOnUCL[n] + xOnLCL[n]) / 2
+			);
+
+			If( (Is Missing( xOnLCL[n] ) & !Is Missing( xOnUCL[n] )),
+				one_sided_flag[n] = 1,
+				If( (!Is Missing( xOnLCL[n] ) & Is Missing( xOnUCL[n] )),
+					one_sided_flag[n] = 2,
+					one_sided_flag[n] = 0
+				)
+			);
+			sOnLCL[n] = .;
+			sOffLCL[n] = .;
+
+			Use_TTD_X = 0;
+			Use_TTD_S = 0;
+
+			If( !Is Missing( xOnTTD[n] ),
+				Use_TTD_X = 1
+			);
+			If( !Is Missing( sOnTTD[n] ),
+				Use_TTD_S = 1
+			);
+
+			//find grandmean and pooledSigmaMR
+			ii = Eval( Loc( all_params, "Mean of " || parm_name ) )[1]; //Xin -- subset index to be an integer, not a list. Difference in JMP14 from JMP12
+			xonTTD_GrandMean[n] = all_GrandMean[ii];  
+
+			If( !Is Missing( xOnCL[n] ),
+				IdealT1 = xOnCL[n],
+				IdealT1 = xonTTD_GrandMean[n]
+			);
+
+			xonTTD_SMR[n] = all_SigmaMR[ii];
+
+			//Calc TTD
+			If( !Is Missing( xOnUCL[n] ) & !Is Missing( xOnLCL[n] ),
+				xOnTTDCalc[n] = Max(
+					Abs( all_MaxTMean[ii] - IdealT1 ),
+					Abs( all_MinTMean[ii] - IdealT1 )
+				), 
+				//ELSE
+				If( Is Missing( xOnLCL[n] ),
+					TTDCalc_tmp = all_MaxTMean[ii] - IdealT1;
+					If( TTDCalc_tmp < 0,
+						xOnTTDCalc[n] = .,
+						xOnTTDCalc[n] = all_MaxTMean[ii] - IdealT1
+					);
+				, 
+				//ELSE
+					If( Is Missing( xOnUCL[n] ),
+						TTDCalc_tmp = IdealT1 - all_MinTMean[ii];
+						If( TTDCalc_tmp < 0,
+							xOnTTDCalc[n] = .,
+							xOnTTDCalc[n] = IdealT1 - all_MinTMean[ii]
+						);
+					, 
+					//ELSE
+						xOnTTDCalc[n] = Max(
+							Abs( all_MaxTMean[ii] - IdealT1 ),
+							Abs( all_MinTMean[ii] - IdealT1 )
+						)
+					)
+				)
+			);
+
+		// Calc suggested offline limits for x
+
+
+			xoffCL[n] = xonTTD_GrandMean[n];
+			XoffLCL[n] = xonTTD_GrandMean[n] - 3 * XonTTD_SMR[n];
+			xoffUCL[n] = xonTTD_GrandMean[n] + 3 * XonTTD_SMR[n];
+
+			If( !Is Missing( xOnTTDCalc[n] ) & !Is Missing( xOnTTD[n] ),
+				XoffLCL[n] -= xOnTTDCalc[n];
+				xoffUCL[n] += xOnTTDCalc[n];
+			);
+
+			ii = Eval( Loc( all_params, "Std Dev of " || parm_name ) )[1]; //Xin -- subset index to be an integer, not a list. Difference in JMP14 from JMP12
+			sonTTD_GrandMean[n] = all_GrandMean[ii];
+			sonTTD_SMR[n] = all_SigmaMR[ii];
+
+
+			If( !Is Missing( SOnCL[n] ),
+				IdealT1 = SOnCL[n],
+				IdealT1 = SonTTD_GrandMean[n]
+			);
+
+			TTDCalc_tmp = all_MaxTMean[ii] - IdealT1;
+
+			If( Is Missing( TTDCalc_tmp ),
+				sOnTTDCalc[n] = .,
+				If( TTDCalc_tmp < 0,
+					sOnTTDCalc[n] = .,
+					sOnTTDCalc[n] = all_MaxTMean[ii] - IdealT1
+				)
+			);
+			
+		// Calc suggested offline limits for s
+
+			soffCL[n] = sonTTD_GrandMean[n];
+			soffUCL[n] = sonTTD_GrandMean[n] + 3 * sonTTD_SMR[n];
+
+			If( !Is Missing( sOnTTDCalc[n] ) & !Is Missing( sOnTTD[n] ),
+				soffUCL[n] += sOnTTDCalc[n]
+			);
+	
+		//OCI and Status calc for Mean
+			If( (!Is Missing( xOnCL[n] ) & !Is Missing( xOnUCL[n] )),
+				xOCI[n] = 3 * (xonTTD_GrandMean[n] - xOnCL[n]) / (xOnUCL[n] - xOnCL[n]);
+				If( xOCI[n] > 1.5,
+					xOCIStat[n] = "Flag - Above",
+					If( (xOCI[n] <= 1.5) & (xOCI[n] > 1),
+						xOCIStat[n] = "Warning - Above",
+						If( (xOCI[n] < -1.0) & (xOCI[n] >= -1.5),
+							xOCIStat[n] = "Warning - Below",
+							If( xOCI[n] < -1.5,
+								xOCIStat[n] = "Flag - Below",
+								xOCIStat[n] = " "
+							)
+						)
+					)
+				);
+			,
+				xOCI[n] = .;
+				xOCIStat[n] = " ";
+			);
+
+
+		//CLSR and Status Calc for Mean
+			If(
+				(!Is Missing( xOnUCL[n] ) & !Is Missing( xonTTD_SMR[n] ) & !
+				Is Missing( xOnLCL[n] ) & !Is Missing( xOnCL[n] )), 
+				//2-sided
+				xCLSR[n] = (xOnUCL[n] - xOnCL[n]) / xonTTD_SMR[n];
+				If( !Is Missing( xOnTTD[n] ),
+					xCLSR[n] -= xOnTTD[n] / xonTTD_SMR[n]
+				);
+			, 
+			//ELSE 1-sided
+				If( !Is Missing( xOnUCL[n] ) & !Is Missing( xonTTD_SMR[n] ),
+					xCLSR[n] = (xOnUCL[n] - xonTTD_GrandMean[n]) / xonTTD_SMR[n];
+					If( !Is Missing( xOnTTD[n] ) & !Is Missing( xOnCL[n] ),
+						xCLSR[n] = (xOnUCL[n] - xonCL[n]) - xOnTTD[n] / xonTTD_SMR[n]
+					);
+				,
+					If( !Is Missing( xOnLCL[n] ) & !Is Missing( xonTTD_SMR[n] ),
+						xCLSR[n] = (xonTTD_GrandMean[n] - xOnLCL[n]) / xonTTD_SMR[n];
+						If( !Is Missing( xOnTTD[n] ) & !Is Missing( xOnCL[n] ),
+							xCLSR[n] = (xOnCL[n] - xonLCL[n]) - xOnTTD[n] / xonTTD_SMR[n]
+						);
+					, 
+					//ELSE
+						xCLSR[n] = .
+					)
+				)
+			);		
+
+				// Determine Status Flags for x_CLSR 
+			If( !Is Missing( xCLSR[n] ),
+				If( xCLSR[n] > 4.5,
+					xCLSRStat[n] = "Flag - Limits Too Wide",
+					If( (xCLSR[n] <= 4.5) & (xCLSR[n] > 4),
+						xCLSRStat[n] = "Warning - Limits Too Wide",
+						If( (xCLSR[n] < 2.0) & (xCLSR[n] >= 1.5),
+							xCLSRStat[n] = "Warning - Limits Too Narrow",
+							If( xCLSR[n] < 1.5,
+								xCLSRStat[n] = "Flag - Limits Too Narrow",
+								xCLSRStat[n] = " "
+							)
+						)
+					)
+				),
+				xCLSRStat[n] = "."
+			);
+				
+		//TTD Ratio and Status Calc for Mean
+			If( (!Is Missing( xOnTTD[n] ) & !Is Missing( xOnTTDCalc[n] )),
+				xTTDRatio[n] = xOnTTD[n] / xOnTTDCalc[n];
+				If( xTTDRatio[n] > 1.6,
+					xTTDRatioStat[n] = "Flag",
+					If( xTTDRatio[n] > 1.3,
+						xTTDRatioStat[n] = "Warning",
+						xTTDRatioStat[n] = " "
+					)
+				);
+			,
+				xTTDRatio[n] = .;
+				If( (!Is Missing( xOnTTD[n] ) & Is Missing( xOnTTDCalc[n] )),
+					xTTDRatioStat[n] = "Flag - Incorrect Target",
+					xTTDRatioStat[n] = " "
+				);
+			);
+
+
+//OCI and Status calc for Std Dev
+
+			If( (!Is Missing( sonCL[n] ) & !Is Missing( sonUCL[n] )),
+				sOCI[n] = 3 * (sonTTD_GrandMean[n] - sonCL[n]) / (sonUCL[n] - sonCL[n]);
+				If( sOCI[n] > 1.5,
+					sOCIStat[n] = "Flag - Above",
+					If( (sOCI[n] <= 1.5) & (sOCI[n] > 1),
+						sOCIStat[n] = "Warning - Above",
+						If( (sOCI[n] < -1.0) & (sOCI[n] >= -1.5),
+							sOCIStat[n] = "Warning - Below",
+							If( sOCI[n] < -1.5,
+								sOCIStat[n] = "Flag - Below",
+								sOCIStat[n] = " "
+							)
+						)
+					)
+				);
+			,
+				sOCI[n] = .;
+				sOCIStat[n] = " ";
+			);
+
+
+//CLSR and Status Calc for Std Dev
+			If( !Is Missing( sonUCL[n] ) & !Is Missing( sonTTD_SMR[n] ),
+				sCLSR[n] = (sonUCL[n] - sonTTD_GrandMean[n]) / sonTTD_SMR[n];
+				If( !Is Missing( sonTTD[n] ) & !Is Missing( sonCL[n] ),
+					sCLSR[n] = (sonUCL[n] - sonCL[n] - sonTTD[n]) / sonTTD_SMR[n]
+				);
+			, 
+//ELSE
+				sCLSR[n] = .
+			);		
+
+
+				// Determine Status Flags for s_
+			If( !Is Missing( sCLSR[n] ),
+				If( sCLSR[n] > 4.5,
+					sCLSRStat[n] = "Flag - Limits Too Wide",
+					If( (sCLSR[n] <= 4.5) & (sCLSR[n] > 4),
+						sCLSRStat[n] = "Warning - Limits Too Wide",
+						If( (sCLSR[n] < 2.0) & (sCLSR[n] >= 1.5),
+							sCLSRStat[n] = "Warning - Limits Too Narrow",
+							If( sCLSR[n] < 1.5,
+								sCLSRStat[n] = "Flag - Limits Too Narrow",
+								sCLSRStat[n] = " "
+							)
+						)
+					)
+				),
+				sCLSRStat[n] = "."
+			);
+
+
+//TTD Ratio and Status Calc for Std Dev
+			If( !Is Missing( sonTTD[n] ) & !Is Missing( sonTTDCalc[n] ),
+				sTTDRatio[n] = sonTTD[n] / sonTTDCalc[n];
+				If( sTTDRatio[n] > 1.6,
+					sTTDRatioStat[n] = "Flag",
+					If( sTTDRatio[n] > 1.3,
+						sTTDRatioStat[n] = "Warning",
+						sTTDRatioStat[n] = " "
+					)
+				);
+			,
+				sTTDRatio[n] = .;
+				If( !Is Missing( sonTTD[n] ) & Is Missing( sonTTDCalc[n] ),
+					sTTDRatioStat[n] = "Flag - CL too high",
+					sTTDRatioStat[n] = " "
+				);
+			);
+
+
+			If( Is Missing( xOnCL[n] ),
+				xOnCL[n] = (xOnUCL[n] + xOnLCL[n]) / 2
+			);
+
+			If( (Is Missing( xOnLCL[n] ) & !Is Missing( xOnUCL[n] )),
+				one_sided_flag[n] = 1,
+				If( (!Is Missing( xOnLCL[n] ) & Is Missing( xOnUCL[n] )),
+					one_sided_flag[n] = 2,
+					one_sided_flag[n] = 0
+				)
+			);
+			sOnLCL[n] = .;
+			sOffLCL[n] = .;
+
+			If( button[3] != -1,
+				cont = 1,
+				cont = 0
+			);
+			n++;
+		); // EndWhile
+	); //EndIf
+
+	Eval( SB_Anal_Proc );
+); //EndExpr SB Main
+
+///////////////////////////////////////////////////// SB_Anal_Proc ////////////////////////////////////////////////////////////////////
+SB_Anal_Proc = Expr(
+	// Create group table
+	If( button[3] == 1,
+		Sum_Grp_List = If( subxQ,
+			Remove( Grp_List, Eval List( {Eval( N_Grp_List - 1 ), N_Grp_List} ) ),
+			Remove( Grp_List, Eval( N_Grp_List ) )
+		);
+		If( ref_select > 1,
+			Current Data Table( summ_param_tab );
+			summ_param_tab << ClearSelect;
+			summ_param_tab << SelectAllRows;
+		);
+
+		//Try(
+		// Make Summary Table: ( Stab_Analysis_Table )
+			If( Sum_Choice == 2,
+				If( JMPvernum >= 8,
+					sumtable = dt << Summary(
+						Group( Grp_List[1 :: N Items( Grp_List )] ),
+						Max( Eval( t ) ),
+						N Missing( Response[1] ),
+						Mean( Eval List( Response[1] ) ),
+						Std Dev( Eval List( Response[1] ) ),
+						statistics column name format( "stat of column" )
+					),  // JMP 8
+					sumtable = dt << Summary(
+						Group( Eval( Grp_List ) ),
+						Max( Eval( t ) ),
+						N Missing( Response[1] ),
+						Mean( Eval( Response[1] ) ),
+						Std Dev( Eval( Response[1] ) ),
+						statistics column name format( "stat of column" )
+					);  // JMP 5-7
+				);
+				sumtable << Sort(
+					By( Column( sumtable, "Max of " || t_name ) ),
+					Order( Ascending ),
+					Replace Table
+				);
+				colindx += 1;
+			,   
+
+			/*ELSE*/
+				If( JMPvernum >= 8,
+					sumtable = dt << Summary(
+						Group( Grp_List[1 :: N Items( Grp_List )] ),
+						N Missing( Response[1] ),
+						Mean( Eval( Response[1] ) ),
+						Std Dev( Eval( Response[1] ) ),
+						statistics column name format( "stat of column" )
+					), // JMP 8
+					sumtable = dt << Summary(
+						Group( Eval( Grp_List ) ),
+						N Missing( Response[1] ),
+						Mean( Eval( Response[1] ) ),
+						Std Dev( Eval( Response[1] ) ),
+						statistics column name format( "stat of column" )
+					); // JMP 5-7
+				)
+			);  // If sumchoice
+
+			// Get # of lots and # samples per lot per group ( Stab_SampleSize_Table )
+			 :: Samp_Grp_List = Insert(
+				Sum_Grp_List,
+				Eval List( {Parse( "N Rows" ), Column( sumtable, colindx - 1 )} )
+			);
+			::N_Samp_Grp_List = N Items( Samp_Grp_List );
+			
+			If( JMPvernum >= 8,
+				::samplesizedt = sumtable << Summary(
+					Group( Samp_Grp_List[1 :: N Items( Samp_Grp_List )] )
+				), // JMP 8
+				 :: samplesizedt = sumtable << Summary( Group( Eval( Samp_Grp_List ) ) ); // JMP 5-7
+			);
+			
+			TrackTable( samplesizedt );
+			Current Data Table( samplesizedt );
+			samplesizedt << AddMultipleColumns( "Delta", 1, AfterLast, Numeric );
+			Column( samplesizedt, "Delta" ) << SetFormula(
+				Column( samplesizedt, "N Rows" )[] - Column( samplesizedt, N_Samp_Grp_List )[]
+			);
+			samplesizedt << RunFormulas;
+
+		// Make parameter group table: (Stab_Grp_Analysis_Table)
+			If( JMPvernum >= 8,
+				summ_grp_tab = sumtable << Summary(
+					Group( Sum_Grp_List[1 :: N Items( Sum_Grp_List )] )
+				), // JMP 8
+				summ_grp_tab = sumtable << Summary( Group( Eval( Sum_Grp_List ) ) ); // JMP 5-7
+			);
+			
+			TrackTable( summ_grp_tab );
+			If( ref_select > 1,
+				Current Data Table( summ_grp_tab );
+				summ_grp_tab << InvertRowSelection;
+				delrows = summ_grp_tab << GetSelectedRows;
+				If( N Row( delrows ) != 0,
+					summ_grp_tab << DeleteRows( Eval( delrows ) )
+				);
+			);
+			N_Param_Groups = N Row( summ_grp_tab );
+			If( N_Param_Groups != 1 & N_Params != 1,
+				summ_grp_tab << Sort( By( :PARAMETERID ), Order( Ascending ), ReplaceTable )
+			);
+			Group_ID = GetTableAsText( summ_grp_tab );
+			summ_grp_tab << AddMultipleColumns( "Param Type", 1, AfterLast, Numeric );
+			summ_grp_tab << AddMultipleColumns( "Index", 1, BeforeFirst, Character( 4 ) );
+			N_Grp_Cols = N Col( summ_grp_tab ) - 2;
+			Grp_Col_Names = summ_grp_tab << GetColumnNames( String );
+			Current Data Table( summ_grp_tab );	
+
+			//// Cycle through each group
+			OP_ID++; // MODE 103
+			 :: counter = 1;
+			::j = counter;
+			::tem = 0;
+			For( i = 1, i <= N_Param_Groups, i++,
+				If( j != counter | i == 1,
+					Current Data Table( summ_param_tab );
+					Selected( Row State( counter ) ) = 1;
+					param_summ_rows = sumtable << GetSelectedRows;
+					summ_param_tab << ClearSelect;
+					Current Data Table( summ_grp_tab );
+				);
+				If( i != N_Param_Groups,
+					If( N_Params != 1,
+						If(
+							(Trim( Column( summ_grp_tab, "PARAMETERID" )[i] ) ==
+							Trim( Column( summ_grp_tab, "PARAMETERID" )[i + 1] )),
+							j = counter,    
+
+							Eval( LoadLimitMatrix );
+
+							Eval( LoadOfflineLimitMatrix );
+
+							j = counter;
+							counter++;
+						);
+						If( j != counter,
+							tem = 1,
+							tem = 0
+						);
+					)
+				,    
+        
+					tem = 1;
+					j = counter;
+					Eval( LoadLimitMatrix );
+					Eval( LoadOfflineLimitMatrix );
+
+				);
+      
+				// Assign y-axis names for charts
+				 :: p_name1 = Munger(
+					Char( Column( sumtable, colindx ) << GetName ),
+					1,
+					y_name,
+					Param_List[j]
+				);
+				If( Param_Type[j] == 4,
+					::p_name2 = Munger(
+						Munger(
+							Char( Column( sumtable, colindx + 1 ) << GetName ),
+							1,
+							y_name,
+							Param_List[j]
+						),
+						1,
+						"Std Dev",
+						"Range"
+					),   
+
+					 :: p_name2 = Munger(
+						Char( Column( sumtable, colindx + 1 ) << GetName ),
+						1,
+						y_name,
+						Param_List[j]
+					)
+				);
+				Column( summ_grp_tab, "Index" )[i] = Char( j );
+				Column( summ_grp_tab, "Param Type" )[i] = Param_Type[j];
+
+				// Select each group in group table
+				Current Data Table( summ_grp_tab );
+				Selected( Row State( i ) ) = 1;
+				rowlist = sumtable << GetSelectedRows;
+				grp_rows = summ_grp_tab << GetSelectedRows;
+				::N_lotgrps = Column( samplesizedt, "N Rows 2" )[samplesizedt <<
+				GetRowsWhere( Selected() )];
+				::N_samples = Column( samplesizedt, "Delta" )[samplesizedt <<
+				GetRowsWhere( Selected() )];
+
+				// Screen for outliers within each group
+				Current Data Table( sumtable );
+				If( exclQ,
+					If( Param_Type[j] == 1,
+						x_excl_parms = ScreenDataSub( colindx, K_Val );
+						s_excl_parms = ScreenDataSub( colindx + 1, K_Val );
+						n_excl_parms = x_excl_parms[3] + s_excl_parms[3];
+					,
+						x_excl_parms = ScreenDataSub( colindx, K_Val );
+						n_excl_parms = x_excl_parms[3];
+					)
+				);
+      
+				// Generate Analysis DisplayBoxes for each group
+				HeaderBox[i] = Outline Box( Char( Group_ID[i][1] ),
+					V List Box(
+						SubBox1[i] = V List Box(),
+						SubBox2[i] = H List Box(),
+						SubBox3[i] = H List Box()
+					)
+				);
+				Choose( Eval( Param_Type[j] ),
+					rmindx = 0;
+					colshift = 1;
+					p_name_list = {p_name1, p_name2};
+					xChtQ = 1;
+					sChtQ = 1;
+					Eval( X_ChartExpr );
+					Eval( S_ChartExpr );
+					SubBox2[i] << Append( Eval( X_Chart[i] ) );
+					SubBox2[i] << Append( Eval( S_Chart[i] ) );,   
+
+					rmindx = 2;
+					colshift = 1;
+					p_name_list = {Expr( p_name1 )};
+					Column( sumtable, colindx ) << SetName( Eval Expr( p_name_list )[1] );
+					xChtQ = 1;
+					sChtQ = 0;
+					Eval( X_ChartExpr );
+					SubBox2[i] << Append( Eval( X_Chart[i] ) );
+					Column( sumtable, colindx ) << SetName( "Mean of " || y_name );,   
+
+					rmindx = 1;
+					colshift = 0;
+					p_name_list = {Expr( p_name2 )};
+					Column( sumtable, colindx ) << SetName( Eval Expr( p_name_list )[1] );
+					xChtQ = 0;
+					sChtQ = 1;
+					Eval( S_ChartExpr );
+					SubBox2[i] << Append( Eval( S_Chart[i] ) );
+					Column( sumtable, colindx ) << SetName( "Mean of " || y_name );,   
+
+					rmindx = 1;
+					colshift = 0;
+					p_name_list = {Expr( p_name2 )};
+					Column( sumtable, colindx ) << SetName( Eval Expr( p_name_list )[1] );
+					xChtQ = 0;
+					sChtQ = 1;
+					Eval( S_ChartExpr );
+					SubBox2[i] << Append( Eval( S_Chart[i] ) );
+					Column( sumtable, colindx ) << SetName( "Mean of " || y_name );
+				);
+				ReportBox[i] = Eval(
+					Substitute( Name Expr( rept_expr ),
+						Expr( x_On_LCL ), xOnLCL[j],
+						Expr( x_On_CL ), xOnCL[j],
+						Expr( x_On_UCL ), xOnUCL[j],
+						Expr( s_On_LCL ), sOnLCL[j],
+						Expr( s_On_CL ), sOnCL[j],
+						Expr( s_On_UCL ), sOnUCL[j],
+						Expr( one_sided ), one_sided_flag[j],
+						Expr( param1_arg ), Eval Expr( p_name_list ),
+						Expr( rm ), rmindx,
+						Expr( k ), i,
+						Expr( x_On_TTD ), xOnTTD[j],
+						Expr( s_On_TTD ), sOnTTD[j],
+						Expr( x_On_TTD_Calc ), xOnTTDCalc[j],
+						Expr( s_On_TTD_Calc ), sOnTTDCalc[j],
+						Expr( x_On_TTD_GMean ), xOnTTD_GrandMean[j],
+						Expr( x_On_TTD_SMR ), xOnTTD_SMR[j],
+						Expr( s_On_TTD_GMean ), sOnTTD_GrandMean[j],
+						Expr( s_On_TTD_SMR ), sOnTTD_SMR[j]
+					)
+				);
+
+				// Determine whether boxplot is needed
+				x_rows = dt << GetSelectedRows;
+				If(
+					(Sum( Column( sumtable, colindx - 1 )[rowlist] ) !=
+					Sum( Column( sumtable, "N Rows" )[rowlist] ) & Param_Type[j] == 1),
+					boxchtQ = 1;
+					Eval(
+						Substitute( Name Expr( Box_ChartExpr ),
+							Expr( dt ), dt,
+							Expr( Box_Plt_ ), Expr( Box_Plot ),
+							Expr( x ), If( subxQ, Date_X, X ),
+							Expr( rwlgnd_sw ), clr_mrk_sw
+						)
+					);
+					SubBox1[i] << Append( Eval( Box_Plot[i] ) );
+					If( do_altQ,
+						If( !All( Is Missing( Column( dt, alt_txndate_col )[x_rows] ) ),
+							Eval(
+								Substitute( Name Expr( Box_ChartExpr ),
+									Expr( dt ), dt,
+									Expr( Box_Plt_ ), Expr( Box_Plot_alt ),
+									Expr( x ),
+										If( subxQ,
+											Column( dt, alt_txndate_col ),
+											X
+										),
+									Expr( rwlgnd_sw ), clr_mrk_sw
+								)
+							);
+							Box_Plot_alt[i][Outline Box( 1 )] <<
+							SetTitle(
+								Box_Plot_alt[i][Outline Box( 1 )] << GetTitle || alt_op_text
+							);
+							SubBox1[i] << Append( Eval( Box_Plot_alt[i] ) );
+							Eval(
+								Substitute( Name Expr( Scatt_ChartExpr ),
+									Expr( dt ), dt,
+									Expr( Scatt_Plt_ ), Expr( Scatt_Plot_alt ),
+									Expr( x ), Column( dt, alt_txndate_col ),
+									Expr( rwlgnd_sw ), clr_mrk_sw
+								)
+							);
+							Scatt_Plot_alt[i][Outline Box( 1 )] <<
+							SetTitle(
+								Scatt_Plot_alt[i][Outline Box( 1 )] << GetTitle || alt_op_text
+							);
+							SubBox1[i] << Append( Eval( Scatt_Plot_alt[i] ) );
+						,   
+    
+							Box_Plot_alt[i] = V List Box();
+							Scatt_Plot_alt[i] = V List Box();
+							SubBox1[i] << Append( Eval( Box_Plot_alt[i] ) );
+							SubBox1[i] << Append( Eval( Scatt_Plot_alt[i] ) );
+						)
+					);
+				,
+					boxchtQ = 0;
+					Box_Plot[i] = V List Box();
+					SubBox1[i] << Append( Eval( Box_Plot[i] ) );
+					If( do_altQ,
+						Box_Plot_alt[i] = V List Box();
+						Scatt_Plot_alt[i] = V List Box();
+						SubBox1[i] << Append( Eval( Box_Plot_alt[i] ) );
+						SubBox1[i] << Append( Eval( Scatt_Plot_alt[i] ) );
+					);
+				);
+				summ_grp_tab << ClearSelect;
+				SubBox3[i] << Append( Eval( ReportBox[i] ) );
+				AnalysisBox << Append( HeaderBox[i] );
+			); //EndFor
+    
+			//// Make output window
+			OP_ID++; // MODE 104
+			stab_output = New Window( Stab_outname,
+				If( button[1] == 2, warn_msg ),
+				AnalysisBox
+			); //EndNewWindow
+			Eval( Stability_Summary_Report );
+			Try(
+				::stab_trend = New Window( "Trend Charts by Facility",
+					Outline Box( "Trend Charts", GenerateTrendCharts() )
+				)
+			);
+
+//		::stab_phase = New window("control charts test");
+			 :: stab_phase = New Window( "Control Charts (Combined Entities)",
+				Outline Box( "Phase Control Charts", GeneratePhaseCharts() )
+			);
+
+
+			//dt << MinimizeWindow;
+			//sumtable << MinimizeWindow;
+			//stab_output << ZoomWindow;
+			stab_output << BringWindowToFront;
+			// Clean up
+			Wait( 0 );
+			Try( dt << Delete Columns( Column( dt, "__TimeOrder__" ) ) );
+			dt << Delete Columns( Column( dt, "PARAMETERID" ) );
+		//); //EndTry
+	); //End if button[3]
+
+	If( Use_CL > 0,
+		If( N Items( param ) > 0,
+			Try(
+				main_tab_box = Tab Box(
+					"Stability Analysis Indicator Summary",
+					stab_summary,
+					"Control Charts by Entity",
+					stab_output,
+					"Trend Charts by Facility",
+					stab_trend,
+					"Control Charts (Combined Entities)",
+					stab_phase
+				)
+			),
+			Try(
+				main_tab_box = Tab Box(
+					"Stability Analysis Indicator Summary",
+					stab_summary,
+					"Control Charts by Entity",
+					stab_output
+				)
+			)
+		); //end if (nitems(param) > 0)
+	, //ELSE Use_CL
+
+
+		Try(
+			main_tab_box = Tab Box(
+//				"Stability Analysis Indicator Summary",
+				//				stab_summary,
+				"Control Charts by Entity",
+				stab_output,
+				"Trend Charts by Facility",
+				stab_trend,
+				"Control Charts (Combined Entities)",
+				stab_phase
+			)
+		); //end try
+	); //end if(Use_CL > 0)
+
+
+	Try( ::oneclick_Stability_Window = New Window( "Stability Analysis Reports", main_tab_box ) );
+	Try( oneclick_Stability_Window << BringWindowToFront );
+	
+	// define one click variables
+	::oneclick_Stability_Summary_by_Parm_Entity_Box = main_tab_box[tabpanebox(1)][outlinebox(1)][tablebox(1)];
+
+	Try( stab_trend << show window( 0 ) );
+	Try( stab_summary << show window( 0 ) );
+	Try( stab_output << show window( 0 ) );
+	Try( stab_phase << show window( 0 ) );
+	Try( Temp_PhaseAnalysis << show window( 0 ) );
+
+//Close report windows and some tables
+	Try(
+		stab_phase << close window;
+		stab_trend << close window;
+		stab_summary << close window;
+		stab_output << close window;
+		//Temp_PhaseAnalysis << close window;
+	);
+
+	Try( Close( dt_TTD0, no save ) );
+	Try( Close( stab_summ_lev1, no save ) );
+	Try( Close( sumtable, no save ) );
+	Try( Close( dt, no save ) );
+
+	Try(Temp_PhaseAnalysis << close window);
+
+	CleanUP();
+); //EndExpr SB_Anal_Proc

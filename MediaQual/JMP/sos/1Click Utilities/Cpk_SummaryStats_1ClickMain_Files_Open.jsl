@@ -1,0 +1,28 @@
+/********************************************************************
+ *Capability Analyis (on Summary Stats)
+ *Orginator: John Xu
+ *JMP Version: 9.0+
+ *Date: 09/10/2013
+********************************************************************/
+
+// Use the following for file_open=1: point to existing open tables
+
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\sos capability functions.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\Libraries\1Click_sosfunc.jsl" );
+
+//Interactive_mode=0: No user interactive inputs in Diag is required 
+:: Interactive_mode = 0; 
+//file_open=1: point to existing open tables  
+file_open = 1;
+
+/************ Below are the only two lines needed to be edited ********/
+//file_open=1, two file variables should point to two open tables
+::VariableAssgmtTblName = edit_this;
+::InputDataTableName = edit_this; 
+/*********************** End editable portion *************************/
+
+//Do the Cpk Calculations
+
+Eval( Cpk_SummaryStats_1Click );

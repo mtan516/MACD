@@ -1,0 +1,54 @@
+/********************************************************************
+ PCS Capability: Single Level Sampling
+ Orginator: Paul Wenz and Philip Brown
+ JMP Version: v5.1.1 - v8.0.2
+ Date: 5/21/2010
+********************************************************************/
+
+// Make copy of current data table 
+ClearGlobals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sos capability functions.jsl");
+If(NTable() == 0, ::dt1 = Open(), dt1 = CurrentDataTable());
+//dt1 << MinimizeWindow;
+::dt1name = dt1 << GetName;
+dt1 << ClearSelect;
+dt1 << ClearColumnSelection;
+::dt = dt1 << Subset(Rows(dt1 << GetRowsWhere(!Excluded())), AllColumns);
+dt << SetName(Char(dt1name) || "_" || "(Copy)");
+CurrentDataTable(dt);
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+// Initialize Globals
+Initialize_capability_globals;
+
+
+// Main routine
+::valid = 1;
+While(valid == 1 & button[1] != -1, 
+	Capability_MainDiag_Expr;
+	Capability_PreProc_Expr;
+	If(button[1] == 1,
+		If((ref_select > 1) & (ref_select != 4),
+			If(NItems(Param) != 0,
+				Eval(Substitute(NameExpr(RefSrcExpr), Expr(_Main), Expr(CP_Main)));
+				valid = 0;
+			, 
+				Eval(NotReqExpr); // error popup for no parameter defined.
+				If(tempbutton == -1,
+					valid = 1,
+					ref_select = 1;
+					Eval(CP_Main);
+					valid = 0;
+				);
+			)
+		,
+			Eval(CP_Main);
+			valid = 0;
+		);
+	);
+);
+Currentdatatable(dt1);

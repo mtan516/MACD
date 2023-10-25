@@ -1,0 +1,541 @@
+/*******************************************************************************************
+	
+	Pseudo CPK Capability
+	Author: Tan, Siew Cheng
+	Editor: Tan, Siew Cheng
+	Rev: Version 2
+	Date: 11/06/2009
+	JMP Version: 5.1.1, 6 and 7 and 8
+	Starting Condition:  
+
+SOS Revision History
+	v0: Able to compute Pseudo CPK align with Method 1 and Method 2 in Pseudo CPK BKM. 
+	v1: Add scoping :: for all variables 
+	v2: leave sorted DT open.  add Eval in arguments for bivariate commands
+	v3: Corrected problem with Method 2 when missing values are present.  Also closed extra
+		data tables upon closure of output window.
+		
+*******************************************************************************************/
+Clear Globals();
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl");
+
+If( N Table() == 0, ::dt = Open(),	dt = Current Data Table());
+
+dt << ClearSelect;
+dt << ClearColumnSelection;
+dt = Current Data Table();
+
+
+
+// Cast columns into variable roles //
+::result = Column Dialog(
+	Title( "Pseudo Capability Analysis" ),
+	ylist = ColList( "Response Variable (Required)", Max Col( 1 ), MinCol( 1 ), DataType( Numeric ) ),
+	HList(
+		VList( "" ),
+		VList(
+			VList(
+				"Choose Pseudo CPK Analysis BKM",
+				method = Combo Box( "Method 1: Based on Actual %OOS", "Method 2: Based on Tail of Distribution", 1 )
+			),
+			" ",
+			"NOTE: Refer to Pseudo CPK Analysis BKM on the technical details of Method 1 and Method 2"
+		)
+	)
+);
+
+::Response = result["ylist"];
+::button = result["Button"];
+If( button == 1, ::y_name = Char( response[1] ));
+::method = result["method"];
+
+
+
+// Get Spec Limits //
+If( button == 1,
+	::Specs_Diag = Dialog(
+		Title( "Specification Limits" ),
+		LineUp( 2, "Enter LSL, Target and USL Values for Parameter:", y_name ),
+		"",
+		LineUp( 2, "LSL", ::lsl = EditNumber(), "Target", ::target = EditNumber(), "USL", ::usl = EditNumber() ),
+		"",
+		"",
+		HList( Button( "OK" ), Button( "Cancel" ) )
+	);
+	button = Specs_Diag["Button"];
+	::lsl_val = Specs_Diag["lsl"];
+	::usl_val = Specs_Diag["usl"];
+	::target_val = Specs_Diag["target"];
+
+);
+
+
+
+
+// Function the closes extra windows once the output is closed //
+::close_dts = Expr(
+	Try( Close( subdt, nosave ) );
+	Try( Close( sortdt, nosave ) );
+);
+
+
+
+
+
+
+// The main analysis //
+If( button == 1, 
+	::rowlist = dt << GetRowsWhere( Selected() & !Excluded() );
+	::y_max = Max( Column( dt, y_name )[rowlist] );
+	::y_min = Min( Column( dt, y_name )[rowlist] );
+	::scale_max = Round( y_max + Abs( y_max / 10 ), 2 );
+	::scale_min = Round( y_min - Abs( y_min / 10 ), 2 );
+	::scale_inc = Round( (scale_max - scale_min) / 5, 2 );
+
+// Method 1 //
+	If( method == 1 & button == 1, 
+		dt = Current Data Table();
+		::subdt = dt << Subset( Output Table( "Subset" ), Copy Formula( 0 ), columns( Column( y_name ) ) );
+		::sortdt = subdt << Sort( By( Column( y_name ) ), Order( Ascending ) );
+		::excluderow = sortdt << GetRowsWhere( Excluded() );
+		
+		If( NRow( sortdt << GetRowsWhere( Excluded() )) != 0, sortdt << delete rows( excluderow ));   // new for v8
+			
+		::mean = Col Mean( Column( y_name ) );
+		::std = Col Std Dev( Column( y_name ) );
+		::mdt = sortdt << GetAsMatrix;
+		::x = mdt[0, 1];
+		::uslx = Loc( mdt[0, 1] > usl_val );
+		::lslx = Loc( mdt[0, 1] < lsl_val );
+		::nloc = N Row( uslx ) + N Row( lslx );
+		::n = N Row( x );
+		::oospercent = Round( (nloc / n) * 100, 2 );
+		::cpu = Round( (usl_val - mean) / (3 * std), 2 );
+		::cpl = Round( (mean - lsl_val) / (3 * std), 2 );
+		::cpk = Round( Min( cpu, cpl ), 2 );
+		::cp = Round( (usl_val - lsl_val) / (6 * std), 2 );
+		::cpkstatus = If( cpk >= 1.33,
+			"   Capable",
+			"   Not Capable"
+		);
+		::oosusl = N Row( uslx ) / n;
+		::ooslsl = N Row( lslx ) / n;
+		::oos = nloc / n;
+		If( oosusl >= 0.5,
+			::pcpu = -Round( Normal Quantile( oosusl ) / 3, 2 ),
+			pcpu = Abs( Round( Normal Quantile( oosusl ) / 3, 2 ) )
+		);
+		If( ooslsl >= 0.5,
+			::pcpl = -Round( Normal Quantile( ooslsl ) / 3, 2 ),
+			pcpl = Abs( Round( Normal Quantile( ooslsl ) / 3, 2 ) )
+		);
+		::pcpk = Round( Min( pcpu, pcpl ), 2 );
+		::pcpkstatus = If( pcpk >= 1.33,
+			"   Capable",
+			"   Not Capable"
+		);
+
+		If( oos > 0, 
+			 ::Output = New Window( "Pseudo Capability Analysis", <<OnClose( Eval( close_dts ) ),
+				 ::dist = Distribution(
+					Uniform Scaling( 1 ),
+					Continuous Distribution(
+						Column( Column( y_name ) ),
+						Horizontal Layout( 1 ),
+						Normal Quantile Plot( 1 ),
+						Axis Settings(
+							Scale( Linear ),
+							Format( Best ),
+							Min( scale_min ),
+							Max( scale_max ),
+							Inc( scale_inc ),
+							Minor Ticks( 1 )
+						),
+						save( normal quantiles ),
+						Capability Analysis( LSL( lsl_val ), USL( usl_val ), Target( target_val ) )
+					),
+					SendToReport(
+						Dispatch( {}, "1", ScaleBox, {Scale( Linear ), Format( Best )} ),
+						Dispatch( {}, "Distrib Histogram", FrameBox, Background Color( 2 ) )
+					)
+				), 
+				Outline Box( "Capability Analysis Summary Report",
+					Table Box(
+						Number Col Box( "N", {n} ),
+						Number Col Box( "LSL", {lsl_val} ),
+						Number Col Box( "Target", {target_val} ),
+						Number Col Box( "USL", {usl_val} ),
+						Number Col Box( "#OOS", {nloc} ),
+						Number Col Box( "%OOS", {oospercent} ),
+						Number Col Box( "CPK", {cpk} ),
+						String Col Box( "   CPK Status", {cpkstatus} ),
+						Number Col Box( "CPL", {cpl} ),
+						Number Col Box( "CPU", {cpu} ),
+						Number Col Box( "CP", {cp} )
+					)
+				), 
+				Outline Box( "Pseudo Capability Analysis Summary Report (Method 1: Based on Actual %OOS)",
+					Table Box(
+						Number Col Box( "N", {n} ),
+						Number Col Box( "LSL", {lsl_val} ),
+						Number Col Box( "Target", {target_val} ),
+						Number Col Box( "USL", {usl_val} ),
+						Number Col Box( "#OOS", {nloc} ),
+						Number Col Box( "%OOS", {oospercent} ),
+						Number Col Box( "Pseudo CPK", {pcpk} ),
+						String Col Box( "   Pseudo CPK Status", {pcpkstatus} ),
+						Number Col Box( "Pseudo CPL", {pcpl} ),
+						Number Col Box( "Pseudo CPU", {pcpu} )
+						)
+				), 
+				Outline Box( "Status Guidelines",
+					Table Box(
+						String Col Box( "Status", {"Capable", "Not Capable"} ),
+						String Col Box( "Condition", {"Cpk/ Pseudo Cpk >= 1.33", "Cpk/ Pseudo Cpk < 1.33"} )
+					),
+					<<Close( 1 )
+				),
+				Footer box
+			)//end output
+		);//end if oos>0
+
+		If( oos == 0,
+			::percent = (1 - 0.50 ^ (1 / n));
+			If( percent >= 0.5,
+				pcpk = -Round( Normal Quantile( percent ) / 3, 2 ),
+				pcpk = Abs( Round( Normal Quantile( percent ) / 3, 2 ) )
+			);
+			pcpkstatus = If( pcpk >= 1.33,
+				"   Capable",
+				"   Not Capable"
+			);
+			Output = New Window( "Pseudo Capability Analysis", 
+				dist = Distribution(
+					Uniform Scaling( 1 ),
+					Continuous Distribution(
+						Column( Column( y_name ) ),
+						Horizontal Layout( 1 ),
+						Normal Quantile Plot( 1 ),
+						Axis Settings(
+							Scale( Linear ),
+							Format( Best ),
+							Min( scale_min ),
+							Max( scale_max ),
+							Inc( scale_inc ),
+							Minor	Ticks( 1 )
+						),
+						save( normal quantiles ),
+						Capability Analysis( LSL( lsl_val ), USL( usl_val ), Target( target_val ) )
+					),
+					SendToReport(
+						Dispatch( {}, "1", ScaleBox, {Scale( Linear ), Format( Best )} ),
+						Dispatch( {}, "Distrib Histogram", FrameBox, Background Color( 2 ) )
+					)
+				), 
+				Outline Box( "Capability Analysis Summary Report",
+					Table Box(
+						Number Col Box( "N", {n} ),
+						Number Col Box( "LSL", {lsl_val} ),
+						Number Col Box( "Target", {target_val} ),
+						Number Col Box( "USL", {usl_val} ),
+						Number Col Box( "#OOS", {nloc} ),
+						Number Col Box( "%OOS", {oospercent} ),
+						Number Col Box( "CPK", {cpk} ),
+						String Col Box( "   CPK Status", {cpkstatus} ),
+						Number Col Box( "CPL", {cpl} ),
+						Number Col Box( "CPU", {cpu} ),
+						Number Col Box( "CP", {cp} )
+					)
+				), 
+				Outline Box( "Pseudo Capability Analysis Summary Report (Method 1: Based on Actual %OOS)",
+					Table Box(
+						Number Col Box( "N", {n} ),
+						Number Col Box( "LSL", {lsl_val} ),
+						Number Col Box( "Target", {target_val} ),
+						Number Col Box( "USL", {usl_val} ),
+						Number Col Box( "#OOS", {nloc} ),
+						Number Col Box( "Actual %OOS", {oospercent} ),
+						Number Col Box( "%OOS (use 50% UCL for DPM)", {Round( percent * 100, 2 )} ),
+						Number Col Box( "Pseudo CPK", {pcpk} ),
+						String Col Box( "   Pseudo CPK Status", {pcpkstatus} )
+					),
+					Text Box( "NOTE:" ),
+					Text Box( "Pseudo Cpk is based on the 50% UCL for DPM as the Actual %OOS =0%" )
+				), 
+				Outline Box( "Status Guidelines",
+					Table Box(
+						String Col Box( "Status", {"Capable", "Not Capable"} ),
+						String Col Box( "Condition", {"Cpk/ Pseudo CPK >= 1.33", "Cpk/ Pseudo CPK < 1.33"} )
+					),
+					<<Close( 1 )
+				),
+				Footer box
+			);//end output
+		);//end if oos=0
+		/*Close( subdt, nosave );
+		Close( sortdt, nosave );*/
+	);//end method 1
+
+// Method 2 //
+	If( method == 2 & button == 1, 
+		output = New Window( "Pseudo Capability Analysis", <<OnClose( Eval( close_dts ) ),
+			dist = Distribution(
+				Uniform Scaling( 1 ),
+				Continuous Distribution(
+					Column( Column( y_name ) ),
+					Horizontal Layout( 1 ),
+					Normal Quantile Plot( 1 ),
+					Axis Settings(
+						Scale( Linear ),
+						Format( Best ),
+						Min( scale_min ),
+						Max( scale_max ),
+						Inc( scale_inc ),
+						Minor	Ticks( 1 )
+					),
+					save( normal quantiles ),
+					Capability Analysis( LSL( lsl_val ), USL( usl_val ), Target( target_val ) )
+				),
+				SendToReport(
+					Dispatch( {}, "1", ScaleBox, {Scale( Linear ), Format( Best )} ),
+					Dispatch( {}, "Distrib Histogram", FrameBox, Background Color( 2 ) )
+				)
+			), 
+			dt = Current Data Table();
+			::number = N Col( dt );
+			::colname = Column( number );
+			::Get_Coefficients = Function( {xt, yt}, Inv( xt` * xt ) * xt` * yt );
+			dt = Current Data Table();
+			subdt = dt << Subset( Output Table( "Subset" ), Copy Formula( 0 ), columns( Column( y_name ), colname ) );
+			sortdt = subdt << Sort( By( Column( y_name ) ), Order( Ascending ) );
+			excluderow = sortdt << GetRowsWhere( Excluded() );
+			
+			If( NRow( sortdt << GetRowsWhere( Excluded() )) != 0, sortdt << delete rows( excluderow ));   // new for v8
+			missingrow = sortdt << Select Where( IsMissing(As Column( y_name )) );
+			sortdt << Delete Rows;
+
+			mean = Col Mean( Column( y_name ) );
+			std = Col Std Dev( Column( y_name ) );
+			mdt = sortdt << GetAsMatrix;
+			x = mdt[0, 1];
+			uslx = Loc( mdt[0, 1] > usl_val );
+			lslx = Loc( mdt[0, 1] < lsl_val );
+			nloc = N Row( uslx ) + N Row( lslx );
+			::y = mdt[0, 2];
+			n = N Row( x );
+			::x = J( N Row( x ), 1 ) || x;
+			::beta1 = Get_Coefficients( x, y );
+			::b = beta1[1, 1];
+			::m = beta1[2, 1];
+			::beta2 = Get_Coefficients( x, y );
+			::b2 = beta2[1, 1];
+			::m2 = beta2[2, 1];
+			::x_min = x[1, 2];
+			::x_max = x[n, 2];
+			::x_half = (x_min + x_max) / 2;
+			::x_cut1 = x_min + x_half;
+			::x_cut2 = x_max - x_half;
+			oospercent = Round( (nloc / n) * 100, 2 );
+			
+			dt = Current Data Table();
+			::biv_graph1 = H List Box( Bivariate( Y( eval(colname) ), X( Column( eval(y_name) ) ) ) );
+			::axisx = biv_graph1[axisbox( 2 )];
+			axisx << add ref line( usl_val, "Solid", "red" );
+			biv_graph1[FrameBox( 1 )] << AddgraphicsScript( (Y Function( m * x + b, x )) );
+			biv_graph1[FrameBox( 1 )] << AddgraphicsScript( (X Function( x_cut1, x, fill( 0 ) )) );
+			biv_graph1[FrameBox( 1 )] << DoubleBuffer;
+
+			dt = Current Data Table();
+			::biv_graph2 = H List Box( Bivariate( Y( eval(colname) ), X( Column( eval(y_name) ) ) ) );
+			axisx = biv_graph2[axisbox( 2 )];
+			axisx << add ref line( lsl_val, "Solid", "Red" );
+			biv_graph2[FrameBox( 1 )] << AddgraphicsScript( (Y Function( m2 * x + b2, x )) );
+			biv_graph2[FrameBox( 1 )] << AddgraphicsScript( (X Function( x_cut2, x, fill( 0 ) )) );
+			biv_graph2[FrameBox( 1 )] << DoubleBuffer;
+
+			If( !Is Missing( usl_val ) & Is Missing( lsl_val ), 
+				:: graph = 
+				V List Box(
+					biv_graph1,
+					H List Box(
+						Text Box( "    Adjust slider bar to fit right tail:" ),
+						Slider Box(
+							x_min,
+							x_max,
+							x_cut1,
+							i = Loc Sorted( x[0, 2], x_cut1 );
+							beta1 = Get_Coefficients( x[i :: n, 1 :: 2], y[i :: n, 1] );
+							b = beta1[1, 1];
+							m = beta1[2, 1];
+							biv_graph1 << reshow;
+						), 
+						Button Box( "Selection Done", finaldata )
+					)   //hlistbox
+				)//vlistbox
+			);,  //end if
+
+			If( Is Missing( usl_val ) & !Is Missing( lsl_val ),
+				graph = V List Box(
+					biv_graph2,
+					H List Box(
+						Text Box( "    Adjust slider bar to fit left tail:" ),
+						Slider Box(
+							x_min,
+							x_max,
+							x_cut2,
+							i = Loc Sorted( x[0, 2], x_cut2 );
+							beta2 = Get_Coefficients( x[1 :: i, 1 :: 2], y[1 :: i, 1] );
+							b2 = beta2[1, 1];
+							m2 = beta2[2, 1];
+							biv_graph2 << reshow;
+						), 
+						Button Box( "Selection Done", finaldata )
+					)   //hlistbox
+				)//vlistbox
+			),  //end if
+
+			If( !Is Missing( usl_val ) & !Is Missing( lsl_val ),
+				graph = H List Box(
+					V List Box(
+						biv_graph2,
+						H List Box(
+							Text Box( "    Adjust slider bar to fit left tail:" ),
+							Slider Box(
+								x_min,
+								x_max,
+								x_cut2,
+								i = Loc Sorted( x[0, 2], x_cut2 );
+								beta2 = Get_Coefficients( x[1 :: i, 1 :: 2], y[1 :: i, 1] );
+								b2 = beta2[1, 1];
+								m2 = beta2[2, 1];
+								biv_graph2 << reshow;
+							)
+						), 
+						Button Box( "    Click here when selection on both graphs are done    ", finaldata )
+					),
+					V List Box(
+						biv_graph1,
+						H List Box(
+							Text Box( "    Adjust slider bar to fit right tail:" ),
+							Slider Box(
+								x_min,
+								x_max,
+								x_cut1,
+								i = Loc Sorted( x[0, 2], x_cut1 );
+								beta1 = Get_Coefficients( x[i :: n, 1 :: 2], y[i :: n, 1] );
+								b = beta1[1, 1];
+								m = beta1[2, 1];
+								biv_graph1 << reshow;
+							)
+						)//hlistbox
+					)//vlistbox
+				)//hlistbox
+			),  //end if
+
+			 :: finaldata = Expr(
+				::predict = If( !Is Missing( usl_val ),
+					b + (m * usl_val)
+				);
+				::predictlower = If( !Is Missing( lsl_val ),
+					b2 + (m2 * lsl_val)
+				);
+				pcpu = Round( Abs( (predict / 3) ), 2 );
+				pcpl = Round( Abs( (predictlower / 3) ), 2 );
+				pcpk = If(
+					pcpu < pcpl, pcpu,
+					pcpu > pcpl, pcpl,
+					Is Missing( pcpu ), pcpl,
+					Is Missing( pcpl ), pcpu
+				);
+				status = If( pcpk >= 1.33,
+					"   Capable",
+					"   Not Capable"
+				);
+				cpu = Round( (usl_val - mean) / (3 * std), 2 );
+				cpl = Round( (mean - lsl_val) / (3 * std), 2 );
+				cpk = Round( Min( cpu, cpl ), 2 );
+				cp = Round( (usl_val - lsl_val) / (6 * std), 2 );
+				cpkstatus = If( cpk >= 1.33,
+					"   Capable",
+					"   Not Capable"
+				);
+				::nused1 = Loc( mdt[0, 1] >= x_cut1 );
+				::nused2 = Loc( mdt[0, 1] <= x_cut2 );
+				::countn1 = N Row( nused1 );
+				::countn2 = N Row( nused2 );
+    
+				output << append(
+					V List Box(
+						Outline Box( "Capability Analysis Summary Report",
+							Table Box(
+								Number Col Box( "N", {n} ),
+								Number Col Box( "LSL", {lsl_val} ),
+								Number Col Box( "Target", {target_val} ),
+								Number Col Box( "USL", {usl_val} ),
+								Number Col Box( "#OOS", {nloc} ),
+								Number Col Box( "%OOS", {oospercent} ),
+								Number Col Box( "CPK", {cpk} ),
+								String Col Box( "   CPK Status", {cpkstatus} ),
+								Number Col Box( "CPL", {cpl} ),
+								Number Col Box( "CPU", {cpu} ),
+								Number Col Box( "CP", {cp} )
+							)           		
+						),
+						Outline Box( "Pseudo Capability Analysis Summary Report (Method 2: Based on Tail of Distribution)",
+							Table Box(
+								Number Col Box( "N", {n} ),
+								Number Col Box( "LSL", {lsl_val} ),
+								Number Col Box( "Target", {target_val} ),
+								Number Col Box( "USL", {usl_val} ),
+								Number Col Box( "#OOS", {nloc} ),
+								Number Col Box( "%OOS", {oospercent} ),
+								Number Col Box( "Pseudo CPK", {pcpk} ),
+								String Col Box( "   Pseudo CPK Status", {status} ),
+								Number Col Box( "Pseudo CPL", {pcpl} ),
+								Number Col Box( "Pseudo CPU", {pcpu} )
+							)
+						), 
+						If( !Is Missing( usl_val ) & !Is Missing( lsl_val ),
+							Outline Box( "Pseudo Capability Analysis Selection Criteria",
+								Table Box(
+									String Col Box( "Tail", {"Left", "Right"} ),
+									Number Col Box( "Cut Off Value", {Round( x_cut2, 2 ), Round( x_cut1, 2 )} ),
+									Number Col Box( "N Used For Fit", {countn2, countn1} )
+								)
+							)
+						), 
+						If( !Is Missing( usl_val ) & Is Missing( lsl_val ),
+							Outline Box( "Pseudo Capability Analysis Selection Criteria",
+								Table Box(
+									Number Col Box( "Cut Off Value", {Round( x_cut1, 2 )} ),
+									Number Col Box( "N Used For Fit", {countn1} )
+								)
+							)
+						), 
+
+						If( Is Missing( usl_val ) & !Is Missing( lsl_val ),
+							Outline Box( "Pseudo Capability Analysis Selection Criteria",
+								Table Box(
+									Number Col Box( "Cut Off Value", {Round( x_cut2, 2 )} ),
+									Number Col Box( "N Used For Fit", {countn2} )
+								)
+							)
+						), 
+						Outline Box( "Status Guidelines",
+							Table Box(
+								String Col Box( "Status", {"Capable", "Not Capable"} ),
+								String Col Box( "Condition", {"Cpk/ Pseudo Cpk >= 1.33", "Cpk/ Pseudo Cpk < 1.33"} )
+							),
+							<<Close( 1 )
+						), 
+						FooterBox
+					)//end vlist box
+				);//end append
+			)//end expr finaldata
+		);
+		/*Close( subdt, nosave );
+		Close( sortdt, nosave );*/
+	); // end method2
+);//end if
+

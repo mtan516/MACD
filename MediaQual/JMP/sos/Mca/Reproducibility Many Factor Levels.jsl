@@ -1,0 +1,788 @@
+/***  Mega MCA Prototype Script  ***/
+/***  To Do:
+	Add legends for plots
+	concatenate sub-part variables
+	xAdd checkbox to not calculate variance components
+	
+***/
+Clear Globals();
+lsl=.;pmt=.;usl=.;
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox = V List Box(Text Box(" ")));
+
+/***  Get data table, remove excluded, create temp data table  ***/
+If(N Table() == 0, 	::dt_orig = Open(),	::dt_orig = Current Data Table());
+
+::dt_origname = dt_orig << GetName;
+dt_orig << ClearSelect;
+dt_orig << ClearColumnSelection;
+::dt = dt_orig << Subset(Rows(dt_orig << GetRowsWhere(!Excluded())), AllColumns);
+dt << SetName(Char(dt_origname) || "_" || "(Copy)");
+Current Data Table(dt);
+dt << BringWindowToFront;
+dt << ClearSelect;
+dt << ClearColumnSelection;
+
+
+/*** Input Dialog Box  ***/
+lsl=.;
+pmt=.;
+usl=.;
+
+spec_ck = 1;
+while(spec_ck==1,
+::dlg = Column Dialog(
+	title("Mega MCA Analysis"),
+	yCols = ColList("Y, Response (Required)", MinCol(1), MaxCol(1), DataType(Numeric)),
+	Partcols = ColList("Part Factors (Required)", MinCol(1), DataType(Nominal)),
+	xcols = ColList("Metrology Factors (Required)", MinCol(1), DataType(Nominal)),
+	rptcol = ColList("Replicate Column (Required)", MinCol(1), MaxCol(1), DataType(Nominal)),
+	vlist("Spec Limits:",
+	lineup(2,
+		"Required: ","",
+		"USL & LSL, USL & Process Mean, LSL & Process Mean","",
+		"LSL: ", lsl = editNumber(lsl),
+		"Process Mean:", pmt = editNumber(pmt),
+		"USL: ", usl = editNumber(usl),
+		"","",
+		"Calculate Variance Components per Part: ", vc_ck = checkbox("",0)
+	)
+	)
+);
+::button = Dlg["Button"];
+::Y = dlg["ycols"];
+::X = dlg["xcols"];
+::RPTcol = dlg["rptcol"];
+::pcols = dlg["Partcols"];
+::lsl = dlg["LSL"];
+::pmt = dlg["pmt"];
+::usl = dlg["USL"];
+::vc_ck = dlg["vc_ck"];
+If(button == -1, Close(dt, no save);throw());
+
+/*** Appropriate Spec Limit Combinations check  ***/
+	if(ismissing(pmt),
+		if(ismissing(usl)|ismissing(lsl),
+		spec_ck = 1,
+		if(usl<lsl,spec_ck = 1,spec_ck = 0;TOL = usl-lsl)
+		),
+		if(ismissing(usl),
+		if(ismissing(lsl)|lsl>pmt,spec_ck = 1,spec_ck = 0; TOL = pmt-lsl),
+		if(usl<pmt,spec_ck = 1,spec_ck = 0;TOL=usl-pmt)
+		)
+	);
+);
+tol_mat = J(3,1,TOL);
+
+/*** Remove Missing data  (new code 4/2/2014)***/
+
+dt << Select Where (IsMissing(eval(Y[1]))); 
+If(NRow(dt << GetSelectedRows) > 0, dt << Delete Rows());
+
+//end new code
+
+//dt << select where (IsMissing(Y[1][])) << delete rows; //old line
+
+
+/*** Create Part column and Response centered by Part  ***/
+/* determine order for part columns */
+n_pcols = nitems(pcols);
+::part_levels = j(n_pcols,1,.);
+for(i=1, i<= n_pcols, i++,
+	summarize(pby=By(pcols[i]));
+	part_levels[i]=nitems(pby);
+);
+pl = rank(part_levels);
+If( n_pcols > 1,
+	pcols = pcols[pl];
+	part_levels = part_levels[pl];
+	prod_pl = part_levels[1];
+	part_txt = char(pcols[1]);
+	For( i = 2, i <= N Items( pcols ), i++,
+		part_txt = part_txt||" & "||char(pcols[i]);
+		prod_pl2 = prod_pl * part_levels[i];
+		If( prod_pl2 > 15,
+			pcols_sub = Remove( pcols, i, N Items( pcols ) - i );
+			i = N Items( pcols );
+		,
+			pcols_sub = pcols;
+		);
+	)
+	,
+	pcols_sub = pcols;
+	prod_pl = part_levels[1];
+	part_txt = char(pcols[1]);
+);
+
+dt<<color by column(eval(pcols_sub));
+dt<<marker by column(eval(pcols_sub));
+
+partcol = dt<<new column("Part", character);
+If( N Items( pcols ) > 1,
+	::part_formula = "char(:Name(\!"" || Char( pcols[1] ) || "\!"))";
+	For( a = 2, a <= N Items( pcols ), a++,
+		part_formula = part_formula || "||\!"_\!"|| char(:Name(\!"" || Char( pcols[a] ) || "\!"))"
+	);
+	::partcmd = "partcol<<set formula(" || part_formula || ")<<run formulas;";
+	Eval( Parse( partcmd ) );
+,
+	::part_formula = "char(:Name(\!"" || Char( pcols[1] ) || "\!"))";
+	::partcmd = "partcol<<set formula(" || part_formula || ")<<run formulas;";
+	Eval( Parse( partcmd ) );
+);//end IF
+
+yname = y[1]<<get name;
+yname_ctr = yname||"Centered by Part";
+ctrcol=dt<<new column(yname_ctr, numeric);
+::ctr_formula = ":Name(\!""||yname||"\!") - Col Mean(:Name(\!""||yname||"\!"), :Part)";
+::ctrcmd = "ctrcol<<set formula(" || ctr_formula || ")<<run formulas;";
+Eval( Parse( ctrcmd ) );
+
+/***  Create Raw Data and centered plots  ***/
+rawvc_part = expr(plt =dt<<Variability Chart(
+	Y( eval(::Y) ),
+	X( eval(pcols_sub) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+//x_order1 = index(1,nitems(::X),1);
+rawvc_metr1 = expr(plt = dt<<Variability Chart(
+	Y( eval(::Y) ),
+	X( eval(::X) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+x_order2 = index(nitems(::X),1,-1);
+::X2 = ::X[x_order2];
+rawvc_metr2 = expr(plt = dt<<Variability Chart(
+	Y( eval(::Y) ),
+	X( eval(::X2) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+ctrvc_metr1 = expr(plt = dt<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(::X) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+ctrvc_metr2 = expr(plt = dt<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(::X2) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+/*** End raw and centered data plots ***/
+
+/*** Create Table for Pseudo Sigma/Var MS for each Part  ***/
+dt_ps_part = dt<< Summary(
+	Group( eval(partcol),eval(pcols)),
+	Std Dev( eval(::Y)),
+	Variance(eval(::Y)),
+	output table name( "Part PS sigma Var MS" ),
+	Link to original data table( 0 )
+);
+
+column(dt_ps_part, "Std Dev("||yname||")")<<set name("Pseudo MS");
+column(dt_ps_part, "Variance("||yname||")")<<set name("Pseudo Var MS");
+
+/*** Plot Pseudo MS for Each Part  ***/
+psvc_part = expr(plt = dt_ps_part<<Variability Chart(
+	Y( column(dt_ps_part,"Pseudo MS") ),
+	X( eval(pcols_sub) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+/***  Compute Sigma/Var RPT across replicates  ***/
+dt_sigma_Replicates = dt<< Summary(
+	Group( eval(partcol),eval(pcols), eval(::X) ),
+	Std Dev( eval(::Y)),
+	Variance( eval(::Y)),
+	output table name( "Sigma Replicates" ),
+	Link to original data table( 0 )
+);
+
+ps_yname = "Std Dev("||yname||")";
+pvar_yname = "Variance("||yname||")";
+
+column(dt_sigma_Replicates, ps_yname)<<set each value(if(ismissing(column(dt_sigma_Replicates, ps_yname)[]),0,column(dt_sigma_Replicates, ps_yname)[]))<<set name("Std Dev(Replicates)");
+column(dt_sigma_Replicates, pvar_yname)<<set each value(if(ismissing(column(dt_sigma_Replicates, pvar_yname)[]),0,column(dt_sigma_Replicates, pvar_yname)[]))<<set name("Variance(Replicates)");
+sigmavc_Replicates = expr(plt = dt_sigma_Replicates<<Variability Chart(
+	Y( column(dt_sigma_Replicates,"Std Dev(Replicates)") ),
+	X( eval(pcols_sub), eval(::X) ),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+/***  Compute Mean of Var RPT by Part  ***/
+dt_sigma_rpt = dt_sigma_Replicates<< Summary(
+	Group( eval(partcol),eval(pcols)),
+	Mean( column(dt_sigma_Replicates, "Variance(Replicates)")),
+	output table name( "Repeatability" ),
+	Link to original data table( 0 )
+);
+
+column(dt_sigma_rpt, "Mean(Variance(Replicates))")<<set name("Var RPT");
+dt_sigma_rpt<<new column("Repeatability", continuous, formula(root(:Var RPT),2))<<run formulas;
+rpt_col = column(dt_sigma_rpt, "Repeatability");
+
+sigmavc_rpt = expr(plt = dt_sigma_rpt<<Variability Chart(
+	Y( rpt_col ),
+	X( eval(pcols_sub)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+dt_sigma_rpd = Data Table( dt_ps_part ) << Join(
+	With( Data Table( dt_sigma_rpt ) ),
+	Select(
+		eval(partcol),
+		eval(pcols),
+		:Pseudo MS,
+		:Pseudo Var MS
+	),
+	SelectWith( :Var RPT, :Repeatability ),
+	By Matching Columns( :Part = :Part ),
+	Drop multiples( 0, 0 ),
+	Name( "Include non-matches" )(0, 0),
+	Output Table( "Sigma RPD" )
+);
+
+dt_sigma_rpd<<color by column(eval(pcols_sub));
+dt_sigma_rpd<<marker by column(eval(pcols_sub));//need to check functionality for >1 part columns
+
+dt_sigma_rpd<<new column("Pseudo Var RPD", continuous, formula(:Pseudo Var MS - :Var RPT))<<run formulas;
+rpd_var = column(dt_sigma_rpd, "Pseudo Var RPD");
+
+dt_sigma_rpd<<new column("Pseudo Reproducibility", continuous, formula(root(:Pseudo Var RPD,2)))<<run formulas;
+rpd_col = column(dt_sigma_rpd, "Pseudo Reproducibility");
+
+sigmavc_rpd = expr(plt = dt_sigma_rpd<<Variability Chart(
+	Y( rpd_col ),
+	X( eval(pcols_sub)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+/*** Stack Variance Components  ***/
+
+dt_stack = Data Table( dt_sigma_rpd ) << Stack(
+	columns(
+		:Repeatability,
+		:Pseudo Reproducibility,
+		:Pseudo MS,
+		:Var RPT,
+		:Pseudo Var RPD,
+		:Pseudo Var MS
+	),
+	Source Label Column( "Variance Component" ),
+	Stacked Data Column( "Sigma" ),
+	Number of Series( 2 ),
+	Contiguous,
+	Name( "Non-stacked columns" )(Keep( eval(partcol), eval(pcols))),
+	Output Table( "Stacked Variance Components" )
+);
+
+column(dt_stack,"Variance Component")<<Set Property("Value Ordering",
+{"Pseudo Reproducibility", "Repeatability", "Pseudo MS"});
+Column(dt_stack,"Sigma 2")<<set name ("Var");
+
+stackvc = expr(plt = dt_stack<<Variability Chart(
+	Y( :Sigma  ),
+	X( eval(pcols_sub),:Variance Component),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+/***  Pooled Variance Components  ***/
+pooled1_name = "Pseudo Variance Components by "||char(pcols_sub);
+dt_pooled1 = Data Table(dt_Stack)<<summary(
+	Group(eval(pcols_sub), :Variance Component),
+	Mean(:Var),
+	statistics column name format( "column stat" ),
+	output table name(pooled1_name),
+	Link to original data table( 0 )
+);
+
+dt_pooled1<<new column("Pooled Sigma", continuous, formula(root(:Var Mean,2)))<<run formulas;
+column(dt_pooled1,"Variance Component")<<Set Property("Value Ordering",
+{"Pseudo Reproducibility", "Repeatability", "Pseudo MS"});
+
+pooled1vc = expr(plot_pooled1vc = dt_pooled1<<Variability Chart(
+	Y( :Pooled Sigma ),
+	X( :Variance Component),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 0 )
+	);
+	report(plot_pooled1vc)[Framebox(1)]<<row legend(eval(pcols_sub), color(1), marker(1));
+	report(plot_pooled1vc)[scalebox(2)]<< Show Major Grid(1);
+);
+
+//Use this data table to create the reproducibility report
+pooled2_name = "Overall Pooled Variance Components";
+dt_pooled2 = Data Table(dt_Stack)<<summary(
+	Group( :Variance Component),
+	Mean(:Var),
+	statistics column name format( "column stat" ),
+	Link to original data table( 0 ),
+	output table name(pooled2_name)
+);
+dt_pooled2 << delete column("N Rows");
+pseudo_tot = col sum(:Var Mean);
+dt_pooled2 << new column("Pooled Sigma", continuous, formula(root(:Var Mean,2)))<<run formulas ;
+dt_pooled2 << new column("% Total", continuous,
+	formula((:Var Mean / :Var Mean[N Row(),Empty()]) * 100)
+);
+If(!Ismissing(LSL) & !Ismissing(USL),
+	dt_pooled2 << new column("Pseudo P/T", continuous, formula(100*:Pooled Sigma*6/(TOL))),
+	Ismissing(LSL), 
+	dt_pooled2 << new column("Pseudo P/T", continuous, formula(100*:Pooled Sigma*3/(TOL))),
+	dt_pooled2 << new column("Pseudo P/T", continuous, formula(100*:Pooled Sigma*3/(TOL)))
+);
+list_comppseudo = column(dt_pooled2, 1)<<getasmatrix;
+column(dt_pooled2, 1)<<set property("Value Ordering", eval(list_comppseudo));
+pooled2vc = expr(plt = dt_pooled2<<Variability Chart(
+	Y( :Pooled Sigma ),
+	X( :Variance Component),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 0 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+pooled2pt = expr(pltpt = dt_pooled2<<Variability Chart(
+	Y( :Name("Pseudo P/T")),
+	X( :Variance Component),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 0 )
+	);
+	report(pltpt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+/***  Compute/Create Part Centered Plots  ***/
+current data table(dt);
+mnctr_name = "Mean("||yname_ctr||")";
+dt_mnctr_Replicates = data table(dt) <<summary(
+	Group( eval(pcols), eval(partcol), eval(X)),
+	Mean(eval(ctrcol)),
+	statistics column name format( "column" ),
+	output table name(mnctr_name),
+	Link to original data table( 0 )
+);
+
+mnctvc1 = expr(plt = dt_mnctr_Replicates<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(X)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+
+mnctvc2 = expr(plt = dt_mnctr_Replicates<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(X2)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+dt_metpart = data table(dt_mnctr_Replicates)<<Summary(
+	Group( eval(pcols_sub), eval(X)),
+	Mean(eval(ctrcol)),
+	statistics column name format( "column" ),
+	output table name(mnctr_name||" by "||char(pcols_sub)),
+	Link to original data table( 0 )
+);
+
+metpartvc = expr(plt = dt_metpart<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(pcols_sub), eval(X2)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plt)[scalebox(2)]<< Show Major Grid(1);
+);
+
+dt_met = data table(dt_metpart)<<Summary(
+	Group( eval(X)),
+	Mean(eval(ctrcol)),
+	statistics column name format( "column" ),
+	output table name("Mean("||mnctr_name||" by "||char(pcols_sub)||")"),
+	Link to original data table( 0 )
+);
+
+metvc = expr(plot_metvc = dt_met<<Variability Chart(
+	Y( eval(ctrcol) ),
+	X( eval(X2)),
+	Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+	Process Variation( 0 ),
+	connect cell means( 1 ),
+	Std Dev Chart( 0 ),
+	Points Jittered( 1 )
+	);
+	report(plot_metvc)[Framebox(1)]<<row legend(X2[2], color(1), marker(1));
+	report(plot_metvc)[scalebox(2)]<< Show Major Grid(1);
+);
+wait(0.1);
+dt_met<< show window(0);
+dt_metpart<< show window(0);
+dt_mnctr_Replicates<< show window(0);
+dt_pooled2<< show window(0);
+dt_pooled1<< show window(0);
+dt_stack<< show window(0);
+dt_sigma_rpd<< show window(0);
+dt_sigma_rpt<< show window(0);
+dt_sigma_Replicates<< show window(0);
+dt_ps_part<< show window(0);
+dt<< show window(0);
+wait(0.1);
+
+/***  Put expressions here  ***/
+/***  Compute Variance Components by each Part  ***/
+vc_comp = Expr(
+	Status Msg( "Calculating Variance Components for each Part" );
+	Caption( "Calculating Variance Components for each Part.  This could take some time." );
+//wait(0.01);
+	repfacint = {};
+	For( k = 1, k <= N Items( X ), k++,
+		Insert Into( repfacint, Parse( ":Name(\!"" || Char( X[k] ) || "\!") & Random" ) );
+		If( k > 1,
+			j = N Items( repfacint ) - 1;
+			For( pr = 1, pr <= j, pr++,
+				Insert Into( repfacint, Parse( ":Name(\!"" || Char( X[k] ) || "\!")*" || Char( repfacint[pr] ) ) )
+			);
+		);
+	);
+
+	Current Data Table( dt );
+
+	ft = fit model(
+		Y( Eval( Y ) ),
+		effects( Eval( repfacint ) ),
+		Estimate Only Variance Components( 1 ),
+		Personality( Standard Least Squares ),
+		Method( REML ),
+		By( Eval( pcols ), Eval( partcol ) ),
+		Run Model,
+		invisible
+	);
+	ftr = ft << report;
+	dt_vcresults = ftr[1][Table Box( 1 )] << make combined data table << show window( 0 );
+	Wait( 0.01 );
+	dt_vcresults << set name( "Variance Components for " || yname );
+	Column( dt_vcresults, "Random Effect" ) << set name( "Variance Component" );
+
+	For Each Row(
+		If( Column( dt_vcresults, "Variance Component" )[] == "Residual",
+			Column( dt_vcresults, "Variance Component" )[] = "Repeatability"
+		)
+	);
+	For Each Row(
+		If( Column( dt_vcresults, "Variance Component" )[] == "Total",
+			Column( dt_vcresults, "Variance Component" )[] = "Total MS"
+		)
+	);
+
+	dt_vcresults << New Column( "Var Comp",
+		continuous,
+		formula( If( :Variance Component == "Total MS", Col Sum( :Var Component, :Part ), :Var Component ) )
+	);
+
+	dt_vcresults << New Column( "Sigma", continuous, formula( Root( :Var Comp, 2 ) ) );
+
+	modelvc1 = Expr(
+		plot_modelvc1 = dt_vcresults << Variability Chart(
+			Y( :Sigma ),
+			X( :Variance Component ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			connect cell means( 1 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 )
+		);
+		Report( plot_modelvc1 )[Framebox( 1 )] << row legend( :Variance Component, color( 1 ), Marker( 1 ) );
+		Report( plot_modelvc1 )[scalebox( 2 )] << Show Major Grid(1);
+	);
+
+	modelvc2 = Expr(
+		plot_modelvc2 = dt_vcresults << Variability Chart(
+			Y( :Sigma ),
+			X( Eval( pcols_sub ), :Variance Component ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			connect cell means( 1 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 )
+		);
+		Report( plot_modelvc2 )[Framebox( 1 )] << row legend( :Variance Component, color( 1 ), Marker( 1 ) );
+		Report( plot_modelvc2 )[scalebox( 2 )] << Show Major Grid(1);
+	);
+
+	dt_vcresults_sum1 = Data Table( dt_vcresults ) << Summary(
+		Group( Eval( pcols_sub ), :Variance Component ),
+		Mean( :Var Comp ),
+		statistics column name format( "column" ),
+		output table name( "Variance Components Summary 1" ),
+		Link to original data table( 0 )
+	);
+
+	dt_vcresults_sum1 << New Column( "Pooled Sigma", continuous, formula( Root( :Var Comp, 2 ) ) );
+//send legend with pcols_sub
+	sum1vc = Expr(
+		plot_sum1vc = dt_vcresults_sum1 << Variability Chart(
+			Y( :Pooled Sigma ),
+			X( :Variance Component ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			connect cell means( 1 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 )
+		);
+		Report( plot_sum1vc )[Framebox( 1 )] << row legend( Eval( pcols_sub ), color( 1 ), Marker( 1 ) );
+		Report( plot_sum1vc )[scalebox( 2 )] << Show Major Grid(1);
+	);
+
+	dt_vcresults_sum2 = Data Table( dt_vcresults_sum1 ) << Summary(
+		Group( :Variance Component ),
+		Mean( :Var Comp ),
+		statistics column name format( "column" ),
+		output table name( "Variance Components Summary 2" ),
+		Link to original data table( 0 )
+	);
+
+	dt_vcresults_sum2 << New Column( "Pooled Sigma", continuous, formula( Root( :Var Comp, 2 ) ) );
+//send legend with pcols_sub
+	sum2vc = Expr(
+		plot_sum2vc = dt_vcresults_sum2 << Variability Chart(
+			Y( :Pooled Sigma ),
+			X( :Variance Component ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			connect cell means( 1 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 )
+		);
+		report(plot_sum2vc)[Framebox( 1 )] << row legend( :Variance Component, color( 1 ), Marker( 1 ) );
+		report(plot_sum2vc)[scalebox(2)]<< Show Major Grid(1);
+	);
+
+	dt_vcresults_sum2 << select where( :Variance Component == "Total MS" ) << Move Rows( AtEnd );
+	dt_vcresults_sum2 << delete column( "N Rows" );
+	dt_vcresults_sum2 << clear select;
+	dt_vcresults_sum2 << New Column( "% Total", continuous, formula( (:Var Comp / :Var Comp[N Row(), Empty()]) * 100 ) );
+	If(
+		!Is Missing( LSL ) & !Is Missing( USL ),
+			dt_vcresults_sum2 << New Column( "P/T", continuous, formula( 100*:Pooled Sigma * 6 / (TOL) ) ),
+		Is Missing( LSL ), dt_vcresults_sum2 << New Column( "P/T", continuous, formula( 100*:Pooled Sigma * 3 / (TOL) ) ),
+		dt_vcresults_sum2 << New Column( "P/T", continuous, formula( 100*:Pooled Sigma * 3 / (TOL) ) )
+	);
+	sum2pt = Expr(
+		plot_sum2pt = dt_vcresults_sum2 << Variability Chart(
+			Y( :Name("P/T") ),
+			X( :Variance Component ),
+			Analysis Type( Name( "Choose best analysis (EMS REML Bayesian)" ) ),
+			Process Variation( 0 ),
+			connect cell means( 1 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 0 )
+		);
+		report(plot_sum2pt)[Framebox( 1 )] << row legend( :Variance Component, color( 1 ), Marker( 1 ) );
+		report(plot_sum2pt)[scalebox(2)]<< Show Major Grid(1);
+	);	Caption( remove );
+);//end var comp expression
+/***  end expresssions  ***/
+
+/***  Compute Variance Components with Fit Model by Part  ***/
+If(vc_ck == 1, 
+	eval(vc_comp);
+	mat_vcresults = dt_vcresults_sum2<<get as matrix;
+	tol_mat_vc = J(nrows(mat_vcresults),1,TOL);
+	list_compvc = column(dt_vcresults_sum2, 1)<<getasmatrix;
+);
+
+/***  Create Report  ***/
+mat_pseudo = dt_pooled2<<get as matrix;
+
+/*** Expression to close hidden windows  ***/
+unhide_close_dts = expr(
+	if(vc_ck == 1,
+	close(dt_vcresults_sum2, nosave);
+	close(dt_vcresults_sum1, nosave);
+	close(dt_vcresults, nosave);
+	ft<<close window;
+	model dialog[1]<<close window;
+	);
+	close(dt_met, nosave);
+	close(dt_metpart, nosave);
+	close(dt_mnctr_Replicates, nosave);
+	close(dt_pooled2, nosave);
+	close(dt_pooled1, nosave);
+	close(dt_stack, nosave);
+	close(dt_sigma_rpd, nosave);
+	close(dt_sigma_rpt, nosave);
+	close(dt_sigma_Replicates, nosave);
+	close(dt_ps_part, nosave);
+	close(dt, nosave)
+);
+
+//::mega_report = New Window("Mega MCA Results",OnClose(unhide_close_dts),
+::mega_report = New Window("Mega MCA Results",<<OnClose(eval(unhide_close_dts)),
+	VlistBox(
+	sum_ob = outlinebox("Mega MCA Summary",
+	VlistBox(
+		part_def = Text Box("Part equals all combinations of "||part_txt),
+		outlinebox("Pseudo Variance Components Summary",
+		hlistbox(
+		sum_pseudovc = TableBox(
+			StringColBox("Variance Component", list_comppseudo),
+			NumberColBox("Variance", mat_pseudo[0,1]),
+			NumberColBox("Sigma", mat_pseudo[0,2]),
+			NumberColBox("% Total", mat_pseudo[0,3], <<set format(6,1)),
+			NumberColBox("Tolerance", tol_mat),
+			NumberColBox("P/T (%)", mat_pseudo[0,4], <<set format(6,1)),
+			<< table Style(Bordered)
+		),
+		eval(pooled2vc),
+		eval(pooled2pt)
+		)
+		),
+		if(vc_ck == 1, 
+		outlinebox("Variance Components Summary",
+		hlistbox(
+		sum_vc = TableBox(
+			StringColBox("Variance Component", list_compvc),
+			NumberColBox("Variance", mat_vcresults[0,1]),
+			NumberColBox("Sigma", mat_vcresults[0,2]),
+			NumberColBox("% Total", mat_vcresults[0,3], <<set format(6,1)),
+			NumberColBox("Tolerance", tol_mat_vc),
+			NumberColBox("P/T (%)", mat_vcresults[0,4], <<set format(6,1)),
+			<< table Style(Bordered)
+		),
+		eval(sum2vc),
+		eval(sum2pt)
+		)	
+		)
+		)//end if
+	)	
+	),//End Mega MCA Summary
+	rawdataplots_ob = outline box("Raw data plots",
+		VlistBox(
+			eval(rawvc_part),
+			HlistBox(
+				eval(rawvc_metr1),
+				eval(rawvc_metr2)
+			),
+			HlistBox(
+				eval(ctrvc_metr1),
+				eval(ctrvc_metr2)
+			)
+		)
+	),//end raw data plots
+	pseudosigmaplots_ob = outline box("Pseudo Sigma Plots",
+		VlistBox(
+			eval(sigmavc_rpd),
+			eval(sigmavc_rpt),
+			eval(psvc_part),//Pseudo MS for each part
+			eval(pooled1vc),
+			eval(stackvc),
+			eval(sigmavc_Replicates)
+		)
+	),//End Pseudo Sigma Plots
+	meancenteredplots = outline box("Mean Centered Plots",
+		VlistBox(
+		HlistBox(
+			eval(mnctvc1),
+			eval(mnctvc2)
+		),
+			eval(metvc),
+			eval(metpartvc)
+		)
+	),//End Mean Centered Plots
+	if(vc_ck == 1,
+	vcmodelplots = outline box("Variance Component Analysis Plots",
+		VlistBox(
+			eval(modelvc1),
+			eval(sum1vc),
+			eval(modelvc2)
+		)
+	)//End Variance Components Analysis Plots
+	)//End If
+	)
+);
+
+If(vc_ck == 1,
+dt_vcresults_sum2<< show window(0);
+dt_vcresults_sum1<< show window(0);
+dt_vcresults<< show window(0);
+);
+
+status msg("Finished Processing");

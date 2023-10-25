@@ -1,0 +1,3396 @@
+/********************  Tool Matching Expressions *****************************
+
+	Expressions called by tool matching analysis
+	Version 1.0
+	5/27/2010
+	Created by Philip Brown
+	Edited by Paul Wenz
+	TTD Enhancements by John Xu 
+	JMP versions: 5.1 to 9
+	Latest updated 6/27/2014
+	Changed Flag and Warning cutoffs
+		example: Flag at TMM > 1.5 instead of TMM >= 1.5
+
+List of Expressions
+ 	Initialize_tool_matching_globals
+	RefToolExpr
+	TM_vcht_expr
+	sampr_expr
+	refr_expr
+	tmr_expr
+	tmsumm_expr
+	ttd_summ_expr
+	factmsumm_expr
+	TM_Status_Guidelines
+	TM_Graph_Legend
+	TM_MainDiag_Expr
+	TM_PreProc_Expr
+	TTD_PreCalc_Expr
+	TTD_PreProc_Expr
+	TM_Summary_Report
+	GenerateTMCharts
+	TM_Main
+*******************************************************************************/
+
+////////////////////////////// Initialize_tool_matching_globals ///////////////////////////////////////////////////
+// Declare Global Variables
+Initialize_tool_matching_globals = Expr(
+	::ref_select = 1;
+	button = {0, 1, 0, 0};
+	::TMM_ChartBox = {};
+	::TMS_ChartBox = {};
+	::Ref_ReportBox = {};
+	::TM_ReportBox = {};
+	::Var_Chart_List = {};
+	::Var_Chart_alt_List = {};
+	::Var_ChartBox = {};
+	::Var_ChartAltBox = {};
+	::TM_Report_List = {};
+	::Ref_Report_List = {};
+	::TMM_Chart_List = {};
+	::TMS_Chart_List = {};
+	::TMAnalysis_Expr = {};
+	::act = 1;
+	::valid = 0;
+	::cont = 0;
+	::x = J( 2, 1, 0 );
+	::s = x;
+	::Targets = x;
+	::Use_Target = x;
+	::TTD_X = J( 2, 1, . );
+	::Use_TTD_X = x;
+	::TTD_X_Target = x;
+	::TTD_S = J( 2, 1, . );
+	::Use_TTD_S = x;
+	::TTD_S_CL = J( 2, 1, . );
+	::Use_TTD = 0;
+	::Ref_Tool_Index = .;
+	::Ref_Tool_Name = .;
+	::Ref_Row_Index = .;
+	::Ref_Row_Indxs = [];
+	::cindx = 4;
+	::cindx_run = .;
+	::x_cnt = 0;
+	::N_Param = .;
+	::x_list = {};
+	::levelQ = {};
+	::Skip = {};
+	::N_lotgrps = {};
+	::N_samples = {};
+	::Fac_Names = {};
+	::N_Entity = {};
+	::lev_type = {};
+	::levchk_list = {};
+	::xname = {"Entity", "Facility"};
+	::xname_indx = .; //Unused at this time
+	::ytemp = "";
+	::yname = {};
+	::Y_Name = "";
+	::y_cols = {};
+	::col_list_set1 = {};
+	::Param_List = {""};
+	::Param_Grp_List = {};
+	::Param_Grp_Cols = {};
+	::N_Param_Grp_Cols = .;
+	::Ref_Choice = .;
+	::Ref_Means = {};
+	::Ref_Std = {};
+	::Ref_Targets = {};
+	::Use_Targets = {};
+	::Target_values = {};
+	::TTD_Xs = {};
+	::Use_TTD_Xs = {};
+	::TTD_Ss = {};
+	::Use_TTD_Ss = {};
+	::TTD_X_Targets = {};
+	::TTD_S_CLs = {};
+	::Ref_Tools_Indxs = {};
+	::Ref_Row_Indxs = [];
+	::Ref_Tools_ID = {};
+	::Ref_Tool_Name = "";
+	::Ref_Type = {};
+	::sampr = {};
+	::refr = {};
+	::tmr = {};
+	::sumtab_list = {};
+	::TMM_Chart = {};
+	::TMS_Chart = {};
+	::TMM_Child = {};
+	::TMS_Child = {};
+	::TMM_Report = {};
+	::TMS_Report = {};
+	::TMMtab_list = {};
+	::TMStab_list = {};
+	::SampleSize_Report = {};
+	::TMSumm_Report = {};
+	::Ref_Report = {};
+	::TM_Report = {};
+	::Var_Chart = {};
+	::Var_Chart_alt = {};
+	::Facility_List = {};
+	::ToolCnt_Vect = {};
+	::PcntMatchCnt_Vect = {};
+	::MatchToolCnt_Vect = {};
+	::boxWidth = 140;
+	::Ent_Col_Name = "";
+	::pgrp_col_offset = .;
+	::summ_tab = "";
+	::summ_tm_tab = "";
+	::param_nomatch = "";
+	::delrows = [];
+	::missrows = [];
+	::chkval_list = [];
+	::nchk = .;
+	::matchflgvals = [];
+	::Match_Flag_Col = "";
+	::x_rows = [];
+	::x_summ_rows = [];
+	::x_rows_grp = [];
+	::x_summ_rows_grp = [];
+	::x_cnt = .;
+	::use_tgt = .;
+	::Entity_List = {};
+	::maindt = "";
+	::tm_cols = {};
+	::tmstat_cols = {};
+	::ttdstat_cols = {};
+	::tmm_heading = "TMM";
+	::Param1 = {};
+	::ParamList = {};
+	::Param1 = {};
+	::Param1_ttd = {};
+	::ParamList_ttd = {};
+	::all_params = {};
+	::all_SigmaMR = [];
+	::all_GrandMean = [];
+	::all_MinTMean = [];
+	::all_MaxTMean = [];
+	::all_SigmaMR_s = [];
+	::all_GrandMean_s = [];
+	::all_MinTMean_s = [];
+	::all_MaxTMean_s = [];
+	::ttd_smmrpt_struct = {};
+	::TTD_Count = 0;
+	::ttd_summ_params = {};
+	::ttd_summ_ref = [];
+	::ttd_summ_Calc = [];
+	::ttd_summ_Ratio = [];
+	::ttd_summ_Stat = {};
+	::ttd_stat_tmp = "";
+);
+
+////////////////////////////// RefToolExpr ///////////////////////////////////////////////////
+// Reference tool dialog entry object
+ :: RefToolExpr = Expr(
+	error_checking = 0;
+	If( Use_TTD <= 0,
+		New_ref = Dialog(
+			Title( "Ref Tool" ),
+			LineUp( 2, Char( "Choose Reference Tool:" ), Y_Name ),
+			" ",
+			Ref_Tool = Combo Box( Entity_List ),
+			" ",
+			Lineup( 2, "Use Target Value of (instead of Mean)", X_Target0 = EditNumber() ),
+			HList( Button( "OK" ), Button( "Cancel" ) )
+		); //end New_ref = Dialog....
+		Use_X_TTD = 0;
+		Use_S_TTD = 0;
+	,
+		While( error_checking == 0,
+			New_ref = Dialog(
+				Title( "Ref Tool + TTD" ),
+				LineUp( 2, Char( "Choose Reference Tool:" ), Y_Name ),
+				" ",
+				Ref_Tool = Combo Box( Entity_List ),
+				" ",
+				VList(
+					HList(
+						"Target for Mean ",
+						X_Target0 = EditNumber(),
+						"TTD for Mean    ",
+						X_TTD0 = EditNumber()
+
+					),
+					HList(
+						"CL for StdDev    ",
+						TTD_S_CL0 = EditNumber(),
+						"TTD for Std Dev",
+						S_TTD0 = EditNumber()
+
+					), 
+	
+					"",
+					"NOTE: Target and CL MUST be provided when TTD is used!",
+					HList( Button( "OK" ), Button( "Cancel" ) )
+				); //EndVList
+			); //end New_ref = Dialog....
+
+			X1 = New_ref["X_TTD0"];
+			X2 = New_ref["X_Target0"];
+			X3 = New_ref["S_TTD0"];
+			X4 = New_ref["TTD_S_CL0"];
+
+			If( !Is Missing( X1 ) & !Is Missing( X2 ),
+				error_checking = 1;
+				Use_X_TTD = 1;
+			,
+				Use_X_TTD = 0
+			);
+
+			If( !Is Missing( X3 ) & !Is Missing( X4 ),
+				error_checking = 1;
+				Use_S_TTD = 1;
+			,
+				Use_S_TTD = 0
+			);
+
+			If( !Is Missing( X1 ) & Is Missing( X2 ),
+				error_checking = 0
+			);
+			If( !Is Missing( X3 ) & Is Missing( X4 ),
+				error_checking = 0
+			);
+
+
+		); //end while (error_checking == 0...)
+
+	); // if (Use_TTD <= 0,...)
+
+	Button3 = New_ref["Button"];
+	Ref_Tool_Index = New_ref["Ref_Tool"];
+	Ref_Tool_Name = Entity_List[Ref_Tool_Index];
+	Targets[q] = New_ref["X_Target0"];
+
+	If( Is Missing( Targets[q] ),
+		Use_Target[q] = 0,
+		Use_Target[q] = 1
+	);
+
+
+
+	If( Use_X_TTD > 0,
+		TTD_X[q] = New_ref["X_TTD0"];
+		TTD_X_Target[q] = New_ref["X_Target0"];
+		Targets[q] = New_ref["X_Target0"];
+		Use_Target[q] = 1;
+
+		TTD_Count += 1;
+
+		Use_TTD_X[q] = Use_X_TTD;
+
+	); //end if (Use_X_TTD > 0....)
+
+
+	If( Use_S_TTD > 0,
+		TTD_S[q] = New_ref["S_TTD0"];
+		TTD_S_CL[q] = New_ref["TTD_S_CL0"];
+		Targets[q + 1] = New_ref["TTD_S_CL0"];
+		Use_Target[q + 1] = 1;
+
+		TTD_Count += 1;
+
+		Use_TTD_S[q] = Use_S_TTD;
+
+	); //end if (Use_S_TTD > 0....)
+
+); //End Expr
+
+////////////////////////////// TM_vcht_expr ///////////////////////////////////////////////////
+// Tool matching var-chart creator object
+ :: TM_vcht_expr = Expr(
+	V List Box(
+		Current Data Table( dt );
+		Wait( 0 );
+		var_cht1 = Variability Chart(
+			Y( y_arg ),
+			X( x_arg ),
+			Connect Cell Means( 1 ),
+			Show Group Means( 1 ),
+			Show Grand Mean( 0 ),
+			Std Dev Chart( 0 ),
+			Points Jittered( 1 ),
+			AIAG Labels( 0 ),
+			Where( Selected() & !Excluded() ),
+			SendToReport(
+				Dispatch( {}, "", NomAxisBox, Rotated Tick Labels( 1 ) ),
+				Dispatch( {}, "", AxisBox, ShowMajorGrid )
+			)
+		);
+
+	); //End HListBox
+); //End Expr
+
+////////////////////////////// sampr_expr ///////////////////////////////////////////////////
+// Sample Size Report object
+ :: sampr_expr = Expr(
+	Outline Box( "Sample Size Report",
+		Table Box( Number Col Box( "# Samples Per Run", Expr( N_perrun ) ), Number Col Box( "# of Runs", Expr( N_run ) ) )
+	)
+);
+
+////////////////////////////// refr_expr ///////////////////////////////////////////////////
+// Reference Tool Report object
+ :: refr_expr = Expr(
+	Outline Box( "Reference Tool Report",
+		Table Box(
+			String Col Box( "PARAMETER", {Eval( Expr( pname ) )} ),
+			String Col Box( "Reference Tool", {Expr( reftool )} ),  ////This is a list
+			If( Expr( source ) == 1,
+				String Col Box( "Source", {"Fixed Values"} ),
+				String Col Box( "Source", {"Calculated"} )
+			),
+			If( Expr( TTD_Ref ) <= 0,
+				If( Expr( targetQ ) == 1,
+					Number Col Box( "Target", {Expr( target_val )} ),
+					Number Col Box( "Mean", {Expr( target_val )} )
+				),
+				If( Expr( targetQ ) == 1,
+					Number Col Box( "Target", {Expr( target_val )} ),
+					Number Col Box( "CL", {Expr( target_val )} )
+				)
+			),
+			Number Col Box( "Std Dev", {Expr( sigma_val )} ),
+			If( Expr( TTD_Ref ) > 0,
+				Number Col Box( "Ref TTD", {Expr( TTD_Ref )} )
+			),
+			If( Expr( TTD_Ref ) > 0,
+				Number Col Box( "Offline TTD", {Expr( TTD_Calc )} )
+			),
+			If( Expr( TTD_Ref ) > 0,
+				Number Col Box( "TTD Ratio", {Expr( TTD_Ratio )} )
+			),
+			If( Expr( TTD_Ref ) > 0,
+				String Col Box( "TTD Ratio Status", {Eval( Expr( TTD_Status ) )} )
+			)
+		)
+	)
+);
+
+////////////////////////////// tmr_expr ///////////////////////////////////////////////////
+// Tool Matching Report object
+ :: tmr_expr = Expr(
+	Outline Box( "Tool Matching Report",
+		Table Box(
+			If( Col_Count == 1,
+				String Col Box( Column( summ_tm_tab, cindx - (Col_Count) ) << GetName, Expr( fac_col ) ),
+				String Col Box( "Facility", Expr( fac_col ) )
+			),
+			String Col Box( "Entity", Expr( ent_col ) ),
+			Number Col Box( "# Runs", Expr( numruns_col ) ),
+			Number Col Box( "Mean", Expr( mean_col ) ),
+			Number Col Box( "Std Dev", Expr( sigma_col ) ), 
+//			Number Col Box( "TMM", Expr( tmm_col ), <<SetFormat( 7, 2 ) ),
+			Number Col Box( tmm_heading, Expr( tmm_col ), <<SetFormat( 7, 2 ) ),
+			Number Col Box( "TMS", Expr( tms_col ), <<SetFormat( 7, 2 ) ),
+			String Col Box( "", {"", ""} ),
+			String Col Box( "TMM Status", Expr( tmm_stat_col ) ),
+			String Col Box( "TMS Status", Expr( tms_stat_col ) )
+		); //End TableBox
+	); //End OutlineBox
+); //End Expr
+
+////////////////////////////// tmsumm_expr ///////////////////////////////////////////////////
+// Tool matching summary report object (not currently used)
+ :: tmsumm_expr = Expr(
+	Outline Box( "Tool Matching Summary Report",
+		tmtab1 = Table Box(
+			"",
+			Number Col Box( "# Tools", Expr( toolcnt_col ) ),
+			Number Col Box( "# Matched Tools", Expr( match_col ) ),
+			Number Col Box( "% of Tools Matched", Expr( matchpcnt_col ), <<SetFormat( 7, 2 ) ),
+			Number Col Box( "Ref TTD", Expr( all_ttdvals ) ),
+			Number Col Box( "Offline TTD", Expr( all_ttdcalc ) ),
+			Number Col Box( "TTD Ratio", Expr( all_tddratio ), <<SetFormat( 7, 2 ) ),
+			String Col Box( "TTD Ratio Status", Expr( all_ttdstat ) )
+		); //End TableBox
+
+	); //End OutlineBox
+); //End Expr
+
+
+////////////////////////////// ttd_summ_expr ///////////////////////////////////////////////////
+// TTD summary report object 
+ :: ttd_summ_expr = Expr(
+	Outline Box( "TTD Summary Report By Parameter",
+		ttdtab1 = Table Box(
+			String Col Box( "Parameter", Eval( Expr( pname ) ) ),
+			"",
+			Number Col Box( "Ref TTD", Expr( all_ttdvals ) ),
+			Number Col Box( "Offline TTD", Expr( all_ttdcalc ) ),
+			Number Col Box( "TTD Ratio", Expr( all_ttdratio ), <<SetFormat( 7, 2 ) ),
+			String Col Box( "TTD Ratio Status", Expr( all_ttdstat ) )
+		); //End TableBox
+
+	); //End OutlineBox
+); //End Expr
+
+////////////////////////////// factmsumm_expr ///////////////////////////////////////////////////
+// Facility matching summary report object (not currently used)
+ :: factmsumm_expr = Expr(
+	Outline Box( "Facility Matching Summary Report",
+		Table Box(
+			String Col Box( "Parameter", Eval( Expr( pname ) ) ),
+			"",
+			If( Col_Count != 1,
+				String Col Box( "Facility", Expr( fac_col ) )
+			),
+			Number Col Box( "# Tools", Expr( toolcnt_col ) ),
+			Number Col Box( "# Matched Tools", Expr( match_col ) ),
+			Number Col Box( "% of Tools Matched", Expr( matchpcnt_col ) )
+		)
+	)
+);
+
+////////////////////////////// TM_Status_Guidelines ///////////////////////////////////////////////////
+// Status guidelines for TMM/TMS report object
+ :: TM_Status_Guidelines = Expr(
+	Outline Box( "Status Guidelines",
+		Table Box(
+			String Col Box( "Status", {"Warning", "Flag"} ),
+			String Col Box( "TMM Mean", {"1.0 < |TMM| <= 1.5", "|TMM| > 1.5"} ),
+			String Col Box( "TMM Std Dev", {"1.0 < TMM <= 1.5", "TMM > 1.5"} ),
+			String Col Box( "TMS", {"1.3 < TMS <= 1.6", "TMS > 1.6"} ),
+			String Col Box( "TTD Ratio", {"1.3 < TTD Ratio <= 1.6", "TTD Ratio > 1.6"} )
+		),
+		<<Close( 1 )
+	)
+);
+
+////////////////////////////// Var_Graph_Legend ///////////////////////////////////////////////////
+// Graph Legend for Variability charts object
+ :: Var_Graph_Legend = Expr(
+	Outline Box( "Graph Legend",
+		Outline Box( "Reference Lines and/or Shaded Zones",
+			Text Box( "Dashed lines represent the mean/target/center line." ),
+			" ",
+			Text Box( "Shaded areas are TTD zones." )
+		),
+		<<Close( 1 )
+	)
+); //EndExpr
+
+////////////////////////////////// Format_Variability_Chart //////////////////////////////////
+Format_Variability_Chart = Expr( 
+
+	Var_chart[i][FrameBox( 1 )] << Add Graphics Script(
+		2,
+		Description( "Script" ),
+		Transparency( 0.2 );
+		Pen Color( "red" );
+		Pen Size( 3 );
+		Y Function( _Lower_TTD_Line, x, fill( 2, _Upper_TTD_Line ) );
+	);
+
+	Var_chart[i][AxisBox( 1 )] << add ref line( _Lower_TTD_Line, "Solid", "gray", _lower_ttd_line_name );
+	Var_chart[i][AxisBox( 1 )] << add ref line( _Upper_TTD_Line, "Solid", "gray", _upper_ttd_line_name );
+
+); //EndExpr
+
+////////////////////////////// TM_Graph_Legend ///////////////////////////////////////////////////
+// Graph Legend for TMM/TMS charts object
+ :: TM_Graph_Legend = Expr(
+	Outline Box( "Graph Legend",
+		Outline Box( "Reference Lines",
+			Text Box( "Solid line represent the MATCH Target." ),
+			" ",
+			Text Box( "Dotted line represent WARNING Threshold." ),
+			" ",
+			Text Box( "Dashed line represent FLAG Threshold." )
+		),
+		<<Close( 1 )
+	)
+);
+
+////////////////////////////// TM_MainDiag_Expr ///////////////////////////////////////////////////
+// Tool matching main dialog box object (starting point in SOS version )
+ :: TM_MainDiag_Expr = Expr(
+	Result = Column Dialog(
+		Title( "Tool Matching Analysis" ),
+		::Response = ColList( "Response Variable (Required)",
+			Max Col( 1 ),
+			Min Col( 1 ),
+			DataType( Numeric ),
+			Columns( PARAMETERVALUE )
+		),
+		" ",
+		::Run_ID = ColList( "Run ID and DATE/Time (Optional)", Max Col( 2 ), Min Col( 1 ), Columns( LOT ) ),
+		" ",
+		::Param = ColList( "Parameter ID", Max Col( 3 ), DataType( Character ), Columns( PARAMETERNAME ) ),
+		" ",
+		::Col_List = ColList( "1. Facility and/or 2. Entity (Required)",
+			Max Col( 2 ),
+			Min Col( 1 ),
+			DataType( Character ),
+			Columns( FACILITY, ENTITY )
+		),
+		" ",
+		::z = ColList( "Group By (Optional)" ),
+		HList(
+			VList(
+				VList(
+					"Choose Source of Reference Tool Values",
+					ref_select = Combo Box(
+						"Enter Manually",
+						"Create Reference Table",
+						"Retrieve Saved Reference Table",
+						1
+					)
+				),
+				" ",
+				"NOTE: PARAMETERID is required when using a reference table to supply limits"
+			)
+		)
+	);
+	::Col_List = Result["Col_List"];	//Facility and Entity
+	 :: Run_ID = Result["Run_ID"];			//Lot
+	 :: Response = Result["Response"];		//ParameterValue
+	 :: Param = Result["Param"];		//Parametername
+	 :: YID = Response;
+	::Run_ID_ttd = Run_ID;
+	::Param_ttd = Param;
+	::ToolID = Col_List;
+	::z = Result["z"];				//Group By
+	 :: ref_select = result["ref_select"];	//Enter ref values manually (1), Create reference table (2) or Use SOS Reference Table (3), EPASS table (4), No table custom recipe (5)
+	button[1] = Result["Button"];
+	::Col_Count = N Items( Col_List );
+	::N_Resp = N Items( Response );
+	::N_Run_ID = N Items( Run_ID );
+	::N_z = N Items( z );
+	::savrsQ = 0;		// Save Row states
+); //EndExpr
+
+
+/***  Functions  ***/
+outlier_fcn1 = Function( {exc_list}, {Default Local}, exc_row = Loc( exc_list, "Yes" ) );
+
+outlier_fcn2 = Function( {exc_mat}, {Default Local}, exc_row = Loc( exc_mat ) );
+
+MR_fcn = Function( {ooc_rows, colymat},
+	{Default Local},
+	colymattemp = colymat;
+	colymattemp[ooc_rows] = [.];
+	ave_lot = Mean( colymattemp );
+	mdn_lot = Quantile( 0.5, colymattemp );
+	mr_mat2 = [];
+	For( i = 1, i <= entity_n, i++,
+		coly_mat2 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		coly_mat3 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		ent_mean = Mean( coly_mat2 );
+		coly_mat2[entity_nlots[i]] = [];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1] = [];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.] |/ Abs( coly_mat2 - coly_mat3 );
+		mr_mat2 = mr_mat2 |/ mr_mat;
+	);
+	ave_mr = Mean( mr_mat2 ) / 1.128;
+	mdn_mr = Quantile( 0.5, mr_mat2 ) / 0.954;
+	mr_res = ave_lot || mdn_lot || ave_mr || mdn_mr;
+);
+
+MR_entity_fcn = Function( {ooc_rows, colymat},
+	{Default Local},
+	ent_stats = J( entity_n, 5, . );
+	colymattemp = colymat;
+	colymattemp[ooc_rows] = [.];
+	For( i = 1, i <= entity_n, i++,
+		coly_mat2 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		coly_mat3 = colymattemp[entity_range[i, 1] :: entity_range[i, 2]];
+		ent_mean = Mean( coly_mat2 );
+		coly_mat2[entity_nlots[i]] = [];
+		//coly_mat2[loc(IsMissing(coly_mat2))] = [];
+		coly_mat3[1] = [];
+		//coly_mat3[loc(IsMissing(coly_mat3))] = [];
+		mr_mat = [.] |/ Abs( coly_mat2 - coly_mat3 );
+		ent_stats[i, 1] = ent_mean; //mean
+		ent_stats[i, 2] = Mean( mr_mat ) / 1.128; //sigma MR
+		ent_stats[i, 3] = 3 * ent_stats[i, 2]; //3*sigma MR
+		ent_stats[i, 4] = Quantile( 0.5, mr_mat ) / 0.954; //sigma median MR
+		ent_stats[i, 5] = 3 * ent_stats[i, 4]; //3*sigma median MR
+	);
+	ent_stats;
+); //end function MR_entity_fcn
+
+////////////////////////////// TTD_PreCalc_Expr ///////////////////////////////////////////////////
+// TTD pre-Calc module
+::TTD_PreCalc_Expr = Expr(
+
+	For( k = 1, k <= N Items( ParamList_ttd ), k++,
+		dt_TTD = dt_TTD0 << Subset( Output Table( "Copy " || Char( k ) || " of dt_TTD0 " ) );
+		Current Data Table( dt_TTD );
+	
+		If( N Items( ParamList_ttd ) > 1,
+			dt_TTD << select where( Column( dt_TTD, Param1_ttd )[] != ParamList_ttd[k] ) << delete rows
+		);
+/*** Data File View Handling ***/
+		unhide_close_dts = Expr(
+			If( !Is Empty( dtsj2 ),
+				Close( dtsj2, nosave )
+			);
+			If( !Is Empty( dtsjs ),
+				Close( dtsjs, nosave )
+			);
+			If( !Is Empty( dtsj ),
+				Close( dtsj, nosave )
+			);
+			If( !Is Empty( dts1 ),
+				Close( dts1, nosave )
+			);
+			If( !Is Empty( dts ),
+				Close( dts, nosave )
+			);
+			If( !Is Empty( dt_TTD ),
+				Close( dt_TTD, nosave )
+			);
+		);
+
+		dt_TTD << Sort(
+			By( Eval( ToolID ), Eval( TimeID ), Eval( LotID ) ),
+			Order( Ascending, Ascending, Ascending ),
+			Replace Table
+		);
+		Column( dt_TTD, Eval( LotID )[1] ) << set property( "Row Order Levels", 1 );
+		y_range = Col Max( Column( dt_TTD, Eval( YID ) ) ) - Col Min( Column( dt_TTD, Eval( YID ) ) );
+		dplace = If( Floor( Log10( y_range ) ) < 1,
+			Abs( Floor( Log10( y_range ) ) ) + 2,
+			2
+		);
+
+// Summarize to Lot Level.
+		If( dt_ck == 1,
+			dts = dt_TTD << Summary( Group( Eval( GrpList ) ), Mean( Eval( YID ) ), Std Dev( Eval( YID ) ) ),
+			dtGrpList = Remove( GrpList, 2 );
+			dts = dt_TTD << Summary(
+				Group( Eval( dtGrpList ) ),
+				Min( Eval( GrpList[2] ) ),
+				Mean( Eval( YID ) ),
+				Std Dev( Eval( YID ) )
+			);
+			move_col = Column( dts, Char( Column Name( 4 ) ) );
+			move_col << set selected( 1 );
+			move_name = move_col << get name;
+			move_name = Char( TimeID[1] );
+			after_col = Char( Column Name( 1 ) );
+			dts << move selected columns( After( Eval( after_col ) ) );
+			move_col << set selected( 0 ) << set name( move_name );
+			dts << Sort(
+				By( Eval( ToolID ), Eval( TimeID ), Eval( LotID ) ),
+				Order( Ascending, Ascending, Ascending ),
+				Replace Table
+			);
+		);
+		Column( dts, "N Rows" ) << set name( "N Samples" );
+
+// Calculate Outlier Screen Limits
+		dts1 = dts << Summary(
+			Group( Eval( ToolID ) ),
+			Median( Column( 5 ) ),
+			Quantiles( 25, Column( 5 ) ),
+			Quantiles( 75, Column( 5 ) ),
+			Median( Column( 6 ) ),
+			Quantiles( 75, Column( 6 ) )
+		);
+
+// Check # of Entities  //
+//		 :: entity_n = N Rows( dts1 );
+		Column( dts1, "N Rows" ) << set name( "Num_Total_Lots" );
+		dts1 << run formulas;
+		dts1 << select where( :Num_Total_Lots < 8 )<< delete rows;
+		:: entity_n = N Rows( dts1 );
+
+		entity_nlots = Column( dts1, "Num_Total_Lots" ) << get as matrix;
+		entity_range = J( N Rows( entity_nlots ), 2, . );
+		entity_list = Column( dts1, Eval( ToolID ) ) << get values;
+		start = 1;
+		end = 0;
+		For( i = 1, i <= N Rows( entity_nlots ), i++,
+			end = end + entity_nlots[i];
+			entity_range[i, 1] = start;
+			entity_range[i, 2] = end;
+			start = start + entity_nlots[i];
+		);
+
+// Exclude tools with less than 8 lots.
+		dts1 << clear row states << clear select << clear column selection;
+
+		ent_exc_rows = Loc( entity_nlots < 8 );
+		ent_exc = Column( dts1, Eval( ToolID ) )[ent_exc_rows];
+		NEnt_Exc = N Rows( ent_exc_rows );
+		dts1 << select rows( ent_exc_rows );
+		dts1 << New Column( "rowstate data", rowstate );
+
+		For Each Row(
+			If( Selected( Row State() ) == 1,
+				Row State() = Excluded State( 1 );
+				:rowstate data[] = Excluded State( 1 );
+			);
+			If( Selected( Row State() ) == 1,
+				Row State() = Hidden State( 1 );
+				:rowstate data[] = Hidden State( 1 );
+			);
+		);
+
+/*
+		If( NEnt_Exc > 0,
+			Wait( 0.1 );
+			DLGNoti = Dialog(
+				VList(
+					"Warning:  " || Char( NEnt_Exc ) || " tool(s) excluded for insufficient number of lots (less than 8)."
+				),
+				"",
+				Button( "OK" )
+			);
+		);
+*/
+
+// Calc Screeing Limits.
+		dts1 << New Column( "Mean Upper Screen Limit",
+			numeric,
+			continuous,
+			formula( Column( dts1, 3 )[] + Eval( kScreen ) * ((:column( dts1, 5 )[] - Column( dts1, 3 )[]) / 0.6745) )
+		);
+
+		dts1 << New Column( "Mean Lower Screen Limit",
+			numeric,
+			continuous,
+			formula( Column( dts1, 3 )[] - Eval( kScreen ) * ((:column( dts1, 3 )[] - Column( dts1, 4 )[]) / 0.6745) )
+		);
+
+		dts1 << New Column( "Std Dev Upper Screen Limit",
+			numeric,
+			continuous,
+			formula( Column( dts1, 6 )[] + Eval( kScreen ) * ((:column( dts1, 7 )[] - Column( dts1, 6 )[]) / 0.6745) )
+		);
+
+		dts1 << run formulas;
+
+// Join in screen limits to Lot Level data.
+		dtsname = dts << GetName;
+		dtsJ = dts << Join(
+			With( Data Table( dts1 ) ),
+			Merge Same Name Columns,
+			By Matching Columns( Eval( ToolID ) = Eval( ToolID ) ),
+			Drop multiples( 0, 0 ),
+			Name( "Include non-matches" )(0, 0),
+			Output Table( "Joined" )
+		);
+
+		dtsJ << SetName( Char( dtsname ) || "1" );
+
+// Identify Outliers.
+		dtsJ << delete column( "Match Flag" );
+
+		For Each Row( Row State() = :rowstate data );
+
+		dtsJ << New Column( "Outlier",
+			character,
+			nominal,
+			formula(
+				If(
+					Is Missing( kscreen ), "No",
+					Column( 5 )[Empty()] > :Mean Upper Screen Limit | Column( 5 )[Empty()] < :Mean Lower Screen Limit | !
+					Is Missing( Column( 6 )[Empty()] ) & Column( 6 )[Empty()] > :Std Dev Upper Screen Limit |
+					Excluded( Row State( Empty() ) ) == 1 | Hidden( Row State( Empty() ) ) == 1, "Yes",
+					"No"
+				)
+			)
+		);
+		dtsJ << run formulas;
+
+// Exclude and marker Outliers, save row states.
+		For Each Row(
+			If( :Outlier[] == "Yes",
+				Row State() = Combine States( Color State( 3 ), Marker State( 11 ), Excluded State( 1 ), Hidden State(1) ), 
+
+			);
+			:rowstate data[] = Row State();
+		);
+//dtsJ<<clear row states;
+
+		colym = Column( dtsJ, 5 );
+		colym << set name( "Lot Mean of " || Char( Eval( YID ) ) );
+		colys = Column( dtsJ, 6 );
+		colys << set name( "Lot Std Dev of " || Char( Eval( YID ) ) );
+		colym_mat = colym << get as matrix;
+		colys_mat = colys << get as matrix;
+		exc_lot = Column( "Outlier" ) << get values;
+		exc_rows = outlier_fcn1( exc_lot );
+		exc_lotID = Column( dtsJ, Eval( LotID ) )[exc_rows];//Remove?
+		NLots_exc = N Rows( exc_rows );
+
+show(exc_rows);
+
+		mr_lm = mr_fcn( exc_rows, colym_mat );
+		mr_ls = mr_fcn( exc_rows, colys_mat );
+		mr_entity_lm = mr_entity_fcn( exc_rows, colym_mat );
+		mr_entity_ls = mr_entity_fcn( exc_rows, colys_mat );
+
+		Grand_Mean = mr_lm[1];
+		GrandMean_s = mr_ls[1];
+		GrandMdn_s = mr_ls[2];
+		IdealMdn = mr_lm[2];
+		If( Is Missing( IdealT ),
+			IdealT1 = Grand_Mean;
+			CL_text = "Center Line";
+		,
+			IdealT1 = IdealT;
+			CL_text = "Target";
+		);
+
+//here
+
+		Column( dtsJ, "Outlier" ) << delete formula;
+
+//Merge Outlier Info into raw data.
+		GrpHolder1 = {YID, ToolID, LotID, TimeID};
+		GrpList1 = Eval List( GrpHolder1 );
+		colToolIDRaw = Column( dt_TTD, Eval( ToolID ) );
+		colToolIDSum = Column( dtsj, Eval( ToolID ) );
+		ColLotIDRaw = Column( dt_TTD, Eval( LotID ) );
+		ColLotIDSum = Column( dtsj, Eval( LotID ) );
+		ColTimeIDRaw = Column( dt_TTD, Eval( TimeID ) );
+		ColTimeIDSum = Column( dtsj, Eval( TimeID ) );
+
+/***  Create data table for entity summary plots   ***/		//////// Calc TTD
+
+		entity_sigmamr = Matrix( mr_entity_lm[0, 2] );
+		entity_3sigmamr = Matrix( mr_entity_lm[0, 3] );
+		entity_sigmamr_mdn = Matrix( mr_entity_lm[0, 4] );
+		entity_3sigmamr_mdn = Matrix( mr_entity_lm[0, 5] );
+		entity_sigmamr_s = Matrix( mr_entity_ls[0, 2] );
+		entity_3sigmamr_s = Matrix( mr_entity_ls[0, 3] );
+		entity_sigmamr_s_mdn = Matrix( mr_entity_ls[0, 4] );
+		entity_3sigmamr_s_mdn = Matrix( mr_entity_ls[0, 5] );
+
+		ent_means = Matrix( mr_entity_lm[0, 1] );
+		ent_sigmas = Matrix( mr_entity_ls[0, 1] );
+		dtsJs = New Table( "Entity Summary" );
+		dtsJs << New Column( entity_name, character, values( entity_list ) );
+		dtsJs << New Column( "Means of Lot Means by Entity", values( ent_means ) );
+		dtsJs << New Column( "Sigma MR of Lot Means by Entity", values( entity_sigmamr ) );
+		dtsJs << New Column( "Means of Lot Sigma by Entity", values( ent_sigmas ) );
+		dtsJs << New Column( "Sigma MR of Lot Sigmas by Entity", values( entity_sigmamr_s ) );
+
+		NLots_Total = Sum( entity_nlots ); //# lots analyzed
+
+/***  TTD Calculation  ***/
+		/////////////
+		entity_gmean = Mean( mr_entity_lm[0, 1] );
+		min_ent_lm = Min( mr_entity_lm[0, 1] ); //minimum entity lot mean
+		max_ent_lm = Max( mr_entity_lm[0, 1] ); //maximum entity lot mean
+		entity_gmean_s = Mean( mr_entity_ls[0, 1] ); //mean entity lot sigma
+		max_ent_lsd = Max( mr_entity_ls[0, 1] ); //maximum entity lot sigma
+		min_ent_lsd = Min( mr_entity_ls[0, 1] ); //minimum entity lot sigma
+
+		Insert Into( all_params, Eval List( {"" || ParamList_ttd[k]} ) );
+		all_SigmaMR |/= mr_lm[3];
+		all_GrandMean |/= Grand_Mean;
+		all_MinTMean |/= min_ent_lm;
+		all_MaxTMean |/= max_ent_lm;
+
+		all_SigmaMR_s |/= mr_ls[3];
+		all_GrandMean_s |/= GrandMean_s;
+		all_MinTMean_s |/= min_ent_lsd;
+		all_MaxTMean_s |/= max_ent_lsd;
+
+		Try( Close( dts1, no save ) );
+		Try( Close( dtsJ, no save ) );
+		Try( Close( dt_TTD, no save ) );
+		Try( Close( dtsJs, no save ) );
+
+	); //end for (k =1, k <= N Item(ParamList_ttd)
+
+//	dtsJs << minimize window;
+//	Try( Close( dtsJs, no save ) );
+	
+
+); //End Expr
+
+
+////////////////////////////// TTD_PreProc_Exp ///////////////////////////////////////////////////
+// TTD Pre-Processor module
+::TTD_PreProc_Expr = Expr(
+	::dt_orig_TTDname = dt << GetName;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+	::dt_TTD0 = dt << Subset( Rows( dt << GetRowsWhere( !Excluded() ) ), AllColumns );
+	dt_TTD0 << SetName( Char( dt ) || "_" || "Copy" );
+	Current Data Table( dt_TTD0 );
+	dt_TTD0 << BringWindowToFront;
+	dt_TTD0 << ClearSelect;
+	dt_TTD0 << ClearColumnSelection;
+	Wait( 0 );
+
+	IdealT = .;
+	kScreen = 4;
+	dt_ck = 0;
+
+//delete missing data
+//	dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << delete rows;
+	rows_tmp = dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << get selected Rows();
+	If (N rows(rows_tmp) > 0,
+		dt_TTD0 << select where( Is Missing( Eval( YID[1] ) ) ) << delete rows;
+	);
+
+	If( N Items( ToolID ) > 1,
+		entity_name = Char( ToolID[1] );
+		entity_expr = ":" || entity_name;
+		For( i = 2, i <= N Items( ToolID ), i++,
+			entity_name = entity_name || "_" || Char( ToolID[i] );
+			entity_expr = entity_expr || "||\!"_\!"||" || ":" || Char( ToolID[i] );
+		);
+		dt_TTD0 << New Column( entity_name, character, formula( Eval( Parse( entity_expr ) ) ), eval formula );
+		ent_col = ":" || entity_name;
+		ToolID = Eval List( {Parse( ent_col )} );
+	,
+		entity_name = Char( ToolID[1] )
+	);
+
+	If( N Items( Run_ID_ttd ) > 1,
+		lot_name = Char( Run_ID_ttd[1] );
+		lot_expr = ":" || lot_name;
+		LotID = Eval List( {Parse( lot_expr )} );
+		Time_name = Char( Run_ID_ttd[2] );
+		Time_expr = ":" || Time_name;
+		TimeID = Eval List( {Parse( Time_expr )} );
+	,
+		lot_name = Char( Run_ID_ttd[1] );
+		lot_expr = ":" || lot_name;
+		LotID = Eval List( {Parse( lot_expr )} );
+		dt_TTD0 << AddMultipleColumns( "dump_DateTime", 1, AfterLast, Numeric );
+//		tmp_time = Today();
+		tmp_time = 0;
+		Column( "dump_DateTime" ) << set each value( tmp_time );
+		TimeID = {:dump_DateTime};
+	);
+
+
+	GrpHolder = {ToolID, TimeID, LotID};
+	GrpList = Eval List( GrpHolder );
+
+//Generate a param_name list
+
+	Summarize( ParamList_ttd = by( dt_TTD0:PARAMETERID ) );
+	ii = N Items( paramlist_ttd );
+
+	If( (N Items( ParamList_ttd ) > 1 | !Is Missing( ParamList_ttd[1] )),
+		Param1_ttd = {:PARAMETERID};
+
+	, 
+	//ELSE
+		Param_name = Char( YID[1] );
+		param_col = ":" || param_name;
+		Param1_ttd = Eval List( {Parse( param_col )} );
+		ParamList_ttd = {};
+		ParamList_ttd[1] = Char( Param1_ttd[1] );
+	); //end if	
+
+
+	N_params = N Items( ParamList_ttd );
+
+	Eval( TTD_PreCalc_Expr );
+
+	Try( Close( dt_TTD0, no save ) );
+
+); //End TTD_PreProc_Expr
+
+
+
+////////////////////////////// TM_PreProc_Expr ///////////////////////////////////////////////////
+// Tool matching pre-processor module
+ :: TM_PreProc_Expr = Expr(
+	If( N_z != 0,
+		Insert Into( Grp_List, z )
+	);
+	If( Col_Count != 0,
+		Insert Into( Grp_List, Col_List )
+	);
+	If( N_Run_ID != 0,
+		Insert Into( Grp_List, Run_ID )
+	);
+
+	If( button[1] == 1,
+		Current Data Table( dt );
+		Eval( Substitute( Name Expr( Generate_ParamID ), Expr( p_arg ), Expr( Param ) ) );
+		If( savrsQ,
+			SaveRowStatCol( "Row State Save" )
+		);	// SOS only
+		
+		If( N Items( Param ) != 0,
+			Insert Into( Grp_List, Parse( parmid << GetName ), 1 ), 
+
+			Insert Into( Grp_List, "", 1 )
+		);
+	
+		If( do_altQ,
+			Insert Into( Grp_List, alt_ent_col, N Items( Grp_List ) );
+			alt_col_offset = 1;
+			alt_op_info = GetAltOpID( dt );
+			If( N Items( alt_op_info[1] ) != 0,
+				If( alt_op_info[1][1] == "",
+					alt_op_info[1] = Remove( alt_op_info[1], 1 )
+				);
+				alt_op_text = " At OPER=" || alt_op_info[1][1];
+			, 
+				
+				alt_op_text = ""
+			);
+		,
+			alt_col_offset = 0
+		);
+
+		Grp_Cols = Grp_List[1 :: (N Items( Grp_List ) - N_Run_ID - alt_col_offset)];
+		N_Grp_Cols = N Items( Grp_Cols );
+		cindx = N_Grp_Cols + col_offset;
+		cindx_run = 1 + N Items( Grp_List ) + col_offset;
+		pgrp_col_offset = N_Grp_Cols - Col_Count;
+
+		Ent_Col_Name = Char( Col_List[Col_Count] );
+		Insert Into( Param_Grp_Cols, Grp_Cols[1 :: pgrp_col_offset] );
+		N_Param_Grp_Cols = N Items( Param_Grp_Cols ) + col_offset;
+	
+		//Main table of summarized data
+		If( JMPvernum >= 8,
+			summ_tab = dt << Summary(
+				Group( Grp_List[1 :: N Items( Grp_List )] ),
+				N Missing( Eval( Response ) ),
+				Mean( Eval( Response ) ),
+				Std Dev( Eval( Response ) )
+			), // JMP 8
+			summ_tab = dt << Summary(
+				Group( Eval( Grp_List ) ),
+				N Missing( Eval( Response ) ),
+				Mean( Eval( Response ) ),
+				Std Dev( Eval( Response ) )
+			); // JMP 5-7
+		);
+		//summ_tab << MinimizeWindow;
+		summ_tab << Set Name("summ_tab");
+
+		//Facility/Entity summary table for TM analysis
+		If( JMPvernum >= 8,
+			summ_tm_tab = summ_tab << Summary(
+				Group( Grp_Cols[1 :: N Items( Grp_Cols )] ),
+				Mean( {Eval( Column( summ_tab, cindx_run + 1 ) ), Eval( Column( summ_tab, cindx_run + 2 ) )} ),
+				Std Dev( {Eval( Column( summ_tab, cindx_run + 1 ) ), Eval( Column( summ_tab, cindx_run + 2 ) )} )
+			), // JMP 8
+			summ_tm_tab = summ_tab << Summary(
+				Group( Eval( Grp_Cols ) ),
+				Mean( {Eval( Column( summ_tab, cindx_run + 1 ) ), Eval( Column( summ_tab, cindx_run + 2 ) )} ),
+				Std Dev( {Eval( Column( summ_tab, cindx_run + 1 ) ), Eval( Column( summ_tab, cindx_run + 2 ) )} )
+			); // JMP 5-7
+		);
+		//summ_tm_tab << Set Name("summ_tm_tab");
+	
+		//Parameter "by-group" table
+		summ_param_tab = summ_tm_tab << Summary( Group( Param_Grp_Cols[1] ) );
+		//summ_param_tab << Set Name("summ_param_tab");
+
+		//Analysis "by-group" table
+		If( JMPvernum >= 8,
+			group_by_list = Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] );
+			summ_grp_tab = summ_tm_tab << Summary( Group( group_by_list[1 :: N Items( group_by_list )] ) );
+		, // JMP 8
+			summ_grp_tab = summ_tm_tab << Summary(
+				Group( Eval( Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] ) ) )
+			) // JMP 5-7
+		);
+		//summ_grp_tab << Set Name("summ_grp_tab");
+
+		Insert Into(
+			tab_create_list,
+			Eval List( {summ_tab << GetName, summ_tm_tab << GetName, summ_param_tab << GetName, summ_grp_tab << GetName} )
+		);
+	); // end if
+	Eval( TTD_PreProc_Expr );
+
+); //EndExpr
+
+////////////////////////////// TM_Summary_Report ///////////////////////////////////////////////////
+// Tool Matching overall summary report generator
+TM_Summary_Report = Expr(
+	::match_msg = {};
+	::lev31summrept_struct = {};
+	::lev31summrept_struct_ttd = {};
+	::lev31pname = {};
+	::all_facname = {};
+	::all_entname = {};
+	::all_ttdvals = [];
+	::all_ttdcalc = [];
+	::all_ttdratio = [];
+	::all_ttdstat = {};
+	::all_tmmvals = [];
+	::all_runcnts = [];
+	::all_tmsvals = [];
+	::allsumm_toolcnt = [];
+	::allsumm_match = [];
+	::all_tmmstat = {};
+	::all_tmsstat = {};
+	::all_grp_head = {};
+	::all_grp_names = {};
+	::all_facent_head = {};
+	::all_strt_col = 1;
+	::all_strt_col_ttd = 1;
+	::tm_lev1ntoolcnt = [];
+	::tm_lev1matchtoolcnt = [];
+	::tm_lev1pcntoolcnt = [];
+	::lev31pname_list = GetColAsTable( 1, summ_tm_tab )[2];
+	::lev32summ_cols = {};
+	::Col_List_Names = {};
+
+	For( i = 1, i <= N Items( Col_List ), i++,
+		Insert Into( Col_List_Names, Parse( Uppercase( Char( Col_List[i] ) ) ) )
+	);
+
+	 :: glbltmsumm_expr = Expr(
+		Outline Box( Char( Expr( rept_title ) ),
+			tab_box_name = Table Box(
+				"",
+				Number Col Box( "# Tools", Expr( toolcnt_col ) ),
+				Number Col Box( "# Matched Tools", Expr( match_col ) ),
+				Number Col Box( "% of Tools Matched", Expr( matchpcnt_col ), <<SetFormat( 5, 1 ) )
+			)
+		)
+	);
+
+	If( Col_Count == 2,
+		fac_ent_name_expr = Expr(
+			Insert Into( all_facname, Column( summ_tm_tab, cindx - (Col_Count) )[i] );
+			Insert Into( all_entname, Column( summ_tm_tab, cindx - (Col_Count - 1) )[i] );
+			If( i == 1,
+				Insert Into(
+					all_facent_head,
+					Eval List(
+						{Column( summ_tm_tab, cindx - (Col_Count) ) << GetName, Column(
+							summ_tm_tab,
+							cindx - (Col_Count - 1)
+						) << GetName}
+					)
+				)
+			);
+		)
+	, 
+
+		fac_ent_name_expr = Expr(
+			Insert Into( all_facname, Column( summ_tm_tab, cindx - (Col_Count) )[i] );
+			If( i == 1,
+				Insert Into( all_facent_head, Eval List( {Column( summ_tm_tab, cindx - (Col_Count) ) << GetName} ) )
+			);
+		);
+
+	); //EndIf
+
+	grp_name_expr = Expr(
+		For( j = 1, j <= N Items( z ), j++,
+			all_grp_names[j] = Insert( all_grp_names[j], Column( summ_tm_tab, Char( z[j] ) )[i] )
+		)
+	); // end grp name
+
+	//// 
+	For( j = 1, j <= N Items( z ), j++,
+		Insert Into( all_grp_names, {{}} );
+		Insert Into( all_grp_head, GetColAsTable( Char( z[j] ), summ_tm_tab )[1] );
+	);
+
+	For( i = 1, i <= N Row( summ_tm_tab ), i++,
+		If( Is Missing( Column( summ_tm_tab, "TMM 1" )[i] ) & Is Missing( Column( summ_tm_tab, "TMS 1" )[i] ),
+			Insert Into( lev31pname, Eval List( {"Std Dev of " || lev31pname_list[i]} ) );
+			Insert Into( all_tmmstat, Column( summ_tm_tab, "TMM Status 2" )[i] );
+			Insert Into( all_tmsstat, Column( summ_tm_tab, "TMS Status 2" )[i] );
+			Insert Into( all_ttdstat, Column( summ_tm_tab, "TTD Status 2" )[i] );
+
+			all_ttdvals |/= Column( summ_tm_tab, "TTD 2" )[i];
+			all_ttdcalc |/= Column( summ_tm_tab, "TTD Calc 2" )[i];
+			all_ttdratio |/= Column( summ_tm_tab, "TTD Ratio 2" )[i];
+
+			all_tmmvals |/= Column( summ_tm_tab, "TMM 2" )[i];
+			all_tmsvals |/= Column( summ_tm_tab, "TMS 2" )[i];
+			all_runcnts |/= Column( summ_tm_tab, "N Rows" )[i];
+			Eval( fac_ent_name_expr );
+			Eval( grp_name_expr );
+		, 
+
+			If( Is Missing( Column( summ_tm_tab, "TMM 2" )[i] ) & Is Missing( Column( summ_tm_tab, "TMS 2" )[i] ),
+				Insert Into( lev31pname, Eval List( {"Mean of " || lev31pname_list[i]} ) );
+				Insert Into( all_tmmstat, Column( summ_tm_tab, "TMM Status 1" )[i] );
+				Insert Into( all_tmsstat, Column( summ_tm_tab, "TMS Status 1" )[i] );
+				Insert Into( all_ttdstat, Column( summ_tm_tab, "TTD Status 1" )[i] );
+
+				all_ttdvals |/= Column( summ_tm_tab, "TTD 1" )[i];
+				all_ttdcalc |/= Column( summ_tm_tab, "TTD Calc1" )[i];
+				all_ttdratio |/= Column( summ_tm_tab, "TTD Ratio 1" )[i];
+
+				all_tmmvals |/= Column( summ_tm_tab, "TMM 1" )[i];
+				all_tmsvals |/= Column( summ_tm_tab, "TMS 1" )[i];
+				all_runcnts |/= Column( summ_tm_tab, "N Rows" )[i];
+				Eval( fac_ent_name_expr );
+				Eval( grp_name_expr );
+			, 
+		
+				If( N Items( Param ) != 0,
+					Insert Into(
+						lev31pname,
+						Eval List( {"Mean of " || lev31pname_list[i], "Std Dev of " || lev31pname_list[i]} )
+					),
+					Insert Into( lev31pname, Eval List( {"Mean of " || param_arg, "Std Dev of " || param_arg} ) )
+				);
+
+				Insert Into( all_tmmstat, Column( summ_tm_tab, "TMM Status 1" )[i] );
+				Insert Into( all_tmmstat, Column( summ_tm_tab, "TMM Status 2" )[i] );
+				Insert Into( all_tmsstat, Column( summ_tm_tab, "TMS Status 1" )[i] );
+				Insert Into( all_tmsstat, Column( summ_tm_tab, "TMS Status 2" )[i] );
+				Insert Into( all_ttdstat, Column( summ_tm_tab, "TTD Status 1" )[i] );
+				Insert Into( all_ttdstat, Column( summ_tm_tab, "TTD Status 2" )[i] );
+
+				all_ttdvals |/= Column( summ_tm_tab, "TTD 1" )[i];
+				all_ttdvals |/= Column( summ_tm_tab, "TTD 2" )[i];
+				all_ttdcalc |/= Column( summ_tm_tab, "TTD Calc 1" )[i];
+				all_ttdcalc |/= Column( summ_tm_tab, "TTD Calc 2" )[i];
+				all_ttdratio |/= Column( summ_tm_tab, "TTD Ratio 1" )[i];
+				all_ttdratio |/= Column( summ_tm_tab, "TTD Ratio 2" )[i];
+
+				all_tmmvals |/= Column( summ_tm_tab, "TMM 1" )[i];
+				all_tmmvals |/= Column( summ_tm_tab, "TMM 2" )[i];
+				all_tmsvals |/= Column( summ_tm_tab, "TMS 1" )[i];
+				all_tmsvals |/= Column( summ_tm_tab, "TMS 2" )[i];
+				all_runcnts |/= Column( summ_tm_tab, "N Rows" )[i];
+				all_runcnts |/= Column( summ_tm_tab, "N Rows" )[i];
+				Eval( fac_ent_name_expr );
+				Eval( fac_ent_name_expr );
+				Eval( grp_name_expr );
+				Eval( grp_name_expr );
+			)
+		)
+	);
+
+	If( TTD_Count > 0,
+		lev31summrept_struct = {all_runcnts, all_tmmvals, all_tmsvals, all_tmmstat, all_tmsstat, all_ttdvals};
+		lev31summ_head = {"#Runs", "TMM", "TMS", "TMM Status", "TMS Status", "Ref TTD"};
+	,
+		lev31summrept_struct = {all_runcnts, all_tmmvals, all_tmsvals, all_tmmstat, all_tmsstat};
+		lev31summ_head = {"#Runs", "TMM", "TMS", "TMM Status", "TMS Status"};
+	);
+
+	lev31summrept_struct_ttd = {all_ttdvals, all_ttdcalc, all_ttdratio, all_ttdstat};
+	lev31summ_head_ttd = {"Ref TTD", "Calc TTD", "TTD Ratio", "TTD Ratio Status"};
+
+	//Calculate Entity MATCHING rate
+	matchtab_grp = Expr( Eval( Insert( Eval( Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] ) ), Col_List[1] ) ) );
+
+	If( jmpvernum >= 8,
+		matchtab_grp_s = Eval( Insert( Eval( Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] ) ), Col_List[1] ) );
+		matchtab = summ_tm_tab << Summary(
+			Group( matchtab_grp_s[1 :: N Items( matchtab_grp_s )] ),
+			Sum( :All Pass ),
+			N Missing( Column( summ_tm_tab, cindx + 1 ) )
+		);
+	, // JMP 8
+		// else
+		matchtab = summ_tm_tab << Summary(
+			Group( Eval( matchtab_grp ) ),
+			Sum( :All Pass ),
+			N Missing( Column( summ_tm_tab, cindx + 1 ) )
+		); // JMP 5-7
+	);
+   
+   //matchtab << Set Name("matchtab");
+
+	If( N Items( Param ) == 0,
+		matchtab << AddMultipleColumns( "PARAMETER", 1, BeforeFirst, Character );
+		summ_tm_tab << AddMultipleColumns( "PARAMETER", 1, BeforeFirst, Character );
+		For Each Row( Column( summ_tm_tab, "PARAMETER" )[] = param_arg );
+		cindx++;
+		Param_Grp_Cols[1] = {Name( "PARAMETER" )}[1];
+		N_Param_Grp_Cols_summlev2 = N_Param_Grp_Cols + (Col_Count - 1);
+	,
+		N_Param_Grp_Cols_summlev2 = N_Param_Grp_Cols
+	);
+	
+	lev32summ_cols = Eval( Insert( Eval( Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] ) ), Col_List[1] ) );
+	
+	Nmiss_col = N Col( matchtab );
+	matchtab << AddMultipleColumns( "# Tools", 1, AfterLast, Numeric );
+	matchtab << AddMultipleColumns( "# Matched Tools", 1, AfterLast, Numeric );
+	matchtab << AddMultipleColumns( "% of Tools Matched", 1, AfterLast, Numeric );
+	Current Data Table( matchtab );
+	For Each Row(
+		If( N Items( Param ) == 0,
+			Column( matchtab, "PARAMETER" )[] = param_arg
+		);
+		Column( matchtab, "# Tools" )[] = (Column( matchtab, "N Rows" )[] - Column( matchtab, Nmiss_col )[]);
+		Column( matchtab, "# Matched Tools" )[] = (Column( matchtab, "Sum(All Pass)" )[] - Column( matchtab, Nmiss_col )[]);
+		Column( matchtab, "% of Tools Matched" )[] = (Column( matchtab, "# Matched Tools" )[] /
+		Column( matchtab, "# Tools" )[]) * 100;
+
+	);
+
+	// Level 1 Summary Table ( Summary by Parameter )
+	If( JMPvernum >= 8,
+		::tm_summ_lev1grp_new = Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] );
+		::tm_summ_lev1 = matchtab << Summary(
+			Group( tm_summ_lev1grp_new[1 :: N Items( tm_summ_lev1grp_new )] ),
+			Sum( :Name( "# Tools" ) ),
+			Sum( :Name( "# Matched Tools" ) )
+		);
+	,  // JMP 8
+		// else
+		 :: tm_summ_lev1grp = Char( Eval( Insert( Remove( Param_Grp_Cols, 1 ), Param_Grp_Cols[1] ) ) );
+		::tm_summ_lev1 = matchtab << Summary(
+			Group( Eval( Parse( tm_summ_lev1grp ) ) ),
+			Sum( :Name( "# Tools" ) ),
+			Sum( :Name( "# Matched Tools" ) )
+		);
+		// JMP 5-7
+	);
+	
+	tm_summ_lev1 << Set Name( "tm_summ_lev1" );
+		
+	num_tm_summ1_cols = N Col( tm_summ_lev1 );
+	tm_summ_lev1 << AddMultipleColumns( "% of Tools Matched", 1, After( :Name( "# Matched Tools" ) ), Numeric( 8 ) );
+	Current Data Table( tm_summ_lev1 );
+	For Each Row(
+		Column( tm_summ_lev1, "% of Tools Matched" )[] = (Column( tm_summ_lev1, "Sum(# Matched Tools)" )[] /
+		Column( tm_summ_lev1, "Sum(# Tools)" )[]) * 100
+	);
+	Column( tm_summ_lev1, "N Rows" ) << SetName( "# Groups" );
+	::charoffset = Expr( Munger( Column( tm_summ_lev1, r ) << GetName, 1, "(" ) + 1 );
+	For( ::r = 1, r <= num_tm_summ1_cols, r++,
+		If( Contains( Column( tm_summ_lev1, r ) << GetName, "Sum" ),
+			Column( tm_summ_lev1, r ) << SetName(
+				Munger(
+					Column( tm_summ_lev1, r ) << GetName,
+					charoffset,
+					(Munger( Column( tm_summ_lev1, r ) << GetName, 1, ")" ) - charoffset)
+				)
+			)
+		)
+	);
+	
+	allsumm_toolcnt = Sum( Column( tm_summ_lev1, "# Tools" ) << GetValues );
+	allsumm_match = Sum( Column( tm_summ_lev1, "# Matched Tools" ) << GetValues );
+	tm_lev1ntoolcnt = Column( tm_summ_lev1, "# Tools" ) << GetValues |/ Expr( . ) |/ allsumm_toolcnt;
+	tm_lev1matchtoolcnt = Column( tm_summ_lev1, "# Matched Tools" ) << GetValues |/ Expr( . ) |/ allsumm_match;
+	tm_lev1pcntoolcnt = Column( tm_summ_lev1, "% of Tools Matched" ) << GetValues |/ Expr( . ) |/
+	Eval( allsumm_match / allsumm_toolcnt * 100 );
+
+	// Build level 1 summary report displaybox
+	::tm_lev1summ_box = Eval(
+		Substitute( Name Expr( glbltmsumm_expr ),
+			Expr( rept_title ),
+				Char( "Tool Matching Analysis Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER" ),
+			Expr( tab_box_name ), Expr( tmlev1tab_box ),
+			Expr( toolcnt_col ), Eval( tm_lev1ntoolcnt ),
+			Expr( match_col ), Eval( tm_lev1matchtoolcnt ),
+			Expr( matchpcnt_col ), Eval( tm_lev1pcntoolcnt )
+		)
+	);
+
+	// Build level 2 summary report displaybox
+	::tm_lev2summ_box = Eval(
+		Substitute( Name Expr( glbltmsumm_expr ),
+			Expr( rept_title ),
+				Char(
+					"Tool Matching Analysis Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER, " ||
+					Char( Column( summ_tm_tab, cindx - (Col_Count) ) << GetName )
+				),
+			Expr( tab_box_name ), Expr( tmlev2tab_box ),
+			Expr( toolcnt_col ), Column( matchtab, "# Tools" ) << GetValues,
+			Expr( match_col ), Column( matchtab, "# Matched Tools" ) << GetValues,
+			Expr( matchpcnt_col ), Column( matchtab, "% of Tools Matched" ) << GetValues
+		)
+	);
+
+	// Build level 3.2 summary report displaybox
+	::tm_lev32summ_box = Eval(
+		Substitute( Name Expr( glbltmsumm_expr ),
+			Expr( rept_title ),
+				Char(
+					"Tool Match Status Report by " || Eval( grp_head_txtexpr ) || "PARAMETER, " ||
+					Munger( Munger( Char( Col_List_Names ), 1, "{", "" ), 1, "}", "" )
+				),
+			Expr( tab_box_name ), Expr( tmlev32tab_box ),
+			Expr( toolcnt_col ), [.],
+			Expr( match_col ), [.],
+			Expr( matchpcnt_col ), [.]
+		)
+	);
+	tmlev32tab_box[Number Col Box( 1 )] << Delete;
+	tmlev32tab_box[Number Col Box( 1 )] << Delete;
+	tmlev32tab_box[Number Col Box( 1 )] << Delete;
+
+	// Build level 3.1 summary report displaybox
+	::tm_lev31summ_box = Eval(
+		Substitute( Name Expr( glbltmsumm_expr ),
+			Expr( rept_title ),
+				Char(
+					"Tool Matching Analysis Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER, " ||
+					Munger( Munger( Char( Col_List_Names ), 1, "{", "" ), 1, "}", "" )
+				),
+			Expr( tab_box_name ), Expr( tmlev31tab_box ),
+			Expr( toolcnt_col ), [.],
+			Expr( match_col ), [.],
+			Expr( matchpcnt_col ), [.]
+		)
+	);
+	tmlev31tab_box[Number Col Box( 1 )] << Delete;
+	tmlev31tab_box[Number Col Box( 1 )] << Delete;
+	tmlev31tab_box[Number Col Box( 1 )] << Delete;
+
+	If( Col_Count == 2,
+		Insert Into( lev31summrept_struct, Expr( all_entname ), 1 );
+		If( Type( Eval( all_entname ) ) == "List",
+			tmlev31tab_box << Prepend( String Col Box( all_facent_head[2], Eval( lev31summrept_struct[1] ) ) ),
+			tmlev31tab_box << Prepend( Number Col Box( all_facent_head[2], Eval( lev31summrept_struct[1] ) ) )
+		);
+		all_strt_col++;
+		Insert Into( lev31summ_head, Expr( "" ), 1 );
+	);
+	
+	Insert Into( lev31summrept_struct, Expr( all_facname ), 1 );
+	If( Type( Eval( all_facname ) ) == "List",
+		tmlev31tab_box << Prepend( String Col Box( all_facent_head[1], Eval( lev31summrept_struct[1] ) ) ),
+		tmlev31tab_box << Prepend( Number Col Box( all_facent_head[1], Eval( lev31summrept_struct[1] ) ) )
+	);
+	all_strt_col++;
+	Insert Into( lev31summ_head, Expr( "" ), 1 );
+
+	Insert Into( lev31summrept_struct, Expr( lev31pname ), 1 );
+	If( Type( Eval( lev31summrept_struct[1] ) ) == "List",
+		tmlev31tab_box << Prepend( String Col Box( "PARAMETER", Eval( lev31summrept_struct[1] ) ) ),
+		tmlev31tab_box << Prepend( Number Col Box( "PARAMETER", Eval( lev31summrept_struct[1] ) ) )
+	);
+	all_strt_col++;
+	Insert Into( lev31summ_head, Expr( "" ), 1 );
+
+	If( N Items( z ) != 0,
+		Insert Into( lev31summrept_struct, Expr( all_grp_names ), 1 );
+		For( j = N Items( z ), j >= 1, j--,
+			If( Type( Eval( lev31summrept_struct[1] ) ) == "List",
+				tmlev31tab_box << Prepend( String Col Box( all_grp_head[j], Eval( lev31summrept_struct[1][j] ) ) ),
+				tmlev31tab_box << Prepend( Number Col Box( all_grp_head[j], Eval( lev31summrept_struct[1][j] ) ) )
+			)
+		);
+		all_strt_col++;
+		Insert Into( lev31summ_head, Expr( "" ), 1 );
+	); //EndIf
+
+	::N_lev31_cols = N Items( lev31summrept_struct );
+	For( r = all_strt_col, r <= N_lev31_cols, r++,
+		If( Type( Eval( lev31summrept_struct[r] ) ) == "List",
+			tmlev31tab_box << Append( String Col Box( lev31summ_head[r], Eval( lev31summrept_struct[r] ) ) ),
+			Eval(
+				Eval Expr(
+					tmlev31tab_box << Append(
+						Number Col Box( lev31summ_head[r],
+							Eval( lev31summrept_struct[r] ),
+							Expr( If( all_strt_col + 1 <= r <= all_strt_col + 2, Expr( <<SetFormat( 5, 2 ) ) ) )
+						)
+					)
+				)
+			)
+		)
+	); //EndFor
+
+	//create TTD Summary Report
+	lev31summrept_struct_ttd = {all_ttdvals, all_ttdcalc, all_ttdratio, all_ttdstat};
+	lev31summ_head_ttd_ttd = {"Ref TTD", "Calc TTD", "TTD Ratio", "TTD Ratio Status"};
+
+	 :: ttd_summ_box = Eval(
+		Substitute( Name Expr( ttd_summ_expr ),
+			Expr( pname ), Eval( ttd_summ_params ),
+			Expr( all_ttdvals ), ttd_summ_ref,
+			Expr( all_ttdcalc ), ttd_summ_Calc,
+			Expr( all_ttdratio ), ttd_summ_Ratio,
+			Expr( all_ttdstat ), ttd_summ_Stat
+		)
+	); //End Expr
+
+	// Build level ttd summary report displaybox
+	::ttd_lev31summ_box = Eval(
+		Substitute( Name Expr( glbltmsumm_expr ),
+			Expr( rept_title ),
+				Char( "Tool Matching Analysis TTD Summary Report by " || Eval( grp_head_txtexpr ) || "PARAMETER" ),
+			Expr( tab_box_name ), Expr( ttd_lev31tab_box ),
+			Expr( toolcnt_col ), [.],
+			Expr( match_col ), [.],
+			Expr( matchpcnt_col ), [.]
+		)
+	);
+	ttd_lev31tab_box[Number Col Box( 1 )] << Delete;
+	ttd_lev31tab_box[Number Col Box( 1 )] << Delete;
+	ttd_lev31tab_box[Number Col Box( 1 )] << Delete;
+
+/*
+	If( Col_Count == 2,
+		Insert Into( lev31summrept_struct_ttd, Expr( all_entname ), 1 );
+		If( Type( Eval( all_entname ) ) == "List",
+			ttd_lev31tab_box << Prepend( String Col Box( all_facent_head[2], Eval( lev31summrept_struct_ttd[1] ) ) ),
+			ttd_lev31tab_box << Prepend( Number Col Box( all_facent_head[2], Eval( lev31summrept_struct_ttd[1] ) ) )
+		);
+		all_strt_col_ttd++;
+		Insert Into( lev31summ_head_ttd, Expr( "" ), 1 );
+	);
+	
+	Insert Into( lev31summrept_struct_ttd, Expr( all_facname ), 1 );
+	If( Type( Eval( all_facname ) ) == "List",
+		ttd_lev31tab_box << Prepend( String Col Box( all_facent_head[1], Eval( lev31summrept_struct_ttd[1] ) ) ),
+		ttd_lev31tab_box << Prepend( Number Col Box( all_facent_head[1], Eval( lev31summrept_struct_ttd[1] ) ) )
+	);
+	all_strt_col_ttd++;
+	Insert Into( lev31summ_head_ttd, Expr( "" ), 1 );
+*/
+	Insert Into( lev31summrept_struct_ttd, Expr( lev31pname ), 1 );
+	If( Type( Eval( lev31summrept_struct_ttd[1] ) ) == "List",
+		ttd_lev31tab_box << Prepend( String Col Box( "PARAMETER", Eval( lev31summrept_struct_ttd[1] ) ) ),
+		ttd_lev31tab_box << Prepend( Number Col Box( "PARAMETER", Eval( lev31summrept_struct_ttd[1] ) ) )
+	);
+	all_strt_col_ttd++;
+	Insert Into( lev31summ_head_ttd, Expr( "" ), 1 );
+
+	If( N Items( z ) != 0,
+		Insert Into( lev31summrept_struct_ttd, Expr( all_grp_names ), 1 );
+		For( j = N Items( z ), j >= 1, j--,
+			If( Type( Eval( lev31summrept_struct_ttd[1] ) ) == "List",
+				ttd_lev31tab_box << Prepend( String Col Box( all_grp_head[j], Eval( lev31summrept_struct_ttd[1][j] ) ) ),
+				ttd_lev31tab_box << Prepend( Number Col Box( all_grp_head[j], Eval( lev31summrept_struct_ttd[1][j] ) ) )
+			)
+		);
+		all_strt_col_ttd++;
+		Insert Into( lev31summ_head_ttd, Expr( "" ), 1 );
+	); //EndIf
+
+	::N_lev31_cols = N Items( lev31summrept_struct_ttd );
+	For( r = all_strt_col_ttd, r <= N_lev31_cols, r++,
+		If( Type( Eval( lev31summrept_struct_ttd[r] ) ) == "List",
+			ttd_lev31tab_box << Append( String Col Box( lev31summ_head_ttd[r], Eval( lev31summrept_struct_ttd[r] ) ) ),
+			Eval(
+				Eval Expr(
+					ttd_lev31tab_box << Append(
+						Number Col Box( lev31summ_head_ttd[r],
+							Eval( lev31summrept_struct_ttd[r] ),
+							Expr( If( all_strt_col_ttd + 1 <= r <= all_strt_col_ttd + 2, Expr( <<SetFormat( 5, 2 ) ) ) )
+						)
+					)
+				)
+			)
+		)
+	); //EndFor
+
+
+	If( Col_Count == 2,
+		Insert Into( lev32summ_cols, Col_List[2] )
+	);
+	::N_lev32summ_cols = N Items( lev32summ_cols );
+	
+	// Add required columns to level 3.2 report output
+	For( ::r = N_lev32summ_cols, r >= 1, r--,
+		If( Type( GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[2] ) != "Matrix",
+			If( Char( lev32summ_cols[r] ) == Char( Param_Grp_Cols[1] ),
+				tmlev32tab_box << Prepend(
+					String Col Box( "PARAMETER", GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[2] )
+				), 
+
+				tmlev32tab_box << Prepend(
+					String Col Box( GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[1],
+						GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[2]
+					)
+				)
+			)
+		,
+			If( Char( lev32summ_cols[r] ) == Char( Param_Grp_Cols[1] ),
+				tmlev32tab_box << Prepend(
+					Number Col Box( "PARAMETER", GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[2] )
+				), 
+
+				tmlev32tab_box << Prepend(
+					Number Col Box( GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[1],
+						GetColAsTable( Char( lev32summ_cols[r] ), summ_tm_tab )[2]
+					)
+				)
+			)
+		)
+	);
+	Current Data Table( summ_tm_tab );
+	For Each Row( Insert Into( match_msg, If( Column( summ_tm_tab, "All Pass" )[] == 1, "Matched", "Not Matched" ) ) );
+	tmlev32tab_box << Append( String Col Box( "FINAL STATUS", match_msg ) );
+
+	// Add required columns to level 2 report output
+	For( ::r = N_Param_Grp_Cols_summlev2, r >= 1, r--,
+		If( Type( GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[2] ) != "Matrix",
+			If( Char( Eval( matchtab_grp )[r] ) == Char( Param_Grp_Cols[1] ),
+				tmlev2tab_box << Prepend(
+					String Col Box( "PARAMETER", GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[2] )
+				),
+				tmlev2tab_box << Prepend(
+					String Col Box( GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[1],
+						GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[2]
+					)
+				)
+			), 
+
+			If( Char( Eval( matchtab_grp )[r] ) == Char( Param_Grp_Cols[1] ),
+				tmlev2tab_box << Prepend(
+					Number Col Box( "PARAMETER", GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[2] )
+				),
+				tmlev2tab_box << Prepend(
+					Number Col Box( GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[1],
+						GetColAsTable( Char( Eval( matchtab_grp )[r] ), matchtab )[2]
+					)
+				)
+			)
+		)
+	);
+
+	// Add required columns to level 1 report output
+	For( ::r = N Items( Param_Grp_Cols ), r >= 1, r--,
+		If( Type( GetColAsTable( r, tm_summ_lev1 )[2] ) != "Matrix",
+			If( GetColAsTable( r, tm_summ_lev1 )[1] == Char( Param_Grp_Cols[1] ),
+				tmlev1tab_box << Prepend(
+					String Col Box( "PARAMETER", Insert( GetColAsTable( r, tm_summ_lev1 )[2], {".", "All Parameters"} ) )
+				), 
+			
+				tmlev1tab_box << Prepend(
+					String Col Box( GetColAsTable( r, tm_summ_lev1 )[1], GetColAsTable( r, tm_summ_lev1 )[2] )
+				)
+			)
+		, 
+
+			tmlev1tab_box << Prepend(
+				Number Col Box( GetColAsTable( r, tm_summ_lev1 )[1], GetColAsTable( r, tm_summ_lev1 )[2] )
+			)
+		)
+	);
+
+	// Arrange summary reports in a new window
+	TM_Summary = New Window( "Tool Matching Analysis Summary",
+		tm_lev31summ_box,
+		tm_lev32summ_box,
+		If( Col_Count == 2,
+			tm_lev2summ_box
+		),
+		tm_lev1summ_box,
+		If( TTD_Count > 0,
+			ttd_summ_box
+		),
+		GenerateTMCharts(),
+		Eval( TM_Graph_Legend ),
+		Eval( TM_Status_Guidelines ),
+		FooterBox
+	);
+	//TM_Summary << ZoomWindow;
+);
+
+////////////////////////////// GenerateTMCharts ///////////////////////////////////////////////////
+//TMM TMS Summary Chart Function
+
+GenerateTMCharts = Function( {},
+	TMM_Summ_Chart_Box = V List Box();
+	TMM_Summ_Chart_List = {};
+	TMM_Summ_Chart = {};
+	ref_line_mat = {{-1.5, -1.0, 0, 1.0, 1.5}, {., ., 1, 1.3, 1.6}};
+
+	If( N Items( Run_ID ) != 0,
+		y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {}} ),
+		y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 2 )}, {}} )
+	);
+
+	y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {Expr( cindx + 2 ), Expr( cindx + 4 )}} );
+	tm_cols = Eval Expr( {{Expr( cindx + 5 ), Expr( cindx + 6 )}, {Expr( cindx + 7 ), Expr( cindx + 8 )}} );
+
+	If( All( Matrix( levelQ ) == 1 ),
+		num_tm_cols = 2;
+		type_select = {"TMM", "TMS"};
+	,
+		num_tm_cols = 2;
+		type_select = {"TMM", "TMS"};
+
+	);
+
+	stack_tm_tab = summ_tm_tab << Stack(
+		columns( :TMM 1, :TMS 1, :TMM 2, :TMS 2 ),
+		Source Label Column( "ID" ),
+		Stacked Data Column( "Stack" )
+	);
+	temp_stk_name = "Stack";
+	stack_tm_tab << New Column( "Type" );
+	For Each Row( If( Contains( :ID[], "1" ), :Type[] = "Mean", :Type[] = "Std Dev" ) );
+
+	For( q = 1, q <= num_tm_cols, q++,
+		Current Data Table( stack_tm_tab );
+		stack_tm_tab << SelectWhere( Contains( :ID, type_select[q] ) );
+		Column( stack_tm_tab, temp_stk_name ) << SetName( type_select[q] );
+		x_stack_summ_rows = stack_tm_tab << GetSelectedRows;
+		chk_colcnt = Column( stack_tm_tab, cindx - (Col_Count) ) << GetValues;
+		x_tmm_vcht = If( N Items( Param ) != 0,
+			Insert(
+				z,
+				Eval List(
+					{Column( stack_tm_tab, param_name_arg ), Column( stack_tm_tab, "Type" ),
+					Column( stack_tm_tab, cindx - (Col_Count) )}
+				)
+			),
+			Insert( z, Eval List( {Column( stack_tm_tab, "Type" ), Column( stack_tm_tab, cindx - (Col_Count) )} ) )
+		);
+
+		If( N Items( chk_colcnt ) == N Row( Loc( chk_colcnt, "" ) ),
+			Remove From( x_tmm_vcht, N Items( x_tmm_vcht ) )
+		);
+
+		TMM_Summ_Chart[q] = H List Box(
+			Variability Chart(
+				Y( Column( stack_tm_tab, type_select[q] ) ),
+				X( Eval( x_tmm_vcht ) ),
+				Connect Cell Means( 1 ),
+				Show Group Means( 0 ),
+				Show Grand Mean( 0 ),
+				Std Dev Chart( 0 ),
+				Points Jittered( 1 ),
+				Where( Selected() )
+			)
+		);
+
+		If( q == 1,
+			temp_stk_name = "TMM";
+			TMM_Summ_Max = Max( 3, Max( Abs( Column( stack_tm_tab, type_select[q] )[x_stack_summ_rows] ) ) );
+			TMM_Summ_Min = Min( -3, -Max( Abs( Column( stack_tm_tab, type_select[q] )[x_stack_summ_rows] ) ) );
+		, 
+
+			TMM_Summ_Max = Max( 2.5, Max( Column( stack_tm_tab, type_select[q] )[x_stack_summ_rows] ) );
+			TMM_Summ_Min = Min( 0, Min( Column( stack_tm_tab, type_select[q] )[x_stack_summ_rows] ) );
+
+		);
+		TMM_Summ_Chart[q][Text Box( 1 )] << Delete;
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << Min( TMM_Summ_Min );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << Max( TMM_Summ_Max );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << Show Major Grid( 0 );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << add ref line( ref_line_mat[q][1], "Dashed", "Grey" );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << add ref line( ref_line_mat[q][2], "Dotted", "Grey" );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << add ref line( ref_line_mat[q][3], "Solid", "Grey" );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << add ref line( ref_line_mat[q][4], "Dotted", "Grey" );
+		TMM_Summ_Chart[q][Outline Box( 1 )][AxisBox( 1 )] << add ref line( ref_line_mat[q][5], "Dashed", "Grey" );
+		TMM_Summ_Chart[q][Text Box( 1 )] << SetText(
+			Munger( TMM_Summ_Chart[q][Text Box( 1 )] << GetText, 1, Char( q ), "" )
+		);
+		TMM_Summ_Chart[q][FrameBox( 1 )] << Marker Size( 2 );
+		TMM_Summ_Chart[q][FrameBox( 1 )] << RowLegend( Column( stack_tm_tab, cindx - 1 ), Color( 1 ), Marker( 1 ) );
+
+		stack_tm_tab << ClearSelect;
+		Insert Into( TMM_Summ_Chart_List, H List Box( TMM_Summ_Chart[q][Outline Box( 2 )] ) );
+		TMM_Summ_Chart_Box << Append( TMM_Summ_Chart_List[q] );
+	); //EndFor
+	Close( stack_tm_tab, NoSave );
+	Wait( 0 );
+	TMM_Summ_Chart_Box;
+); //EndFunction
+
+////////////////////////////// TM_Main ///////////////////////////////////////////////////
+::TM_Main = Expr(
+	Print( "Begin TM_Main" );
+	If( ref_select > 1,
+		If( !IS_EPASS,
+			ref_tab_join = dt << Join(
+				With( ref_tab ),
+				Merge Same Name Columns,
+				Select( :PARAMETERID ),
+				SelectWith(
+					:N Rows,
+					:Parameter Type,
+					:Center Type,
+					:Mean Parameter Center,
+					:Mean Parameter Std Dev,
+					:StdDev Parameter Mean,
+					:StdDev Parameter Std Dev,
+					:Ref Tool Name,
+					:Ref Data Source,
+					:StdDev Parameter CL,
+					:Mean Parameter TTD,
+					:StdDev Parameter TTD
+				),
+				By Matching Columns( :PARAMETERID = :PARAMETERID ),
+				Drop Multiples( 1, 0 ),
+				Include Non Matches( 1, 0 )
+			), 
+
+			If( N Row( ref_tab_join ) == 0,
+				button[1] = 2;
+				warn_msg << Append(
+					V List Box(
+						Text Box( "Reference Value Table is EMPTY!", <<FontColor( "Red" ), <<SetFontSize( 8 ) ),
+						Text Box( "" )
+					)
+				);
+			)
+		);
+
+		// Find which parameters  are in Ref Table
+		Choose( button[1],
+			matchflgvals = Column( ref_tab_join, "Match Flag" ) << GetValues;
+			delrows = ref_tab_join << GetRowsWhere( :Match Flag != 3 );
+			If( N Row( delrows ) != 0,
+				param_nomatch = Column( ref_tab_join, param_name_arg )[delrows];
+				If( N Row( delrows ) == N Row( ref_tab_join ),
+					warn_msg << Append(
+						V List Box(
+							Text Box(
+								"None of the parameters were found in the Reference Value Table!",
+								<<FontColor( "Red" ),
+								<<SetFontSize( 8 )
+							),
+							Text Box( "" )
+						)
+					)
+				);
+				warn_msg << Append(
+					V List Box(
+						String Col Box( "The following parameter(s) were not found in the Reference Value Table:",
+							Eval( param_nomatch )
+						),
+						Text Box( "" )
+					)
+				);
+				button[1] = 2; 
+			//ref_tab_join<<DeleteRows( delrows );
+			);, 
+		
+		/*ELSE EPASS*/
+			If( JMPvernum >= 8,
+				ref_tab_join = dt << Summary( Group( Param_Grp_List[1 :: N Items( Param_Grp_List )] ) ), //JMP 8
+				ref_tab_join = dt << Summary( Group( Eval( Param_Grp_List ) ) );  // JMP 5-7
+			);
+			
+			Current Data Table( ref_tab_join );
+			ref_tab_join << AddMultipleColumns( "parameter_ref_tool_name", 1, AfterLast, Character( 16 ) );
+			ref_tab_join << AddMultipleColumns( "parameter_ref_data_src", 1, AfterLast, Character( 16 ) );
+			ref_tab_join << AddMultipleColumns( "parameter_type", 1, AfterLast, Character( 8 ) );
+			ref_tab_join << AddMultipleColumns( "parameter_center_type", 1, AfterLast, Character( 8 ) );
+			ref_tab_join << AddMultipleColumns( "parameter_mean_param_center", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_mean_Param_stdev", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_stdev_param_mean", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_stdev_param_stdev", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_lsl", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_target", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_usl", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_stdev_param_cl", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_mean_param_ttd", 1, AfterLast, Numeric );
+			ref_tab_join << AddMultipleColumns( "parameter_stdev_param_ttd", 1, AfterLast, Numeric );
+			matchflgvals = J( N Row( ref_tab_join ), 1, 3 );
+		); //EndChoose
+
+		// Get Reference Table Values
+		ParamID_Ref = If( col_offset == 0,
+			Param_List[1],
+			Column( ref_tab_join, param_name_arg ) << GetValues
+		);
+		If( !IS_EPASS,
+			Param_Type_Ref = Column( ref_tab_join, "Parameter Type" ) << GetValues;
+			Center_Type_Ref = Column( ref_tab_join, "Center Type" ) << GetValues;
+			Mean_Param_Center_Ref = Column( ref_tab_join, "Mean Parameter Center" ) << GetValues;
+			Mean_Param_Std_Ref = Column( ref_tab_join, "Mean Parameter Std Dev" ) << GetValues;
+			Std_Param_Mean_Ref = Column( ref_tab_join, "StdDev Parameter Mean" ) << GetValues;
+			Std_Param_Std_Ref = Column( ref_tab_join, "StdDev Parameter Std Dev" ) << GetValues;
+			Tool_Name_Ref = Column( ref_tab_join, "Ref Tool Name" ) << GetValues;
+			Data_Source_Ref = Column( ref_tab_join, "Ref Data Source" ) << GetValues;
+			Std_Param_CL = Column( ref_tab_join, "StdDev Parameter CL" ) << GetValues;
+			Mean_Param_TTD = Column( ref_tab_join, "Mean Parameter TTD" ) << GetValues;
+			Std_Param_TTD = Column( ref_tab_join, "StdDev Parameter TTD" ) << GetValues;
+
+		, 
+
+		/*ELSE*/
+			Param_Type_Ref = Column( ref_tab_join, "parameter_type" ) << GetValues;
+			Center_Type_Ref = Column( ref_tab_join, "parameter_center_type" ) << GetValues;
+			Mean_Param_Center_Ref = Column( ref_tab_join, "parameter_mean_param_center" ) << GetValues;
+			Mean_Param_Std_Ref = Column( ref_tab_join, "parameter_mean_Param_stdev" ) << GetValues;
+			Std_Param_Mean_Ref = Column( ref_tab_join, "parameter_stdev_param_mean" ) << GetValues;
+			Std_Param_Std_Ref = Column( ref_tab_join, "parameter_stdev_param_stDev" ) << GetValues;
+			Tool_Name_Ref = Column( ref_tab_join, "parameter_ref_tool_name" ) << GetValues;
+			Data_Source_Ref = Column( ref_tab_join, "parameter_ref_data_src" ) << GetValues;
+			Std_Param_CL = Column( ref_tab_join, "parameter_stdev_param_cl" ) << GetValues;
+			Mean_Param_TTD = Column( ref_tab_join, "parameter_mean_param_ttd" ) << GetValues;
+			Std_Param_TTD = Column( ref_tab_join, "parameter_stdev_param_ttd" ) << GetValues;
+		);
+
+		// Check for reference table parameters that have no values
+		If( button[1] != 2,
+			missrows = [];
+			chkval_list = Mean_Param_Center_Ref || Mean_Param_Std_Ref || Std_Param_Mean_Ref || Std_Param_Std_Ref;
+			For( nchk = 1, nchk <= N Row( chkval_list ), nchk++,
+				If( All( Is Missing( chkval_list[nchk, 0] ) ) & Data_Source_Ref[nchk] != "Calculated",
+					missrows |/= nchk
+				)
+			);
+			If( N Row( missrows ) != 0,
+				param_novals = Column( ref_tab_join, param_name_arg )[missrows];
+				If( N Row( missrows ) == N Row( ref_tab_join ),
+					warn_msg << Append(
+						V List Box(
+							Text Box(
+								"For all the parameters, No reference values were found in the Reference Value Table!",
+								<<FontColor( "Red" ),
+								<<SetFontSize( 8 )
+							),
+							Text Box( "" )
+						)
+					)
+				);
+				warn_msg << Append(
+					V List Box(
+						String Col Box( "The following parameter(s) have no values entered in Reference Value Table:",
+							Eval( param_novals )
+						),
+						Text Box( "" )
+					)
+				);
+				button[1] = 2;
+			);
+		);
+
+	//Resize param table to only matching parameters
+		summ_param_tab << AddMultipleColumns( "Match Flag", 1, AfterLast, Numeric );
+		Column( summ_param_tab, "Match Flag" ) << SetValues( matchflgvals );
+		Match_Flag_Col = Column( summ_param_tab, "Match Flag" );
+		delrows = summ_param_tab << GetRowsWhere( :Match Flag != 3 );
+	//If( NRow(delrows) != 0,summ_param_tab<<DeleteRows(Eval( delrows )) );
+		If( col_offset == 1,
+			Param_List = Column( summ_param_tab, 1 ) << GetValues;
+			N_Params = N Items( Param_List );
+		);
+		If( N Row( summ_param_tab ) == 0,
+			button[1] = -1;
+			button[2] = -1;
+		);
+		If( !IS_EPASS, 
+			//Close(ref_tab, Save(Ref_Table_Name))
+			Close( ref_tab, NoSave )
+		);
+		Close( ref_tab_join, NoSave );
+	); //EndIf Ref_Select
+
+	////
+	If( button[1] >= 1,
+		Current Data Table( summ_param_tab );
+		If( ref_select > 1,
+			summ_param_tab << ClearSelect;
+			summ_param_tab << SelectRows( 1 :: N Row( summ_param_tab ) );
+			Current Data Table( summ_grp_tab );
+			summ_grp_tab << InvertRowSelection;
+			delrows = summ_grp_tab << GetSelectedRows;
+			If( N Row( delrows ) != 0,
+				summ_grp_tab << DeleteRows( Eval( delrows ) )
+			);
+		); //end if (ref_select > 1)
+
+
+
+		Group_ID = GetTableAsText( summ_grp_tab );
+		summ_grp_tab << AddMultipleColumns( "Ref Mean (Mean(Param Value)", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Mean (Std(Param Value)", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Std (Mean(Param Value)", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Std (Std(Param Value)", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Type", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Use Target", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Tool", 1, AfterLast, Character );
+		summ_grp_tab << AddMultipleColumns( "Param Type", 1, AfterLast, Character );
+
+		summ_grp_tab << AddMultipleColumns( "Mean TTD", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Mean TTD Type", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "StdDev TTD", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "StdDev TTD Type", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Ref Target", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "Target for Mean", 1, AfterLast, Numeric );
+		summ_grp_tab << AddMultipleColumns( "CL for StdDev", 1, AfterLast, Numeric );
+
+		RefMM_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 1 );
+		RefMS_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 2 );
+		RefSM_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 3 );
+		RefSS_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 4 );
+		RefTYP_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 5 );
+		UseTAR_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 6 );
+		RefTOL_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 7 );
+		ParamType_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 8 );
+
+		TTDX_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 9 );
+		UseTDX_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 10 );
+		TTDS_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 11 );
+		UseTDS_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 12 );
+		RefTarget_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 13 );
+		TTD_X_Target_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 14 );
+		TTD_S_CL_Col = Column( summ_grp_tab, N_Param_Grp_Cols + 15 );
+
+
+		N_Param_Groups = N Row( summ_grp_tab );
+
+		//Cycle through parameterid groups for apply/enter of reference values
+		::p = 1;
+		While( (p <= N_Params) & (button[2] == 1),
+			Current Data Table( summ_param_tab );
+			summ_param_tab << ClearSelect;
+			Selected( Row State( p ) ) = 1;
+			x_rows = summ_tab << GetRowsWhere( Selected() & !Excluded() );
+			x_summ_rows = summ_tm_tab << GetRowsWhere( Selected() & !Excluded() );
+
+		//Validate RunID choice. Only valid if 2 level data detected
+			Current Data Table( summ_tab );
+			If( N Items( Run_ID ) != 0,
+				x_cnt = Column( summ_tab, "N Rows" )[x_rows];
+				levchk_list = Loc( x_cnt > 1 );
+				If( Sum( x_cnt ) == N Row( x_rows ),
+					levelQ[p] = 1, 
+
+					levelQ[p] = 2
+				);
+			,  //EndIf Sum(x_cnt)
+				levelQ[p] = 1
+			); //EndIf NItems( Run_ID )
+
+			// Enter Reference Tool Values or Calc from Data
+			If( ref_select > 1,
+				If( Match_Flag_Col[p] != 3,
+					Skip[p] = 1,
+					Skip[p] = 0
+				);
+				Param_List[p] = ParamID_Ref[p];
+				If( Uppercase( Data_Source_Ref[p] ) == "HISTORICAL" | Uppercase( Data_Source_Ref[p] ) == "ENTERED" | Uppercase( Data_Source_Ref[p] ) == "FIXED VALUES",
+					Ref_Choice = 1,
+					Ref_Choice = 2
+				);
+				If( Uppercase( Param_Type_Ref[p] ) == "RAW",
+					levelQ[p] = 2,
+					levelQ[p] = 1
+				);
+				If( Uppercase( Center_Type_Ref[p] ) == "TARGET",
+					use_tgt = 1,
+					use_tgt = 0
+				);
+				Ref_Tool_Name = Tool_Name_Ref[p];
+				button[2] = 1;
+			, 
+
+			/*ELSE*/
+				::Choice = Dialog(
+					Title( "Matching Method" ),
+					LineUp( 2, Char( "Choose Matching Method for " ), Char( Param_List[p] ) ),
+					" ",
+					VList(
+						Ref_Choice = RadioButtons(
+							"Calculate Reference Tool Values from this Data",
+							"Enter Historical Reference Tool Values (Fixed Values)"
+						),
+						Use_TTD0 = Check Box( "Apply TTD", 0 ),
+						HList( Button( "OK" ), Button( "Cancel" ) )
+					); //endVlist
+				); //end Choice = Dialog.
+
+
+				Ref_Choice = Choice["Ref_Choice"];
+
+				If( Ref_Choice == 1,
+					Ref_Choice = 2,
+					Ref_Choice = 1
+				);
+
+				Use_TTD = Choice["Use_TTD0"];
+
+				button[2] = Choice["Button"];
+			);//End if ref_select
+
+			If( button[2] == 1,
+				Current Data Table( summ_tm_tab );
+				ytemp = Char( Param_List[p] );
+				If( levelQ[p] == 1,
+					yname[1] = ytemp;
+					If( N Items( Run_ID ) != 0,
+						y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {}} ),
+						y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 2 )}, {}} )
+					);
+				, 
+
+				/*ELSE*/
+					yname = Eval List( {"Mean " || ytemp, "Std Dev " || ytemp} );
+					y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {Expr( cindx + 2 ), Expr( cindx + 4 )}} );
+
+				);
+
+				For( ::q = 1, q <= levelQ[p], q++,
+					Y_Name = yname[q];
+					If( Ref_Choice == 1, 
+					// (1) Enter historical data for MEAN if 2-level or Single Param if 1-level
+						//		Choose( q,
+						If( q == 1,
+							If( ref_select > 1,
+								x[q] = Mean_Param_Center_Ref[p];
+								s[q] = Mean_Param_Std_Ref[p];
+								Use_Target[q] = use_tgt;
+								button[2] = 1;
+
+								TTD_X[q] = Mean_Param_TTD[p];
+								TTD_X_Target[q] = x[q];
+								Targets[q] = x[q];
+
+								If( !Is Missing( TTD_X[q] ) & !Is Missing( Targets[q] ),
+									Use_X_TTD = 1;
+									Use_Target[q] = 1;
+								);
+							, 
+	    							
+							/*ELSE*/
+								If( Use_TTD < 1,
+									::Hist_ref = Dialog(
+										Title( "Fixed Value" ),
+										LineUp( 2, Char( "Enter Reference Tool Values for Parameter:" ), Y_Name ),
+										" ",
+										Lineup( 2,
+											Use_Target = RadioButtons( "Target", "Mean" ), x = EditNumber(),
+											"Standard Deviation", s = EditNumber(),
+											"Tool Name (optional)", Ref_Tool_Name = EditText()
+										),
+										HList( Button( "OK" ), Button( "Cancel" ) )
+									);
+
+									x[q] = Hist_ref["x"];
+									s[q] = Hist_ref["s"];
+									Use_Target[q] = Hist_ref["Use_Target"];
+									TTD_X[q] = 0;
+
+								, //ELSE
+									error_checking = 0;
+									While( error_checking == 0,
+										Use_X_TTD = 0;
+										::Hist_ref = Dialog(
+											Title( "Fixed Value + TTD" ),
+											LineUp( 2, Char( "Enter Reference Tool Values for Parameter:" ), Y_Name ),
+											" ",
+											Lineup( 2,
+												"Reference Tool Target value for Mean", TTD_X_Target = EditNumber(),
+												"Reference Tool Standard Deviation for Mean  ", s = EditNumber(),
+												"TTD for Mean         ", X_TTD = EditNumber(),
+												"Tool Name (optional) ", Ref_Tool_Name = EditText(),
+												"NOTE: Target and StdDev values MUST be given when TTD is used!", ""
+											),
+											HList( Button( "OK" ), Button( "Cancel" ) )
+										); // end Hist_ref dialog
+	
+	
+										X1 = Hist_ref["X_TTD"];
+										X2 = Hist_ref["TTD_X_Target"];
+										X3 = Hist_ref["s"];
+	
+	
+										If( !Is Missing( X1 ) & !Is Missing( X2 ) & !Is Missing( X3 ),
+											error_checking = 1;
+											Use_X_TTD = 1;
+											Use_Target[q] = 1;
+										);
+	
+										If( Is Missing( X1 ) & !Is Missing( X3 ),
+											error_checking = 1;
+											Use_Target[q] = 0;
+										);
+									); //end while (error_checking == 0...)
+
+									x[q] = Hist_ref["TTD_X_Target"];
+									s[q] = Hist_ref["s"];
+									TTD_X_Target[q] = Hist_ref["TTD_X_Target"];
+									Targets[q] = Hist_ref["TTD_X_Target"];
+									TTD_X[q] = Hist_ref["X_TTD"];
+
+								); // end if (Use_TTD < 1....)
+
+
+								Ref_Tool_Name = Hist_ref["Ref_Tool_Name"];
+
+								button[2] = Hist_ref["Button"];
+							); //end If(ref_select...)
+
+							If( Is Missing( TTD_X[q] ) | TTD_X[q] == 0,
+								Use_X_TTD = 0,
+								Use_X_TTD = 1;
+								TTD_Count += 1;
+							);
+							Use_TTD_X[q] = Use_X_TTD;
+						); //end if ( q==1...)
+						// (2) Enter historical data for STD if 2-level
+						If( q == 2,
+							If( ref_select > 1,
+								x[q] = Std_Param_Mean_Ref[p];
+								s[q] = Std_Param_Std_Ref[p];
+								button[2] = 1;
+
+								TTD_S_CL[q - 1] = Std_Param_CL[p];
+								Targets[q] = TTD_S_CL[q - 1];
+								TTD_S[q - 1] = Std_Param_TTD[p];
+
+								If( !Is Missing( TTD_S[q - 1] ) & !Is Missing( TTD_S_CL[q - 1] ),
+									Use_Target[q] = 1
+								);
+	
+								If( Is Missing( TTD_S[q - 1] ),
+									Use_Target[q] = 0
+								);
+
+							, 
+							/*ELSE*/
+								If( Use_TTD < 1,
+									::Hist_ref = Dialog(
+										Title( "Fixed Value" ),
+										LineUp( 2, Char( "Enter Reference Tool Values for Parameter:" ), Y_Name ),
+										" ",
+										Lineup( 2,
+											Use_Target = RadioButtons( "Mean" ), x = EditNumber(),
+											"Standard Deviation", s = EditNumber()
+										),
+										HList( Button( "OK" ), Button( "Cancel" ) )
+									);
+									TTD_S[q - 1] = 0;
+									x[q] = Hist_ref["x"];
+									s[q] = Hist_ref["s"];
+
+								, //ESLE
+									error_checking = 0;
+									While( error_checking == 0,
+										Use_S_TTD = 0;
+										::Hist_ref = Dialog(
+											Title( "Fixed Value + TTD" ),
+											LineUp( 2, Char( "Enter Reference Tool Values for Parameter:" ), Y_Name ),
+											" ",
+											Lineup( 2,
+												"Enter Center Line for StdDev", TTD_S_CL = EditNumber(),
+												"Standard Deviation for StdDev", s = EditNumber(),
+												"TTD for StdDev    ", S_TTD = EditNumber(),
+												"NOTE: Center line and StdDev values MUST be given when TTD is used!", ""
+											),
+											HList( Button( "OK" ), Button( "Cancel" ) )
+										); //end Hist_ref = Dialog....
+
+										X4 = Hist_ref["S_TTD"];
+										X5 = Hist_ref["TTD_S_CL"];
+										X6 = Hist_ref["s"];
+	
+	
+										If( !Is Missing( X4 ) & !Is Missing( X5 ) & !Is Missing( X6 ),
+											error_checking = 1;
+											TTD_S[q - 1] = Hist_ref["S_TTD"];
+											Use_Target[q] = 1;
+											Use_S_TTD = 1;
+										);
+	
+										If( Is Missing( X4 ) & !Is Missing( X6 ),
+											error_checking = 1;
+											Use_Target[q] = 0;
+										);
+
+									); //end while (error_checking == 0...)
+
+
+									x[q] = Hist_ref["TTD_S_CL"];
+									s[q] = Hist_ref["s"];
+									TTD_S_CL[q - 1] = Hist_ref["TTD_S_CL"];
+									Targets[q] = Hist_ref["TTD_S_CL"];
+									TTD_S[q - 1] = Hist_ref["S_TTD"];
+
+								); // end if(Use_TTD < 1....)
+
+								button[2] = Hist_ref["Button"];
+							); //end If(ref_select...)
+
+							If( Is Missing( TTD_S[q - 1] ) | TTD_S[q - 1] == 0,
+								Use_S_TTD = 0,
+								Use_S_TTD = 1;
+								TTD_Count += 1;
+							);
+							Use_TTD_S[q - 1] = Use_S_TTD;
+								
+						);  // End if (q==2....)Choose
+					, 
+					/*ELSE*/
+						//Ref_Choice==2 and calculate from data
+						Entity_List = Column( summ_tm_tab, Eval( Ent_Col_Name ) )[x_summ_rows];
+						Try( Remove From( Entity_List, MatrixAsList( Loc( Entity_List, "" ) ) ) );
+	
+						If( q == 1,
+							If( ref_select > 1,
+								Use_Target[q] = use_tgt;
+								Targets[q] = Mean_Param_Center_Ref[p];
+								button[2] = 1;
+
+								x[q] = Mean_Param_Center_Ref[p];
+								s[q] = Mean_Param_Std_Ref[p];
+
+
+								TTD_X[q] = Mean_Param_TTD[p];
+								TTD_X_Target[q] = x[q];
+								
+								If( !Is Missing( TTD_X[q] ) & !Is Missing( Targets[q] ),
+									Use_X_TTD = 1;
+									Use_Target[q] = 1;
+								);
+
+								TTD_S_CL[q] = Std_Param_CL[p];
+								Targets[q] = TTD_S_CL[q];
+								TTD_S[q] = Std_Param_TTD[p];
+
+								If( !Is Missing( TTD_S[q] ) & !Is Missing( TTD_S_CL[q] ),
+									Use_Target[q] = 1
+								);
+	
+								If( Is Missing( TTD_S[q] ),
+									Use_Target[q] = 0
+								);
+
+							,
+								Eval( RefToolExpr )
+							); //EndIf ref_select
+
+							For( n = 1, n <= N Items( Entity_List ), n++,
+								If( Trim( Entity_List[n] ) != "" & Ref_Tool_Name == Entity_List[n],
+									found = 1;
+									n = N Items( Entity_List );
+								,
+									found = 0
+								)
+							);
+							If( !found,
+								If( !IS_EPASS,
+									::tool_chk = Dialog(
+										HList(
+											"For parameter: ",
+											Y_Name,
+											" reference tool ",
+											Ref_Tool_Name,
+											" was not found in this dataset."
+										),
+										HList(
+											"Press OK to select from a list of valid tools or CANCEL to continue with no reference tool."
+										),
+										HList( Button( "OK" ), Button( "Cancel" ) )
+									);
+									button[3] = tool_chk["Button"];
+									If( button[3] == 1,
+										Eval( RefToolExpr ),
+										Skip[p] = 1
+									);
+								,
+									NULL; //Write to log file: "Reference Tool not found"
+									button[3] = 1;
+								)
+							,
+								Ref_Row_Indxs = summ_tm_tab << GetRowsWhere(
+									Column( summ_tm_tab, Eval( Ent_Col_Name ) )[] == Ref_Tool_Name & Selected() & !
+									Excluded()
+								)
+							);
+						); //EndIf (q == 1...)
+
+						If( N Row( Ref_Row_Indxs ) != 0,
+							xx = Mean( Column( summ_tm_tab, Eval( y_cols[q][1] ) )[Ref_Row_Indxs] );
+							x[q] = xx;
+							ss = Mean( Column( summ_tm_tab, Eval( y_cols[q][2] ) )[Ref_Row_Indxs] );
+							s[q] = ss;
+						, 
+
+							x[q] = .;
+							s[q] = .;
+						);
+
+
+						If( Use_Target[q] == 1,
+							x[q] = Targets[q]
+						);
+
+						If( Use_TTD_X > 0 | Use_TTD_S > 0,
+							x[q] = Targets[q]
+						);
+
+
+					); //EndIf RefChoice
+				);  //EndFor (q)
+
+				Insert Into( Ref_Means, Eval List( {x} ) );
+				Insert Into( Ref_Std, Eval List( {s} ) );
+				Insert Into( Ref_Type, Ref_Choice );
+				Insert Into( Target_Values, Eval List( {Targets[1]} ) );
+				Insert Into( Use_Targets, Eval List( {Use_Target[1]} ) );
+				Insert Into( TTD_Xs, Eval List( {TTD_X[1]} ) );
+				Insert Into( Use_TTD_Xs, Eval List( {Use_TTD_X[1]} ) );
+				Insert Into( TTD_Ss, Eval List( {TTD_S[1]} ) );
+				Insert Into( Use_TTD_Ss, Eval List( {Use_TTD_S[1]} ) );
+				Insert Into( Ref_Tools_ID, Ref_Tool_Name );
+				Insert Into( TTD_X_Targets, Eval List( {TTD_X_Target[1]} ) );
+				Insert Into( TTD_S_CLs, Eval List( {TTD_S_CL[1]} ) );
+				x = J( 2, 1, 0 );
+				s = x;
+				Targets = x;
+				Use_Target = x;
+				TTD_X = J( 2, 1, . );
+				Use_TTD_X = x;
+				TTD_X_Target = x;
+				TTD_S = J( 2, 1, . );
+				Use_TTD_S = x;
+				TTD_S_CL = J( 2, 1, . );
+		
+				Current Data Table( summ_grp_tab );
+				For Each Row(
+					If( Selected(),
+						RefMM_Col[] = Ref_Means[p][1];
+						RefMS_Col[] = Ref_Means[p][2];
+						RefSM_Col[] = Ref_Std[p][1];
+						RefSS_Col[] = Ref_Std[p][2];
+						RefTYP_Col[] = Ref_Type[p];
+						UseTAR_Col[] = Use_Targets[p];
+						RefTarget_Col[] = Target_Values[p];
+						TTDX_Col[] = TTD_Xs[p];
+						TTDS_Col[] = TTD_Ss[p];
+						TTD_X_Target_Col[] = TTD_X_Targets[p];
+						TTD_S_CL_Col[] = TTD_S_CLs[p];
+						UseTDX_Col[] = Use_TTD_Xs[p];
+						UseTDS_Col[] = Use_TTD_Ss[p];
+						RefTOL_Col[] = Ref_Tools_ID[p];
+						ParamType_Col[] = Char( levelQ[p] );
+					)
+				);
+			); //EndIf button[2]==1
+			p++;
+		); //EndWhile p
+
+		/////////////////////////////// End Collect User Input ///////////////////////////////
+
+		///////////////////////////////Setup TMM/TMS table////////////////////////////////////
+
+		If( button[2] == 1, 
+		//Create TMM & TMS cols
+			summ_tm_tab << New Column( "TMM 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TMS 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TMM 2", Numeric, Continuous );
+			summ_tm_tab << New Column( "TMS 2", Numeric, Continuous );
+		//Create Flag Columns
+			summ_tm_tab << New Column( "TMM Status 1", Character, Nominal );
+			summ_tm_tab << New Column( "TMS Status 1", Character, Nominal );
+			summ_tm_tab << New Column( "TMM Pass 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TMS Pass 1", Numeric, Continuous );
+			summ_tm_tab << AddMultipleColumns( "TMM RowStates 1", 1, AfterLast, RowState );
+			summ_tm_tab << AddMultipleColumns( "TMS RowStates 1", 1, AfterLast, RowState );
+			summ_tm_tab << New Column( "TMM Status 2", Character, Nominal );
+			summ_tm_tab << New Column( "TMS Status 2", Character, Nominal );
+			summ_tm_tab << New Column( "TMM Pass 2", Numeric, Continuous );
+			summ_tm_tab << New Column( "TMS Pass 2", Numeric, Continuous );
+		//Create TTD cols
+			summ_tm_tab << New Column( "TTD 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD 2", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD Calc 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD Calc 2", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD Ratio 1", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD Ratio 2", Numeric, Continuous );
+			summ_tm_tab << New Column( "TTD Status 1", Character, Nominal );
+			summ_tm_tab << New Column( "TTD Status 2", Character, Nominal );
+
+			summ_tm_tab << AddMultipleColumns( "TMM RowStates 2", 1, AfterLast, RowState );
+			summ_tm_tab << AddMultipleColumns( "TMS RowStates 2", 1, AfterLast, RowState );
+			summ_tm_tab << New Column( "All Pass", Numeric, Continuous );
+
+		// Get # of lots and # samples per lot per group
+			 :: Samp_Grp_List = Insert( Param_Grp_Cols, Eval List( {Parse( "N Rows" ), Column( summ_tab, cindx_run )} ) );
+			If( JMPvernum >= 8,
+				::samplesizedt = summ_tab << Summary( Group( Samp_Grp_List[1 :: N Items( Samp_Grp_List )] ) ), //JMP 8
+				 :: samplesizedt = summ_tab << Summary( Group( Eval( Samp_Grp_List ) ) );  // JMP 5-7
+			);
+			
+			Current Data Table( samplesizedt );
+			samplesizedt << AddMultipleColumns( "Delta", 1, AfterLast, Numeric );
+			::N_Samp_Grp_List = N Col( samplesizedt );
+			Column( samplesizedt, "Delta" ) << SetFormula(
+				Column( samplesizedt, "N Rows" )[] - Column( samplesizedt, N_Samp_Grp_List - 2 )[]
+			);
+			samplesizedt << RunFormulas;
+	
+			////////////////////////////Iterate through param grps/////////////////////////////////////
+			::indx = 1;
+
+			While( indx <= N_Param_Groups,
+				Current Data Table( summ_grp_tab );
+				If( col_offset == 0,
+					param_arg = Param_List[1],
+					param_arg = Column( summ_grp_tab, param_name_arg )[indx]
+				);
+				summ_grp_tab << ClearSelect;
+				Current Data Table( summ_grp_tab );
+				Selected( Row State( indx ) ) = 1;
+				x_rows_grp = summ_tab << GetRowsWhere( Selected() & !Excluded() );
+				x_summ_rows_grp = summ_tm_tab << GetRowsWhere( Selected() & !Excluded() );
+				sampsize_rows = samplesizedt << GetRowsWhere( Selected() & !Excluded() );
+				N_lotgrps[indx] = Column( samplesizedt, "N Rows 2" )[sampsize_rows];
+				N_samples[indx] = Column( samplesizedt, "Delta" )[sampsize_rows];
+
+				// Validate RunID choice. Only valid if 2 level data detected
+				Current Data Table( summ_tab );
+				If( N Items( Run_ID ) != 0,
+					x_cnt = Column( summ_tab, "N Rows" )[x_rows_grp];
+					levchk_list = Loc( x_cnt > 1 );
+					If( Sum( x_cnt ) == N Row( x_rows_grp ),
+						lev_type[indx] = 1,
+						lev_type[indx] = 2
+					);
+				,  //EndIf Sum(x_cnt)
+
+/*ELSE*/
+					lev_type[indx] = 1
+				); //EndIf NItems( Run_ID )
+
+				Current Data Table( summ_grp_tab );
+				If( ref_select > 1,
+					If( Num( ParamType_Col[indx] ) == 1,
+						lev_type[indx] = 1,
+						lev_type[indx] = 2
+					)
+				);
+
+				If( lev_type[indx] == 1,
+					maindt = dt;
+					yname[1] = param_arg;
+					If( N Items( Run_ID ) != 0,
+						y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {}} ),
+						y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 2 )}, {}} )
+					);
+
+					tm_cols = Eval Expr( {{Expr( cindx + 5 ), Expr( cindx + 6 )}, {}} );
+					tmstat_cols = Eval Expr( {{Expr( cindx + 9 ), Expr( cindx + 10 )}, {}} );
+				, 
+
+				// ELSEIf 2 Level Data (presummarized), do mean and stdev for each summary stat and assign proper column indices for TMM/TMS (4 cols)
+					maindt = summ_tab;
+					yname = Eval List( {"Mean " || param_arg, "Std Dev " || param_arg} );
+					y_cols = Eval Expr( {{Expr( cindx + 1 ), Expr( cindx + 3 )}, {Expr( cindx + 2 ), Expr( cindx + 4 )}} );
+					tm_cols = Eval Expr( {{Expr( cindx + 5 ), Expr( cindx + 6 )}, {Expr( cindx + 7 ), Expr( cindx + 8 )}} );
+					tmstat_cols = Eval Expr(
+						{{Expr( cindx + 9 ), Expr( cindx + 10 )}, {Expr( cindx + 15 ), Expr( cindx + 16 )}}
+					);
+				);  // end if ( lev_type[indx] ....)
+
+				//Calculate TMM and TMS and create Match Pass Columns
+
+
+				Current Data Table( summ_tm_tab );
+				If( !Zero Or Missing( RefSM_Col[indx] ), 
+
+					TMM1_val = Expr( (Column( summ_tm_tab, Eval( y_cols[1][1] ) )[] - RefMM_Col[indx]) / RefSM_Col[indx] );
+
+					If( !Is Missing( TTDX_Col[indx] ) & TTDX_Col[indx] > 0,
+						TMM_adj_flag = Expr( (Column( summ_tm_tab, Eval( y_cols[1][1] ) )[] - TTD_X_Target_Col[indx]) );
+						TMM1_val_high = Expr(
+							(Column( summ_tm_tab, Eval( y_cols[1][1] ) )[] - TTD_X_Target_Col[indx] - TTDX_Col[indx]) /
+							RefSM_Col[indx]
+						);
+						TMM1_val_low = Expr(
+							(Column( summ_tm_tab, Eval( y_cols[1][1] ) )[] - TTD_X_Target_Col[indx] + TTDX_Col[indx]) /
+							RefSM_Col[indx]
+						);
+					); // end if (TTDX_Col[indx] > 0,...)
+
+					TMS1_val = Expr( Column( summ_tm_tab, Eval( y_cols[1][2] ) )[] / RefSM_Col[indx] );
+				, 
+
+				/*ELSE*/
+					TMM1_val = Expr( . );
+					TMS1_val = Expr( . );
+				);
+
+
+				For Each Row(
+					If( Selected(), 
+
+						If( Is Missing( TTDX_Col[indx] ) | TTDX_Col[indx] <= 0,
+							:TMM 1[] = Eval( TMM1_val ), 
+						/* ELSE */
+							If( Eval( TMM_adj_flag ) > TTDX_Col[indx],
+								:TMM 1[] = Eval( TMM1_val_high ),
+								If( Eval( TMM_adj_flag ) < -TTDX_Col[indx],
+									:TMM 1[] = Eval( TMM1_val_low ),
+									:TMM 1[] = 0
+								)
+							)
+						); //end if (TTDX_Col[indx] <= 0)
+
+
+						:TMS 1[] = Eval( TMS1_val );
+						:TTD 1[] = TTDX_Col[indx];
+
+						ii = Eval( Loc( all_params, param_arg ) );
+
+						If( Use_Targets[indx] == 1,
+							TTD_Cal_tmp = Max(
+								Abs( all_MinTMean[ii] - Target_Values[indx] ),
+								Abs( all_MaxTMean[ii] - Target_Values[indx] )
+							);
+							:TTD Calc 1[] = TTD_Cal_tmp;
+						, 
+						//ELSE if target is NOT used
+							TTD_Cal_tmp = Max(
+								Abs( all_MinTMean[ii] - all_GrandMean[ii] ),
+								Abs( all_MaxTMean[ii] - all_GrandMean[ii] )
+							);
+							:TTD Calc 1[] = TTD_Cal_tmp;
+
+						);
+						TTD_Ratio_tmp = :TTD 1[] / :TTD Calc 1[];
+						:TTD Ratio 1[] = TTD_Ratio_tmp;
+						If( :TTD Ratio 1[] > 1.6,
+							TTD_Stat_tmp = "Flag";
+							:TTD Status 1[] = TTD_Stat_tmp;
+						, 
+
+							If( :TTD Ratio 1[] > 1.3,
+								TTD_Stat_tmp = "Warning";
+								:TTD Status 1[] = TTD_Stat_tmp;
+							,
+								TTD_Stat_tmp = "";
+								:TTD Status 1[] = "";
+							)
+						);
+
+
+					)
+				);
+
+				Insert Into( ttd_summ_params, Eval List( {"Mean of " || Char( param_arg )} ) );
+				ttd_summ_ref |/= TTDX_Col[indx];
+				ttd_summ_Calc |/= TTD_Cal_tmp;
+				ttd_summ_Ratio |/= TTD_Ratio_tmp;
+				Insert Into( ttd_summ_Stat, TTD_Stat_tmp );
+
+				If( lev_type[indx] == 2,
+					If( !Zero Or Missing( RefSS_Col[indx] ),
+						TMM2_val = Expr(
+							(Column( summ_tm_tab, Eval( y_cols[2][1] ) )[] - RefMS_Col[indx]) / RefSS_Col[indx]
+						);
+			
+						If( !Is Missing( TTDS_Col[indx] ) & TTDS_Col[indx] > 0, 
+
+							TMM_adj_flag = Expr( (Column( summ_tm_tab, Eval( y_cols[2][1] ) )[] - TTD_S_CL_Col[indx]) );
+							TMM2_val = Expr(
+								(Column( summ_tm_tab, Eval( y_cols[2][1] ) )[] - TTD_S_CL_Col[indx] - TTDS_Col[indx]) /
+								RefSS_Col[indx]
+							);
+						); // end if (TTDS_Col[indx]...)
+
+						//modified based on new formula
+
+						tool_Mean = Eval Expr( Expr( (Column( summ_tm_tab, Eval( y_cols[2][1] ) )) ) );//removed the subscript JMP11 fix
+						//tool_Mean = Eval Expr( Expr( (Column( summ_tm_tab, Eval( y_cols[2][1] ) )[]) ) );
+
+
+						TMS2_val = Expr( Column( summ_tm_tab, Eval( y_cols[2][2] ) )[] / RefSS_Col[indx] );
+					, 
+					/*ELSE*/
+						TMM2_val = Expr( . );
+						TMS2_val = Expr( . );
+					);
+
+					For Each Row(
+						If( Selected(),
+							If( Is Missing( TTDS_Col[indx] ) | TTDS_Col[indx] <= 0,
+								:TMM 2[] = Eval( TMM2_val ), 
+							/* ELSE */
+								If( Eval( TMM_adj_flag ) > TTDS_Col[indx],
+									:TMM 2[] = Eval( TMM2_val ),
+									:TMM 2[] = 0
+								)
+							); //end if (TTDS_Col[indx] <= 0)
+
+							:TMS 2[] = Eval( TMS2_val );
+							:TTD 2[] = TTDS_Col[indx];
+
+							If( !Is Missing( TTDS_Col[indx] ) & TTDS_Col[indx] > 0, 
+
+								ii = Eval( Loc( all_params, param_arg ) );
+
+								TTD_Cal_tmp = all_MaxTMean_s[ii] - TTD_S_CL_Col[indx];
+								If( TTD_Cal_tmp < 0,
+									:TTD Calc 2[] = .;
+									:TTD Ratio 2[] = .;
+									:TTD Status 2[] = "Flag - CL too high";
+									TTD_Cal_tmp = .;
+									TTD_Ratio_tmp = .;
+									TTD_Stat_tmp = "Flag - CL too high";
+								,
+									:TTD Calc 2[] = TTD_Cal_tmp;
+									TTD_Ratio_tmp = :TTD 2[] / :TTD Calc 2[];
+									:TTD Ratio 2[] = TTD_Ratio_tmp;
+									If( :TTD Ratio 2[] > 1.6,
+										TTD_Stat_tmp = "Flag";
+										:TTD Status 2[] = TTD_Stat_tmp;
+									,
+										If( :TTD Ratio 2[] > 1.3,
+											TTD_Stat_tmp = "Warning";
+											:TTD Status 2[] = TTD_Stat_tmp;
+										,
+											:TTD Status 2[] = "";
+											TTD_Stat_tmp = "";
+										)
+									); //
+								); //end if(TTD_Cal_tmp < 0...)
+							); //end if(!Is Missing...)
+						) //end if(Selected...)
+					); // end For each Row(...)
+
+					Insert Into( ttd_summ_params, Eval List( {"Std Dev of " || Char( param_arg )} ) );
+					ttd_summ_ref |/= TTDS_Col[indx];
+					ttd_summ_Calc |/= TTD_Cal_tmp;
+					ttd_summ_Ratio |/= TTD_Ratio_tmp;
+					Insert Into( ttd_summ_Stat, TTD_Stat_tmp );
+
+
+				); //EndIf lev_type
+			
+				//Decide TMM and TMS stati
+				For Each Row(
+					If( Selected() & !Excluded(),
+						If( Abs( :TMM 1[] ) > 1.5,
+							Column( summ_tm_tab, "TMM Status 1" )[] = "Flag",
+							If( 1 < Abs( :TMM 1[] ) <= 1.5,
+								Column( summ_tm_tab, "TMM Status 1" )[] = "Warning",
+								If(
+									!UseTAR_Col[indx] & (Column( summ_tm_tab, Eval( Ent_Col_Name ) )[] == RefTOL_Col[indx])
+									 & :TMM 1[] == 0,
+									Column( summ_tm_tab, "TMM Status 1" )[] = "Reference"
+								)
+							)
+						);
+
+						If( :TMS 1[] > 1.6,
+							Column( summ_tm_tab, "TMS Status 1" )[] = "Flag",
+							If( 1.3 < :TMS 1[] <= 1.6,
+								Column( summ_tm_tab, "TMS Status 1" )[] = "Warning",
+								If( Column( summ_tm_tab, Eval( Ent_Col_Name ) )[] == RefTOL_Col[indx] & :TMS 1[] == 1,
+									Column( summ_tm_tab, "TMS Status 1" )[] = "Reference"
+								)
+							)
+						);
+
+						If( :TMM 2[] > 1.5,
+							Column( summ_tm_tab, "TMM Status 2" )[] = "Flag",
+							If( 1 < :TMM 2[] <= 1.5,
+								Column( summ_tm_tab, "TMM Status 2" )[] = "Warning",
+								If( Column( summ_tm_tab, Eval( Ent_Col_Name ) )[] == RefTOL_Col[indx] & :TMM 2[] == 0,
+									Column( summ_tm_tab, "TMM Status 2" )[] = "Reference"
+								)
+
+							)
+						);
+
+						If( :TMS 2[] > 1.6,
+							Column( summ_tm_tab, "TMS Status 2" )[] = "Flag",
+							If( 1.3 < :TMS 2[] <= 1.6,
+								Column( summ_tm_tab, "TMS Status 2" )[] = "Warning",
+								If( Column( summ_tm_tab, Eval( Ent_Col_Name ) )[] == RefTOL_Col[indx] & :TMS 2[] == 1,
+									Column( summ_tm_tab, "TMS Status 2" )[] = "Reference"
+								)
+							)
+						);
+					); //EndIf Selected()
+				); //EndForEach
+				summ_tm_tab << Run Formulas;
+
+				//ColorMark TMM RowState Col by TMM Status
+				For Each Row(
+					If( Selected(), 
+					/*ColorMark WARNING*/
+						If( :TMM Status 1[] == "Warning",
+							:TMM RowStates 1[] = Combine States( Color State( 38 ), Marker State( 2 ) );
+							:TMM Pass 1[] = 1;
+						,  			
+							/*ColorMark FLAG*/
+							If( :TMM Status 1[] == "Flag",
+								:TMM RowStates 1[] = Combine States( Color State( 19 ), Marker State( 11 ) );
+								:TMM Pass 1[] = 0;
+							, 
+						
+							/*ELSE ColorMark PASS*/
+								:TMM RowStates 1[] = Combine States( Color State( 4 ), Marker State( 3 ) );
+								:TMM Pass 1[] = 1;
+							)
+						)
+					)
+				);
+
+				If( lev_type[indx] == 2,
+					For Each Row(
+						If( Selected(), 		 
+							/*ColorMark WARNING*/
+							If( :TMM Status 2[] == "Warning",
+								:TMM RowStates 2[] = Combine States( Color State( 38 ), Marker State( 2 ) );
+								:TMM Pass 2[] = 1;
+							,  			
+							/*ColorMark FLAG*/
+								If( :TMM Status 2[] == "Flag",
+									:TMM RowStates 2[] = Combine States( Color State( 19 ), Marker State( 11 ) );
+									:TMM Pass 2[] = 0;
+								, 
+							/*ELSE ColorMark PASS*/
+									:TMM RowStates 2[] = Combine States( Color State( 4 ), Marker State( 3 ) );
+									:TMM Pass 2[] = 1;
+								)
+							)
+						)
+					)
+				);
+
+				//ColorMark TMS RowState Col by TMS Status
+				For Each Row(
+					If( Selected(),  
+					/*ColorMark WARNING*/
+						If( :TMS Status 1[] == "Warning",
+							:TMS RowStates 1[] = Combine States( Color State( 38 ), Marker State( 2 ) );
+							:TMS Pass 1[] = 1;
+						, 			
+				
+							/*ColorMark FLAG*/
+							If( :TMS Status 1[] == "Flag",
+								:TMS RowStates 1[] = Combine States( Color State( 19 ), Marker State( 11 ) );
+								:TMS Pass 1[] = 0;
+							,  		
+		
+							/*ELSE ColorMark PASS*/
+								:TMS RowStates 1[] = Combine States( Color State( 4 ), Marker State( 3 ) );
+								:TMS Pass 1[] = 1;
+							)
+						)
+					)
+				);
+
+				If( lev_type[indx] == 2,
+					For Each Row(
+						If( Selected(),  
+							/*ColorMark WARNING*/
+							If( :TMS Status 2[] == "Warning",
+								:TMS RowStates 2[] = Combine States( Color State( 38 ), Marker State( 2 ) );
+								:TMS Pass 2[] = 1;
+							, 			
+		
+								/*ColorMark FLAG*/
+								If( :TMS Status 2[] == "Flag",
+									:TMS RowStates 2[] = Combine States( Color State( 19 ), Marker State( 11 ) );
+									:TMS Pass 2[] = 0;
+								,  		
+						
+								/*ELSE ColorMark PASS*/
+									:TMS RowStates 2[] = Combine States( Color State( 4 ), Marker State( 3 ) );
+									:TMS Pass 2[] = 1;
+								)
+							)
+						)
+					)
+				);
+
+				For Each Row(
+					If( Selected(),
+						If( lev_type[indx] == 2,
+							:All Pass[] = (:TMM Pass 1 & :TMS Pass 1 & :TMM Pass 2 & :TMS Pass 2), 
+						/* ELSE */
+							:All Pass[] = (:TMM Pass 1 & :TMS Pass 1)
+						)
+					)
+				);
+	
+				//Resume cleanup here
+				//Generate Output Report Elememts
+				For( i = 1, i <= lev_type[indx], i++,
+					If( i == 1,
+						target_arg = Column( summ_grp_tab, N_Param_Grp_Cols + 6 )[indx],
+						target_arg = 0
+					);
+
+					//Make Variability Charts of TMM and TMS (Currently disabled)
+					//TMM
+					Current Data Table( summ_tm_tab );
+					//Disable Color/Mark of summ_tm_tab
+					//		ForEachRow(
+					//			If( Selected(),
+					//				Rowstate() = CombineStates( SelectedState(1), Column( summ_tm_tab, Char("TMM RowStates") || Char(i) )[] );
+					//			);
+					//		);
+					Wait( 0 );
+
+					If( Col_Count == 1,
+						TMM_Chart[i] = H List Box(
+							Variability Chart(
+								Y( Eval( tm_cols[i][1] ) ),
+								X( Column( summ_tm_tab, cindx - 1 ) ),
+								Connect Cell Means( 1 ),
+								Show Group Means( 1 ),
+								Std Dev Chart( 0 ),
+								Points Jittered( 1 ),
+								Where( Selected() )
+							)
+						), 
+
+						TMM_Chart[i] = H List Box(
+							Variability Chart(
+								Y( Eval( tm_cols[i][1] ) ),
+								X( Column( summ_tm_tab, cindx - 2 ), Column( summ_tm_tab, cindx - 1 ) ),
+								Connect Cell Means( 1 ),
+								Show Group Means( 1 ),
+								Std Dev Chart( 0 ),
+								Points Jittered( 1 ),
+								Where( Selected() )
+							);
+
+						)
+					);
+
+					TMM_Max = 1.1 * Max( 1.5, Max( Column( summ_tm_tab, Eval( tm_cols[i][1] ) )[x_summ_rows_grp] ) );
+					TMM_Min = 1.1 * Min( -1.5, Min( Column( summ_tm_tab, Eval( tm_cols[i][1] ) )[x_summ_rows_grp] ) );
+
+					Try( TMM_Chart[i][Text Box( 1 )] << Delete );
+					Try(
+						TMM_Chart[i][Outline Box( 2 )] << SetTitle(
+							Munger(
+								TMM_Chart[i][Outline Box( 2 )] << GetTitle,
+								1,
+								Char( i ),
+								"[" || Eval( yname[i] ) || "]"
+							)
+						)
+					); //end try()
+
+					//TMM_Chart[i][OutlineBox(1)][AxisBox(1)] << Inc(0.25);
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Min( TMM_Min );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Max( TMM_Max );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Show Major Grid( 0 );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 1.5, "Dashed", "Red" );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 1.0, "Dashed", "Yellow" );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 0, "Dashed", "Green" );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( -1.0, "Dashed", "Yellow" );
+					TMM_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( -1.5, "Dashed", "Red" );
+					TMM_Chart[i][Text Box( 1 )] << SetText(
+						Munger( TMM_Chart[i][Text Box( 1 )] << GetText, 1, Char( i ), "" )
+					);
+					TMM_Chart[i][FrameBox( 1 )] << Marker Size( 2 );
+					TMM_Chart[i][Outline Box( 2 )] << Close( 1 );
+
+					Insert Into( TMM_Chart_List, H List Box( TMM_Chart[i][Outline Box( 2 )] ) );
+
+					//TMS
+					If( Col_Count == 1,
+						TMS_Chart[i] = H List Box(
+							VariabilityChart(
+								Y( Eval( tm_cols[i][2] ) ),
+								X( Column( summ_tm_tab, cindx - (Col_Count) ) ),
+								ConnectCellMeans( 1 ),
+								ShowGroupMeans( 1 ),
+								StdDevChart( 0 ),
+								PointsJittered( 1 ),
+								Where( Selected() )
+							)
+						), 
+
+						TMS_Chart[i] = H List Box(
+							VariabilityChart(
+								Y( Eval( tm_cols[i][2] ) ),
+								X(
+									Column( summ_tm_tab, cindx - (Col_Count) ),
+									Column( summ_tm_tab, cindx - (Col_Count - 1) )
+								),
+								ConnectCellMeans( 1 ),
+								ShowGroupMeans( 1 ),
+								StdDevChart( 0 ),
+								PointsJittered( 1 ),
+								Where( Selected() )
+							)
+						);
+		
+					);
+
+					//Disable Color/Mark of summ_tm_tab
+					//		ForEachRow(
+					//			If( Selected(),
+					//				Rowstate() = CombineStates( SelectedState(1), Column( summ_tm_tab, Char("TMS RowStates") || Char(i) )[] );
+					//			);
+					//		);
+					Wait( 0 );
+
+					TMS_Max = 1.1 * Max( 1.6, Max( Column( summ_tm_tab, Eval( tm_cols[i][2] ) )[x_summ_rows_grp] ) );
+					TMS_Min = 0.9 * Min( 1.0, Min( Column( summ_tm_tab, Eval( tm_cols[i][2] ) )[x_summ_rows_grp] ) );
+
+					TMS_Chart[i][Text Box( 1 )] << Delete;
+					TMS_Chart[i][Outline Box( 2 )] << SetTitle(
+						Munger( TMS_Chart[i][Outline Box( 2 )] << GetTitle, 1, Char( i ), "[" || Eval( yname[i] ) || "]" )
+					);
+					//TMS_Chart[i][OutlineBox(1)][AxisBox(1)] << Inc(0.25);
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Min( TMS_Min );
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Max( TMS_Max );
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << Show Major Grid( 0 );
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 1.0, "Dashed", "Green" );
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 1.3, "Dashed", "Yellow" );
+					TMS_Chart[i][Outline Box( 1 )][AxisBox( 1 )] << add ref line( 1.6, "Dashed", "Red" );
+					TMS_Chart[i][Text Box( 1 )] << SetText(
+						Munger( TMS_Chart[i][Text Box( 1 )] << GetText, 1, Char( i ), "" )
+					);
+					TMS_Chart[i][FrameBox( 1 )] << Marker Size( 2 );
+					TMS_Chart[i][Outline Box( 2 )] << Close( 1 );
+
+					Insert Into( TMS_Chart_List, H List Box( TMS_Chart[i][Outline Box( 2 )] ) );
+
+					Wait( 0 );
+
+					Current Data Table( dt );
+					For Each Row(
+						If( Selected(),
+							If( savrsQ,
+								Row State() = Combine States( Selected State( 1 ), Column( dt, "Row State Save" )[] ), 
+
+								If( Column( dt, Ent_Col_Name )[] == Column( summ_grp_tab, N_Param_Grp_Cols + 7 )[indx],
+									Marker Of( Row State() ) = 8;
+									Color Of( Row State() ) = 5;
+								)
+							)
+						)
+					);
+
+					If( lev_type[indx] == 1,
+						Var_Chart[i] = PCS_vcht( maindt, Col_List, Column( maindt, Response[1] ) );
+						If( do_altQ,
+							Var_Chart_alt[i] = PCS_vcht( maindt, Eval List( {alt_ent_col} ), Column( maindt, Response[1] ) ),
+							Var_Chart_alt[i] = V List Box()
+						);
+						If( i == 1 & (!Is Missing( TTDX_Col[indx] )) & (TTDX_Col[indx] > 0),
+							Lower_XTTDLine = TTD_X_Target_Col[indx] - TTDX_Col[indx];
+							Upper_XTTDLine = TTD_X_Target_Col[indx] + TTDX_Col[indx];
+
+							Eval(
+								Substitute( Name Expr( Format_Variability_Chart ),
+									Expr( _lower_ttd_line ), Lower_XTTDLine,
+									Expr( _upper_ttd_line ), Upper_XTTDLine,
+									Expr( _lower_ttd_line_name ), "Target-TTD",
+									Expr( _upper_ttd_line_name ), "Target+TTD"
+
+								)
+							);
+						);
+
+					, 
+
+						Var_Chart[i] = PCS_vcht( maindt, Col_List, Column( maindt, cindx_run + i ) );
+						If( do_altQ,
+							Var_Chart_alt[i] = PCS_vcht(
+								maindt,
+								Eval List( {alt_ent_col} ),
+								Column( maindt, cindx_run + i )
+							),
+							Var_Chart_alt[i] = V List Box()
+						);
+
+						If( i == 1 & (!Is Missing( TTDX_Col[indx] )) & (TTDX_Col[indx] > 0),
+							::Lower_XTTDLine = TTD_X_Target_Col[indx] - TTDX_Col[indx];
+							::Upper_XTTDLine = TTD_X_Target_Col[indx] + TTDX_Col[indx];
+
+							Eval(
+								Substitute( Name Expr( Format_Variability_Chart ),
+									Expr( _lower_ttd_line ), Lower_XTTDLine,
+									Expr( _upper_ttd_line ), Upper_XTTDLine,
+									Expr( _lower_ttd_line_name ), "Target-TTD",
+									Expr( _upper_ttd_line_name ), "Target+TTD"
+
+								)
+							);
+
+						);
+						If( i == 2 & (!Is Missing( TTDS_Col[indx] )) & (TTDS_col[indx] > 0), 
+							::Upper_STTDLine = TTD_S_CL_Col[indx] + TTDS_Col[indx];
+
+							Eval(
+								Substitute( Name Expr( Format_Variability_Chart ),
+									Expr( _lower_ttd_line ), 0,
+									Expr( _upper_ttd_line ), Upper_STTDLine,
+									Expr( _lower_ttd_line_name ), " ",
+									Expr( _upper_ttd_line_name ), "CL+TTD"
+
+								)
+							);
+
+						);
+
+					);
+
+
+					If( (i == 1 & (!Is Missing( TTDX_Col[indx] )) & (TTDX_Col[indx] > 0)),
+						TTD_use = 1;
+						TTD_Ref = TTDX_Col[indx];
+						//ii = Eval( Loc( all_params, param_arg ) );
+						ii = Eval( Loc( all_params, param_arg ) );
+
+						If( Use_Targets[indx] == 1,
+							TTD_Calc = Max(
+								Abs( all_MinTMean[ii] - Target_Values[indx] ),
+								Abs( all_MaxTMean[ii] - Target_Values[indx] )
+							), 
+						//ELSE if target is NOT used
+							TTD_Calc = Max(
+								Abs( all_MinTMean[ii] - all_GrandMean[ii] ),
+								Abs( all_MaxTMean[ii] - all_GrandMean[ii] )
+							);
+
+						);
+						TTD_Ratio = TTD_Ref / TTD_Calc;
+						If( TTD_Ratio > 1.6,
+							TTD_Status = "Flag",
+							If( TTD_Ratio > 1.3,
+								TTD_Status = "Warning",
+								TTD_Status = ""
+							)
+						);
+					, 
+					//ELSE
+						If( (i == 2 & (!Is Missing( TTDS_Col[indx] )) & (TTDS_col[indx] > 0)),
+							TTD_use = 1;
+							TTD_Ref = TTDS_Col[indx];
+							ii = Eval( Loc( all_params, param_arg ) );
+							TTD_Cal_tmp = all_MaxTMean_s[ii] - TTD_S_CL_Col[indx];
+							If( TTD_Cal_tmp < 0,
+								TTD_Calc = .;
+								TTD_Ratio = .;
+								TTD_Status = "Flag - CL too high";
+							,
+								If( UseTDS_Col[indx] > 0,
+									TTD_Calc = all_MaxTMean_s[ii] - TTD_S_CL_Col[indx], //ELSE
+									TTD_Calc = all_MaxTMean_s[ii] - all_GrandMean_s[ii]
+								);
+
+								TTD_Ratio = TTD_Ref / TTD_Calc;
+								If( TTD_Ratio > 1.6,
+									TTD_Status = "Flag",
+									If( TTD_Ratio > 1.3,
+										TTD_Status = "Warning",
+										TTD_Status = ""
+									)
+								);
+							); //if (TTD_Cal_tmp < 0....)
+						, 
+						//ELSE
+							TTD_use = 0;
+							TTD_Ref = 0;
+							TTD_Calc = .;
+							TTD_Ratio = .;
+							TTD_Status = "";
+						)
+					); //end if (checking TTD_Use)
+
+					Ref_Report[i] = Eval(
+						Substitute( Name Expr( refr_expr ),
+							Expr( pname ), Eval( param_arg ),
+							Expr( reftool ), Column( summ_grp_tab, N_Param_Grp_Cols + 7 )[indx],
+							Expr( source ), Column( summ_grp_tab, N_Param_Grp_Cols + 5 )[indx],
+							Expr( targetQ ), Eval( target_arg ),
+							Expr( target_val ), Column( summ_grp_tab, N_Param_Grp_Cols + i )[indx],
+							Expr( sigma_val ), Column( summ_grp_tab, N_Param_Grp_Cols + 2 + i )[indx],
+							Expr( TTD_Ref ), TTD_Ref,
+							Expr( TTD_Calc ), TTD_Calc,
+							Expr( TTD_Ratio ), TTD_Ratio,
+							Expr( TTD_Status ), TTD_Status
+						)
+					);
+					
+					If( TTD_use == 1,
+						tmm_heading = "Adj TMM",
+						tmm_heading = "TMM"
+					);
+
+					TM_Report[i] = Eval(
+						Substitute( Name Expr( tmr_expr ),
+							Expr( fac_col ), Column( summ_tm_tab, cindx - (Col_Count) )[x_summ_rows_grp],
+							Expr( ent_col ),
+								If( Col_Count == 2,
+									Column( summ_tm_tab, cindx - (Col_Count - 1) )[x_summ_rows_grp],
+									{}
+								),
+							Expr( numruns_col ), Column( summ_tm_tab, cindx )[x_summ_rows_grp],
+							Expr( mean_col ), Column( summ_tm_tab, Eval( y_cols[i][1] ) )[x_summ_rows_grp],
+							Expr( sigma_col ), Column( summ_tm_tab, Eval( y_cols[i][2] ) )[x_summ_rows_grp],
+							Expr( tmm_col ), Column( summ_tm_tab, Eval( tm_cols[i][1] ) )[x_summ_rows_grp],
+							Expr( tms_col ), Column( summ_tm_tab, Eval( tm_cols[i][2] ) )[x_summ_rows_grp],
+							Expr( tmm_stat_col ), Column( summ_tm_tab, Eval( tmstat_cols[i][1] ) )[x_summ_rows_grp],
+							Expr( tms_stat_col ), Column( summ_tm_tab, Eval( tmstat_cols[i][2] ) )[x_summ_rows_grp]
+						)
+					);
+
+					Insert Into( Var_Chart_List, Var_Chart[i] );
+					Insert Into( Var_Chart_alt_List, Var_Chart_alt[i] );
+					Insert Into( Ref_Report_List, H List Box( Ref_Report[i] ) );
+					Insert Into( TM_Report_List, H List Box( TM_Report[i] ) );
+				); //EndFor
+		
+				Var_ChartBox[indx] = Var_chart_List;
+				Var_ChartAltBox[indx] = Var_chart_alt_List;
+				Ref_ReportBox[indx] = Ref_Report_List;
+				TM_ReportBox[indx] = TM_Report_List;
+
+				TMM_ChartBox[indx] = TMM_Chart_List;
+				TMS_ChartBox[indx] = TMS_Chart_List;
+				Var_Chart_List = {};
+				TMM_Chart_List = {};
+				TMS_Chart_List = {};
+				TM_Report_List = {};
+				Ref_Report_List = {};
+				Var_chart_alt_List = {};
+
+				// Sample Size Report
+				SampleSize_Report[indx] = Eval(
+					Substitute( Name Expr( sampr_expr ), Expr( N_perrun ), N_Samples[indx], Expr( N_run ), N_lotgrps[indx] )
+				);
+				indx++;
+			); //EndWhile (indx)
+			Wait( 0 );
+			summ_param_tab << ClearSelect;
+
+			/////////////////////////////Generate Output Objects////////////////////////////////////
+
+			// Make Output Window
+			tm_output = New Window( "Tool Matching Analysis",
+				If( button[1] == 2, warn_msg ),
+				AnalysisBox = V List Box();
+	
+			);// End NewWindow
+
+			::indx2 = 1;
+			While( indx2 <= N_Param_Groups,
+				Current Data Table( summ_grp_tab );
+				Selected( Row State( indx2 ) ) = 1;
+				If( Sum( Column( samplesizedt, "Delta" )[samplesizedt << GetSelectedRows] ) != 0, 
+
+					TMAnalysis_Expr[indx2] = Outline Box( Char( Group_ID[indx2][1] ),
+						V List Box(
+							H List Box(
+								LeftPage = V List Box(
+									vc1 = Eval( Var_ChartBox[indx2][1] ),
+									vca1 = Eval( Var_ChartAltBox[indx2][1] ),
+									Eval( Var_Graph_Legend ),
+									Eval( SampleSize_Report[indx2] ),
+									Ref_ReportBox[indx2][1],
+									TM_ReportBox[indx2][1]
+									//	TMM_ChartBox[indx2][1],
+									//	TMS_ChartBox[indx2][1]
+								),  //End VListBox
+
+								If( lev_type[indx2] == 2,
+									RightPage = V List Box(
+										vc2 = Eval( Var_ChartBox[indx2][2] ),
+										vca2 = Eval( Var_ChartAltBox[indx2][2] ),
+										Eval( Var_Graph_Legend ),
+										Eval( SampleSize_Report[indx2] ),
+										Ref_ReportBox[indx2][2],
+										TM_ReportBox[indx2][2]
+										//	TMM_ChartBox[indx2][2],
+										//	TMS_ChartBox[indx2][2]
+									) //End VListBox
+								);
+
+							),  //End HListBox
+							//	TMSumm_Report[indx2], //See Tool Matching Analysis_v104_wrk.JSL for implemention of group matching repts.
+							Eval( TM_Status_Guidelines ), 
+							//	Eval(TM_Graph_Legend),
+							Text Box( " " ),
+							FooterBox
+						)
+					);
+
+					vc1[Text Box( 1 )] << Delete;
+					vc1[AxisBox( 1 )] << AddRefLine( Column( summ_grp_tab, RefMM_Col << GetName )[indx2], "Dashed", "Blue" );
+					If( do_altQ,
+						vca1[Outline Box( 2 )] << SetTitle( vca1[Outline Box( 2 )] << GetTitle || alt_op_text );
+						vca1[Text Box( 1 )] << Delete;
+						vca1[AxisBox( 1 )] << AddRefLine(
+							Column( summ_grp_tab, RefMM_Col << GetName )[indx2],
+							"Dashed",
+							"Blue"
+						);
+					);
+					If( lev_type[indx2] == 2,
+						vc2[AxisBox( 1 )] << AddRefLine(
+							Column( summ_grp_tab, RefMS_Col << GetName )[indx2],
+							"Dashed",
+							"Blue"
+						);
+						vc2[Text Box( 1 )] << Delete;
+						If( do_altQ,
+							vca2[Outline Box( 2 )] << SetTitle( vca2[Outline Box( 2 )] << GetTitle || alt_op_text );
+							vca2[Text Box( 1 )] << Delete;
+							vca2[AxisBox( 1 )] << AddRefLine(
+								Column( summ_grp_tab, RefMS_Col << GetName )[indx2],
+								"Dashed",
+								"Blue"
+							);
+						);
+					);
+					AnalysisBox << Append( TMAnalysis_Expr[indx2] );
+				, 
+
+					TMSumm_Report[indx2] = .;
+					TMAnalysis_Expr[indx2] = .;
+
+				);//EndIf Sum{Delta)==0
+				summ_grp_tab << ClearSelect;
+
+				indx2++;
+
+			); //EndWhile
+			//print("Begin TM_Summary_Report");
+			Eval( TM_Summary_Report );
+			//print("Done TM_Summary_Report");
+			tm_output << BringWindowToFront;
+
+		);//EndIf button[2]
+
+		dt << DeleteColumns( Column( dt, "PARAMETERID" ) );
+		If( button[2] != 1,
+			Close( summ_tab, NoSave );
+			Close( summ_grp_tab, NoSave );
+		,
+			Close( samplesizedt, NoSave );
+			Close( summ_tm_tab, NoSave );
+		);
+	);//EndIf button[1]
+
+	main_tab_box = Tab Box(
+		"Tool Matching Analysis Summary Reports",
+		TM_Summary,
+		"Tool Matching Variability Analysis Reports",
+		tm_output
+	);
+
+	::oneclick_TM_Window = New Window( "Tool Matching Analysis Reports", main_tab_box );
+	oneclick_TM_Window << BringWindowToFront;
+	Try(close(summ_tab, no save));
+	
+	//make 1 click variables
+	::oneclick_TM_Summary_by_Parm_Entity_Box = main_tab_box[tabpanebox(1)][outlinebox(1)][tablebox(1)];
+	::oneclick_TM_Status_by_Parm_Entity_Box = main_tab_box[tabpanebox(1)][outlinebox(2)][tablebox(1)];
+	If( Col_Count == 2,
+		// two reports
+		::oneclick_TM_Summary_by_Parm_Facility_Box = main_tab_box[tabpanebox(1)][outlinebox(3)][tablebox(1)];
+		::oneclick_TM_Summary_by_Parm_Box = main_tab_box[tabpanebox(1)][outlinebox(4)][tablebox(1)],
+		// else one report
+		::oneclick_TM_Summary_by_Parm_Box = main_tab_box[tabpanebox(1)][outlinebox(3)][tablebox(1)];
+	);
+
+//Hide report windows
+//	TM_Summary << show window( 0 );
+//	tm_output << show window( 0 );
+//	Try(
+//		dtsJS << show window(0);
+//		dt_TTD0 << show window(0);
+//		summ_tab << show window(0);
+//	);
+
+//Close report windows and some tables
+	Try(
+		TM_Summary << close window;
+		tm_output << close window;
+		Close(dtsJS, no save);
+		close(dt_TTD0, no save);
+//		dt << show window(0);
+	);
+
+	
+	If( !(button[1] >= 1),
+		CleanUP()
+	);
+); //EndExpr
+

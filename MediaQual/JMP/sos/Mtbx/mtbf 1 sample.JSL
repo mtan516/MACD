@@ -1,0 +1,327 @@
+/**************************************************************************************
+	
+	MTBF 1 Sample Comparison
+	Author: Ai Lin Ong
+	
+	
+	Revision History (Descending Order, Newest at the top):
+Rev 2 - Prabhneet Arora - 2020WW23
+JMP Version 14 and 12  compatible
+	- Debug script terminate error for empty value of alpha 
+Rev:1.1
+Date: 9/8/2009
+JMP Version: 7.0
+	Starting Condition: User inputs Alpha,  data type, hypothesis type, output format,
+                          target MTBx, test length (n) and event (x)
+	Output: The script will output the sample proportion, a confidence limit, 
+              and a decision based upon the confidence interval and hypothesis. 
+
+	SOS Revision History
+	v1.04: 1. File sosglbls.jsl created to hold global variables that might apply to all scripts. Include added. 
+	v1.1:  PW - Changed rounding of confidence intervals to 0.1 instead of 1. Reformat script.
+	
+***************************************************************************************/
+Clear Globals();
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox = V List Box(Text Box(" ")));
+
+/* Set Initial Values of Variables */ 
+button = 1;
+alpha = .05;
+alphar = 0.5; /*estimate of alpha when x=0*/
+mtbxt = .;
+x = .;
+x1 = .; /*for jrn output when x input = 0*/
+n = .;
+datatype = "# of Failures";
+hyptype = "SB";
+scale = "cycles";
+total = "Total Cycles";
+label = "";
+MTBx = "";
+
+While(button == 1,
+	dtest = "error";
+	d1test = "error";
+	d2test = "error";
+	d3test = "error";
+	d4test = "error";
+	d5test = "error";
+	d2 = ".";
+	decision = ".";
+	If(
+		datatype == "# of Failures",
+			a1 = "# of Failures";
+			b1 = "# of Assists";,
+		datatype == "# of Assists",
+			a1 = "# of Assists";
+			b1 = "# of Failures";
+	);
+	If(
+		hyptype == "SB",
+			a2 = "SB";
+			b2 = "SEB";
+			c2 = "SE";,
+		hyptype == "SEB",
+			a2 = "SEB";
+			b2 = "SB";
+			c2 = "SE";,
+		hyptype == "SE",
+			a2 = "SE";
+			b2 = "SB";
+			c2 = "SEB";
+	);
+
+/***************************************** Create Dialog  ***********************************/
+
+	result = Dialog(
+		title("1-MTBx Analysis"),
+		"Provide Values for Target MTBx , X and Test Length.",
+		" ",
+		VList(
+			Lineup(3,
+				"Hypothesis Type", hyptype = Combo Box(a2, b2, c2), " ",
+				" ", " ", " ",
+				"Target MTBx", mtbxt = EditNumber(mtbxt), scale = EditText(scale),
+				" ", " ", " ",
+				"X", x = EditNumber(x), datatype = Combo Box(a1, b1),
+				"Test Length", n = EditNumber(n), " ",
+				" ", " ", " ",
+				"Entity Label (optional)", label = EditText(label), " ",
+				" ", " ", " ",
+				"Alpha", alpha = EditNumber(alpha), " "
+			),
+			" ",
+			HList(Button("OK"), Button("Cancel"))
+		)
+	);
+	button = result["Button"];
+	mtbxt = result["mtbxt"];
+	x = result["x"];
+	n = result["n"];
+	alpha = result["alpha"];
+	label = result["label"];
+	scale = result["scale"];
+	hyptype = result["hyptype"];
+	datatype = result["datatype"];
+	
+/***************************************** Set values  ***********************************/
+	
+	conf = (1 - alpha) * 100;
+	If(
+		hyptype == 1, hyptype = a2,
+		hyptype == 2, hyptype = b2,
+		hyptype == 3, hyptype = c2
+	);
+	If(
+		datatype == 1,
+			datatype = a1;
+			MTBx = "MTBF";,
+		datatype == 2,
+			datatype = b1;
+			MTBx = "MTBA";
+	);
+	If(
+		Is Missing(label), titlesuffix = "",
+		!Is Missing(label), titlesuffix = "for " || label
+	);
+	
+	If(hyptype == "SE",
+		nulldesc = ("Statistically Equal (SE)");
+		altdesc = ("Statistically Different (SD)");
+	);
+	If(hyptype == "SEB",
+		nulldesc = ("Statistically Equal or Better (SEB)");
+		altdesc = ("Statistically Worse (SW)");
+	);
+	If(hyptype == "SB",
+		nulldesc = ("Statistically Equal or Worse (SEW)");
+		altdesc = ("Statistically Better(SB)");
+	);
+	
+/***************************************** Error Check  ***********************************/
+		
+	If(button == 1,
+		If(mtbxt < 0 | mtbxt == 0,
+			Dialog(Title("Error"), "Target must be greater than 0", " ", button("OK"));
+			errortest = "error";
+		,
+			dtest = "OK"
+		);
+		If(x < 0,
+			Dialog(Title("Error"), "X must be equal or greater than 0", " ", button("OK"));
+			errortest = "error";
+		,
+			d1test = "OK"
+		);
+		If(n < 0,
+			Dialog(Title("Error"), "Test length  must be greater than 0", " ", button("OK"));
+			errortest = "error";
+		,
+			d2test = "OK"
+		);
+		If(n < x,
+			Dialog(Title("Error"), "Test length must be greater than or equal to X ", " ", button("OK"));
+			errortest = "error";
+		,
+			d3test = "OK"
+		);
+		If(Is Missing(alpha)| alpha > 0.4 | alpha <=0 ,
+			Dialog(Title("Error"), "Alpha must be between 0 and 0.4", " ", button("OK"));
+			errortest = "error";
+		,
+			d4test = "OK"
+		);
+		If(Is Missing(mtbxt) | Is Missing(x) | Is Missing(n) & button2 == 1,
+			Dialog(Title("Error"), "Missing Value!", " ", button("OK"));
+			errortest = "error";
+		,
+			d5test = "OK"
+		);
+		
+	);
+	
+	
+	
+
+/***************************************** Calculate Confidence Intervals  ***********************************/
+
+	If( dtest == "OK" & d1test == "OK" & d2test == "OK" & d3test == "OK" & d4test == "OK" & d5test == "OK", 
+		//	If( x== 0,  a=n / (x + 1); x1=1, a= n /x; x1=x);
+		If(x == 0,
+			a = n / -Log(alphar);
+			x1 = 0.6931;
+		,
+			a = n / x;
+			x1 = x;
+		);
+		L2side = (2 * n) / ChiSquare Quantile(1 - (alpha / 2), 2 * (x + 1), 0);
+		U2side = (2 * n) / ChiSquare Quantile((alpha / 2), 2 * x, 0);
+		L1side = (2 * n) / ChiSquare Quantile(1 - alpha, 2 * (x + 1), 0);
+		U1side = (2 * n) / ChiSquare Quantile(alpha, (2 * x), 0);
+		If(
+			x == 0, Note = "NOTE: Since there were no observed failures, Sample MTBx was estimated by 50% 1-Sided LCL.",
+			x > 0,  Note = "     "
+		);
+		L2side_round = Round(L2side, 1);
+		U2side_round = Round(U2side, 1);
+		L1side_round = Round(L1side, 1);
+		U1side_round = Round(U1side, 1);
+		a = Round(a, 0);
+	
+/***************************************** Make Decisions ***********************************/
+		// SB
+		If(hyptype == "SB",
+			If(
+				L1side > mtbxt,
+					decision = MTBx || " is SB to " || Char(mtbxt) || " " || scale;
+					d2 = "Reject the Null Hyp";
+					d3 = "";,
+				L1side <= mtbxt,
+					decision = MTBx || " is SEW to " || Char(mtbxt) || " " || scale;
+					d2 = "Do Not Reject the Null Hyp";
+					d3 = "";
+			);
+			nullh = MTBx || "  <=  " || Char(mtbxt) || " " || scale;
+			alth = MTBx || "   >   " || Char(mtbxt) || " " || scale;
+			txtconfl = Char(conf) || "%";
+			txtlci1 = " 1-Sided LCL ";
+			txtlci2 = Char(L1side_round) || " " || scale;
+			txtconfu = "";
+			txtuci1 = "";
+			txtuci2 = ""; 
+		);
+		// SEB
+		If(hyptype == "SEB",
+			If(
+				U1side >= mtbxt,
+					decision = MTBx || " is SEB to " || Char(mtbxt) || " " || scale;
+					d2 = "Do Not Reject the Null Hyp";
+					d3 = "";,
+				U1side < mtbxt,
+					decision = MTBx || " is SW to " || Char(mtbxt) || " " || scale;
+					d2 = "Reject the Null Hyp";
+					d3 = "";,
+				x == 0,
+					decision = MTBx || " is SEB to " || Char(mtbxt) || " " || scale;
+					d2 = "Do Not Reject the Null Hyp";
+					d3 = "Note: ensure minimum sample sizes are met";
+			);
+			nullh = MTBx || "  >=  " || Char(mtbxt) || " " || scale;
+			alth = MTBx || "   <   " || Char(mtbxt) || " " || scale;
+			txtconfl = Char(conf) || "%";
+			txtlci1 = " 1-Sided LCL";
+			txtlci2 = Char(L1side_round) || " " || scale;
+			txtconfu = Char(conf) || "%";
+			txtuci1 = " 1-Sided UCL";
+			txtuci2 = Char(U1side_round) || " " || scale;
+		);
+		// SE
+		If(hyptype == "SE",
+			If(
+				U2side >= mtbxt & L2side <= mtbxt,
+					decision = MTBx || " is SE to " || Char(mtbxt) || " " || scale;
+					d2 = "Do Not Reject the Null Hyp";
+					d3 = "";,
+				x == 0 & L2side <= mtbxt,
+					decision = MTBx || " is SE to " || Char(mtbxt) || " " || scale;
+					d2 = "Do Not Reject the Null Hyp";
+					d3 = "Note: ensure minimum sample sizes are met";,
+				U2side < mtbxt | L2side > mtbxt,
+					decision = MTBx || " is SD to " || Char(mtbxt) || " " || scale;
+					d2 = "Reject the Null Hyp";
+					d3 = "";
+			);
+			nullh = MTBx || "     =    " || Char(mtbxt) || " " || scale;
+			alth = MTBx || " <> " || Char(mtbxt) || " " || scale;
+			txtconfl = Char(conf) || "%";
+			txtlci1 = " 2-Sided LCL ";
+			txtlci2 = Char(L2side_round) || " " || scale;
+			txtconfu = Char(conf) || "%";
+			txtuci1 = " 2-Sided UCL";
+			txtuci2 = Char(U2side_round) || " " || scale;
+		);
+
+/***************************************** Make Output Window ***********************************/
+
+		w1 = New Window("One Sample " || MTBx || " Analysis " || titlesuffix,
+			Outline Box("Hypotheses " || titlesuffix,
+				H List Box(
+					V List Box(tb1 = Text Box("Null Hypothesis:"), tb2 = Text Box("Alt Hypothesis:")),
+					Text Box("     "),
+					V List Box(tb3 = Text Box(nullh), tb4 = Text Box(alth)),
+					Text Box("     "),
+					V List Box(tb5 = Text Box(nulldesc), tb6 = Text Box(altdesc))
+				)
+			), 
+
+			Outline Box("Sample  " || MTBx || " and Confidence Interval " || titlesuffix,
+				Table Box(
+					String Col Box("Test Length", {Char(n) || "   " || scale}),
+					Text Box("        "),
+					Number Col Box("Total " || datatype, {x}),
+					Text Box("        "),
+					String Col Box("Sample " || Char(MTBx), {Char(a) || "   " || scale}),
+					Text Box("        "),
+					String Col Box(txtconfl || txtlci1, {txtlci2}),
+					String Col Box(txtconfu || txtuci1, {txtuci2})
+				),
+				V List Box(tb7 = Text Box(note))
+	
+			), 
+
+			Outline Box("Test Results " || titlesuffix,
+				Table Box(
+					Number Col Box("Alpha", {alpha}),
+					String Col Box("   ", {"     "}),
+					String Col Box("Decision     ", {d2 || ": " || decision})
+				)
+			)
+		);
+		Wait(.02);
+		w1 << Append(FooterBox);
+		w1 << size window(450, 325);
+	);  // End If
+);  // End While
+
+
+

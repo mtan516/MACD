@@ -1,0 +1,667 @@
+/********************************************************************************************
+ *1Click SOS Function & Expr Library
+ *This file contains functions and expressions that are called by 1Click applications scripts
+ *Authors: John Xu and Paul Wenz 
+ *JMP Version: 9
+ *Latest Edited By John Xu on 03/06/2014 
+
+  Stability_DA_1Click
+  Capability_DA_1Click
+  ToolMatching_DA_1Click
+  RefSrc_1Click
+  CLRefSrc_1Click
+  Cpk_SummaryStats_1Click
+ * 
+********************************************************************************************/
+
+Eval List( PCS_GLBLS );
+
+
+////////////////////////////// Cpk_SummaryStats_1Click ///////////////////////////////////////////////////
+ :: Cpk_SummaryStats_1Click = Expr(
+
+
+/*** Input Dialog Box  ***/
+	::lsl = .;
+	::pmt = .;
+	::usl = .;
+	::TOL = .;
+	::TOL_type = .;
+	::parameterid = "ParameterID";
+	::fac_val = {};
+	::fac_val2 = {};
+	::ent_val = {};
+	::spec_ck = 1;
+	::_N = {};
+	::_Mean = {};
+	::_Sigma = {};
+	::_lot = {};
+	::_Facility = {};
+	::_Entity = {};
+	::_Date = {};
+
+//Read in chart variable names and chart control limits
+
+	//open the existing variable assignment file 
+	//	If( Is Missing( file_open ) | file_open == 0,
+	//		dt_var = Open( VariableAssgmtTblName )
+	//	);
+
+	If( Is Missing( file_open ) | file_open == 0,
+		dt_var = Open( VariableAssgmtTblName ), 
+	/* ELSE */
+		dt_var = VariableAssgmtTblName << Subset(
+			Output Table(
+				"Copy of original variable assignment table",
+				Selected Rows( 0 ),
+				Rows( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] )
+			)
+		)
+	);
+
+
+	Var_List = dt_Var:Var_Value << Get Values;
+	
+	v_lst = {};
+
+	For( i = 1, i <= 7, i++,
+		temp = {};
+		If( !Is Missing( Var_List[i] ),
+			temp[1] = Parse( ":" || Var_List[i] )
+		);
+		v_lst[i] = temp;
+	); //end for loop
+
+	For( i = 8, i <= 11, i++,
+		temp = {};
+		If( i > 10,
+			temp = Var_List[i],
+			temp = Parse( Var_List[i] )
+		);
+		v_lst[i] = temp;
+	); //end for loop
+
+
+	If( Is Missing( file_open ) | file_open == 0, 
+		//raw reference table location
+		 :: User_Def_Ref_Path = Var_List[12];
+		::User_Def_Ref_tab = Var_List[13];
+
+		 :: Ref_Path = User_Def_Ref_Path;
+	);
+
+	Cpk_Var_Assignment = Expr(
+		a = {};
+		result = {_N = a[1], _Mean = a[2], _Sigma = a[3], _Lot = a[4], _Facility = a[5], _Entity
+		 = a[6], _Date = a[7], lsl = a[8], pmt = a[9], usl = a[10], parmid = a[11]};
+		a = v_Lst;
+		Eval List( Result );
+		Wait( 1 );
+	);
+
+
+/***  Get data table, remove excluded, create temp data table  ***/
+
+	//open an existing data file 
+	//	If( Is Missing( file_open ) | file_open == 0,
+	//		::dt_rawdata_tbl = Open( InputDataTableName )
+	//	);
+
+	If( Is Missing( file_open ) | file_open == 0,
+		::dt_rawdata_tbl = Open( InputDataTableName ),
+		::dt_rawdata_tbl = InputDataTableName << Subset(
+			Output Table( "Copy of raw input data table " )
+		)
+	);
+
+//If( N Table() == 0,::dt_rawdata_tbl = Open(), ::dt_rawdata_tbl = Current Data Table());
+
+	 :: dt_origname = dt_rawdata_tbl << GetName;
+	dt_rawdata_tbl << ClearSelect;
+	dt_rawdata_tbl << ClearColumnSelection;
+	::dt = dt_rawdata_tbl << Subset(
+		Rows( dt_rawdata_tbl << GetRowsWhere( !Excluded() ) ),
+		AllColumns
+	);
+	dt << SetName( Char( dt_origname ) || "_" || "(Copy)" );
+	Current Data Table( dt );
+	dt << BringWindowToFront;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+
+
+//User Input variable assignment
+	Eval( Cpk_Var_Assignment );
+
+/*** Appropriate Spec Limit Combinations check  ***/
+	If( Is Missing( usl ) & Is Missing( lsl ),
+		spec_ck = 1,
+		If( !Is Missing( usl ) & !Is Missing( lsl ),
+			If( usl > lsl,
+				spec_ck = 0;
+				TOL = usl - lsl;
+				TOL_type = 2;
+				pmt = (usl + lsl) / 2;
+			,
+				spec_ck = 1
+			)
+		,
+			If( Is Missing( lsl ),
+				If( usl > pmt,
+					spec_ck = 0;
+					TOL = usl - pmt;
+					TOL_type = 1;
+				,
+					spec_ck = 1
+				)
+			,
+				If( lsl < pmt,
+					spec_ck = 0;
+					TOL = pmt - lsl;
+					TOL_type = -1;
+				,
+					spec_ck = 1
+				)
+			)
+		)
+	);
+
+
+	If( spec_ck != 0,
+		Close( dt, no save );
+		Throw( "Errors in Spec limit values!" );
+	);
+
+// Main Routines
+
+	Eval( Overall_Cpk_Expr );
+
+); //End Cpk_SummaryStats_1Click Expr
+
+
+
+////////////////////////////// Stability_DA_1Click ///////////////////////////////////////////////////
+::Stability_DA_1Click = Expr(
+
+//Read in chart variable names and chart control limits
+	If( Interactive_mode == 0, 
+
+
+//open or point to an existing data file 
+		If( Is Missing( file_open ) | file_open == 0,
+			dt_var = Open( VariableAssgmtTblName ),
+			dt_var = VariableAssgmtTblName << Subset(
+				Output Table(
+					"Copy of original variable assignment table",
+					Selected Rows( 0 ),
+					Rows( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] )
+				)
+			)
+		);
+
+		Var_List = dt_Var:Var_Value << Get Values;
+	
+		v_lst = {};
+
+		For( i = 1, i <= 11, i++,
+			temp = {};
+			If( i == 3 | i == 4 | i == 7,
+				For( j = 1, j <= 10, j++,
+					If( Item( j, Var_List[i], "," ) != "",
+						temp[j] = Parse( ":" || Trim( Item( j, Var_List[i], "," ) ) )
+					)
+				),
+				If( i < 8 & !Is Missing( Item( 1, Var_List[i], "," ) ),
+					temp[1] = Parse( ":" || Trim( Item( 1, Var_List[i], "," ) ) ),
+					If( i > 7,
+						temp = Parse( Var_List[i] )
+					)
+				)
+			);
+		   	
+			v_lst[i] = temp;
+
+		);
+
+		 :: YID = v_lst[1];
+		::LotID = v_lst[2];
+		::ToolID = v_lst[3];
+		::Param_ttd = v_lst[4];
+		::TimeID = v_lst[5];
+		
+	//Control limits settings from a reference table
+		If( Interactive_mode == 0,
+			::User_Def_Ref_Path = Var_List[12];
+			::User_Def_Ref_tab = Var_List[13];
+		);
+
+		Var_Assignment = Expr(
+			a = {};
+			result = {Response = a[1], x = a[2], Col_List = a[3], Param = a[4], t = a[5], subx
+			 = a[6], z = a[7], subxsort = a[8], exclQ = a[9], K_Val = a[10], ref_select = 3,
+			savrsQ = a[11], Button( 1 )};
+			a = v_Lst;
+			Eval List( Result );
+			button[1] = Result["Button"];
+			Wait( 1 );
+		);
+
+	);
+
+
+//open or point to an existing data file 
+	If( Is Missing( file_open ) | file_open == 0,
+		dt1 = Open( InputDataTableName ),
+		dt1 = InputDataTableName << Subset( Output Table( "Copy of raw input data table " ) )
+	);
+
+//If(NTable() == 0, ::dt1 = Open(), dt1 = CurrentDataTable());
+	//dt1 << MinimizeWindow;
+	::dt1name = dt1 << GetName;
+	dt1 << ClearSelect;
+	dt1 << ClearColumnSelection;
+	::dt = dt1 << Subset( Rows( dt1 << GetRowsWhere( !Excluded() ) ), AllColumns );
+	dt << SetName( Char( dt1name ) || "_" || "(Copy)" );
+	Current Data Table( dt );
+	dt << BringWindowToFront;
+//dt << MinimizeWindow;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+
+	Eval List( ClearSTADiagVars );
+	Initialize_stability_globals;
+
+// Main Routine
+	::valid = 1;
+	While( valid == 1 & button[1] != -1, 
+
+		If( Interactive_mode == 0,
+			Eval( Var_Assignment );
+			If( Interactive_mode == 0,
+				::Ref_Path = User_Def_Ref_Path;
+				ref_select = 3;
+			);
+		,
+			Eval( Stability_MainDiag_Expr )
+		);
+
+		Eval( Stability_PreProc_Expr );
+		If( button[1] == 1,
+			If( ref_select > 1 & (ref_select != 4),
+				If( N Items( Param ) != 0,
+					Eval(
+						Substitute( Name Expr( CLRefSrc_1Click ),
+							Expr( _Main ), Expr( SB_Main )
+						)
+					);
+					OP_ID++;
+					valid = 0;
+				,  // Else
+					Eval( NotReqExpr );
+					If( tempbutton == -1, 
+				  //Then
+						Close( summ_param_tab, NoSave );
+						valid = 1;
+					,  //Else
+						ref_select = 1;
+						Eval( SB_Main );
+						valid = 0;
+					);
+				)
+			,  // Else
+				Eval( SB_Main );
+				valid = 0;
+			)
+		);
+	);
+	Current Data Table( dt1 );
+	If( Any( Matrix( button ) == -1 ),
+		Close( dt, NoSave )
+	);
+
+
+
+); //EndExpr
+
+
+////////////////////////////// Capability_DA_1Click ///////////////////////////////////////////////////
+::Capability_DA_1Click = Expr(
+
+//Read in chart variable names and chart control limits
+	If( Interactive_mode == 0, 
+
+//open or point to an existing data file 
+		If( Is Missing( file_open ) | file_open == 0,
+			dt_var = Open( VariableAssgmtTblName ),
+			dt_var = VariableAssgmtTblName << Subset(
+				Output Table(
+					"Copy of original variable assignment table",
+					Selected Rows( 0 ),
+					Rows( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] )
+				)
+			)
+		);
+
+		Var_List = dt_Var:Var_Value << Get Values;
+	
+		v_lst = {};
+
+		For( i = 1, i <= 11, i++,
+			temp = {};
+			If( i == 4 | i == 7,
+				For( j = 1, j <= 10, j++,
+					If( Item( j, Var_List[i], "," ) != "",
+						temp[j] = Parse( ":" || Trim( Item( j, Var_List[i], "," ) ) )
+					)
+				),
+				If( i < 8 & !Is Missing( Item( 1, Var_List[i], "," ) ),
+					temp[1] = Parse( ":" || Trim( Item( 1, Var_List[i], "," ) ) ),
+					If( i > 7,
+						temp = Parse( Var_List[i] )
+					)
+				)
+			);
+		   	
+			v_lst[i] = temp;
+		);
+
+
+//Control limits settings from a reference table
+		If( Interactive_mode == 0,
+			::User_Def_Ref_Path = Var_List[12];
+			::User_Def_Ref_tab = Var_List[13];
+		);
+
+		Var_Assignment = Expr(
+			a = {};
+			result = {Response = a[1], x = a[2], Col_List = a[3], Param = a[4], t = a[5], subx
+			 = a[6], z = a[7], subxsort = a[8], exclQ = a[9], K_Val = a[10], ref_select = 3,
+			savrsQ = a[11], Button( 1 )};
+			a = v_Lst;
+			Eval List( Result );
+			button[1] = Result["Button"];
+			Wait( 1 );
+		);
+
+	);
+
+
+//open or point to an existing data file 
+	If( Is Missing( file_open ) | file_open == 0,
+		dt1 = Open( InputDataTableName ),
+		dt1 = InputDataTableName << Subset( Output Table( "Copy of raw input data table " ) )
+	);
+	
+//If(NTable() == 0, ::dt1 = Open(), dt1 = CurrentDataTable());
+	//dt1 << MinimizeWindow;
+	::dt1name = dt1 << GetName;
+	dt1 << ClearSelect;
+	dt1 << ClearColumnSelection;
+	::dt = dt1 << Subset( Rows( dt1 << GetRowsWhere( !Excluded() ) ), AllColumns );
+	dt << SetName( Char( dt1name ) || "_" || "(Copy)" );
+	Current Data Table( dt );
+	dt << BringWindowToFront;
+//dt << MinimizeWindow;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+
+	Initialize_capability_globals;
+
+// Main Routine
+	::valid = 1;
+	While( valid == 1 & button[1] != -1, 
+
+		If( Interactive_mode == 0,
+			Eval( Var_Assignment );
+			If( Interactive_mode == 0,
+				::Ref_Path = User_Def_Ref_Path;
+				ref_select = 3;
+			);
+		,
+			Capability_MainDiag_Expr
+		);
+
+		Capability_PreProc_Expr;
+		If( button[1] == 1,
+			If( ref_select > 1 & (ref_select != 4),
+				If( N Items( Param ) != 0,
+					Eval(
+						Substitute( Name Expr( RefSrc_1Click ), Expr( _Main ), Expr( CP_Main ) )
+					);
+					valid = 0;
+				,  // Else
+					Eval( NotReqExpr );
+					If( tempbutton == -1,
+						valid = 1,
+						ref_select = 1;
+						Eval( CP_Main );
+						valid = 0;
+					);
+				)
+			,  // Else
+				Eval( CP_Main );
+				valid = 0;
+			); //EndIf ref_select
+		); //EndIf button
+	); //EndWhile
+	Current Data Table( dt1 );
+
+
+); //EndExpr
+
+
+////////////////////////////// ToolMatching_DA_1Click ///////////////////////////////////////////////////
+::ToolMatching_DA_1Click = Expr(
+
+//Read in chart variable names and chart control limits
+	If( Interactive_mode == 0, 
+
+//open or point to an existing data file 
+		If( Is Missing( file_open ) | file_open == 0,
+			dt_var = Open( VariableAssgmtTblName ),
+			dt_var = VariableAssgmtTblName << Subset(
+				Output Table(
+					"Copy of original variable assignment table",
+					Selected Rows( 0 ),
+					Rows( [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] )
+				)
+			)
+		);
+
+
+		Var_List = dt_Var:Var_Value << Get Values;
+	
+		v_lst = {};
+
+		For( i = 1, i <= 11, i++,
+			temp = {};
+			If( i == 2 | i == 3 | i == 4 | i == 7,
+				For( j = 1, j <= 10, j++,
+					If( Item( j, Var_List[i], "," ) != "",
+						temp[j] = Parse( ":" || Trim( Item( j, Var_List[i], "," ) ) )
+					)
+				),
+				If( i < 8 & !Is Missing( Item( 1, Var_List[i], "," ) ),
+					temp[1] = Parse( ":" || Trim( Item( 1, Var_List[i], "," ) ) ),
+					If( i > 7,
+						temp = Parse( Var_List[i] )
+					)
+				)
+			);
+		   	
+			v_lst[i] = temp;
+		);
+
+		 :: YID = v_lst[1];
+		::Run_ID_ttd = v_lst[2];
+		::ToolID = v_lst[3];
+		::Param_ttd = v_lst[4];
+
+//Control limits settings from a reference table
+		If( Interactive_mode == 0,
+			::User_Def_Ref_Path = Var_List[12];
+			::User_Def_Ref_tab = Var_List[13];
+		);
+
+		Var_Assignment = Expr(
+			a = {};
+			result = {Response = a[1], Run_ID = a[2], Col_List = a[3], Param = a[4], t = a[5],
+			subx = a[6], z = a[7], subxsort = a[8], exclQ = a[9], K_Val = a[10], ref_select = 3,
+			savrsQ = a[11], Button( 1 )};
+			a = v_Lst;
+			Eval List( Result );
+			::Col_Count = N Items( Col_List );
+			::N_Resp = N Items( Response );
+			::N_Run_ID = N Items( Run_ID );
+			::N_z = N Items( z );
+			button[1] = Result["Button"];
+			Wait( 1 );
+		);
+
+	);
+
+
+//open or point to an existing data file 
+	If( Is Missing( file_open ) | file_open == 0,
+		dt1 = Open( InputDataTableName ),
+		dt1 = InputDataTableName << Subset( Output Table( "Copy of raw input data table " ) )
+	);
+	
+//If(NTable() == 0, ::dt1 = Open(), dt1 = CurrentDataTable());
+	//dt1 << MinimizeWindow;
+	::dt1name = dt1 << GetName;
+	dt1 << ClearSelect;
+	dt1 << ClearColumnSelection;
+	::dt = dt1 << Subset( Rows( dt1 << GetRowsWhere( !Excluded() ) ), AllColumns );
+	dt << SetName( Char( dt1name ) || "_" || "(Copy)" );
+	Current Data Table( dt );
+	dt << BringWindowToFront;
+//dt << MinimizeWindow;
+	dt << ClearSelect;
+	dt << ClearColumnSelection;
+
+	Initialize_tool_matching_globals;
+
+// Main Routine
+	::valid = 1;
+	While( valid == 1 & button[1] != -1, 
+
+		If( Interactive_mode == 0,
+			Eval( Var_Assignment );
+			If( Interactive_mode == 0,
+				::Ref_Path = User_Def_Ref_Path;
+				ref_select = 3;
+			);
+		,
+			Eval( TM_MainDiag_Expr )
+		);
+
+		Eval( TM_PreProc_Expr );
+		If( button[1] == 1,
+			If( ref_select > 1 & (ref_select != 4),
+				If( N Items( Param ) != 0,
+					Eval(
+						Substitute( Name Expr( RefSrc_1Click ), Expr( _Main ), Expr( TM_Main ) )
+					);
+					valid = 0;
+				,  // Else
+					Eval( NotReqExpr );
+					If( tempbutton == -1,
+						valid = 1;
+						dt << DeleteColumns( Column( dt, "PARAMETERID" ) );
+						If( savrsQ,
+							dt << DeleteColumns( Column( dt, "Row State Save" ) )
+						);
+					,
+						ref_select = 1;
+						Eval( TM_Main );
+						valid = 0;
+					);
+				) //EndIf NItem
+			,  // Else
+				Eval( TM_Main );
+				valid = 0;
+			); //EndIf ref_select
+		); //EndIf button
+	); //EndWhile
+
+); //EndExpr
+
+
+////////////////////////////// RefSrc_1Click ///////////////////////////////////////////////////
+::RefSrc_1Click = Expr(
+
+	Try(
+		ref_tab = Open( Ref_Path || User_Def_Ref_tab || ".jmp" ),
+		CleanUP();
+	//	button[1] = -1;
+	);
+	Current Data Table( ref_tab );
+	ref_tab = Current Data Table();
+	ref_tab << ScrollWindow( {0, 0} );
+	Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || ".jmp";
+
+	ref_tab = Current Data Table();
+
+	//eval(_Main)
+	Try(
+		Eval( _Main ),
+		Print( "ERROR" );
+		If( Type( ref_tab ) == "DataTable",
+			Insert Into( tab_create_list, ref_tab << GetName )
+		);
+		CleanUP();
+	);
+); //EndExpr
+
+
+
+/////////////////////////////////////////////  CLRefSrc_1Click  ////////////////////////////////////////////////////////
+::CLRefSrc_1Click = Expr(
+
+	If( ref_select != 4,
+		ref_tab = Open( Ref_Path || User_Def_Ref_tab || ".jmp" );
+		Current Data Table( ref_tab );
+		
+		Try(
+			ref_tab = Current Data Table();
+			ref_tab = Current Data Table();
+			Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || ".jmp";
+			If( !Contains( ref_tab << GetColumnNames( String ), "Mean Parameter CL" ),
+				ref_tab << AddMultipleColumns(
+					"Mean Parameter CL",
+					1,
+					After( "Mean Parameter LCL" ),
+					Numeric
+				)
+			);
+			Column( ref_tab, "Parameter Type" ) << ListCheck( {"Raw", "Mean", "Std", "Range"} );
+		,
+			CleanUP();
+			\\button[1] = -1;
+		);
+		
+		Current Data Table( ref_tab );
+		ref_tab << ScrollWindow( 0, 0 );
+		ref_tab << MoveWindow( 0, 300 );
+		Ref_Table_Name = Ref_Path || Char( ref_tab << GetName ) || "_" || Char( DATE_STAMP ) ||
+		".jmp";
+		/*
+		Try(
+			Eval( _Main ),
+			Print( "ERROR" );
+			If( Type( ref_tab ) == "DataTable",
+				Insert Into( tab_create_list, ref_tab << GetName )
+			);
+			CleanUP();
+			\\button[1] = -1;
+		);
+		*/
+		Eval( _Main );
+	,
+		ref_tab = Open( Ref_Path || Ref_Table_Name || ".jmp" )
+	); //EndIf ref_select
+
+); //EndExpr
+
+

@@ -1,0 +1,761 @@
+﻿/* JMP 12.2.0   01 */
+ListBox(vertical,near,sub(
+EvalContextBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+TabListBox(sub(
+TabPaneBox(title("Tool Matching Analysis Summary Reports"),sub(
+EvalContextBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("Tool Matching Analysis Summary Report by PARAMETER, SPC_FACILITY, SPC_ENTITY"),sub(
+TableBox(sub(
+StringColBox(n(10),title("PARAMETER"),flags(16),
+ strings("Mean of RAW_VALUE","Std Dev of RAW_VALUE","Mean of RAW_VALUE","Std Dev of RAW_VALUE","Mean of RAW_VALUE","Std Dev of RAW_VALUE","Mean of RAW_VALUE","Std Dev of RAW_VALUE","Mean of RAW_VALUE","Std Dev of RAW_VALUE"),titleWrap(true),),
+StringColBox(n(10),title("SPC_FACILITY"),flags(16),
+ strings("AAL","AAL","AAL","AAL","AAL","AAL","AAL","AAL","AAL","AAL"),titleWrap(true),),
+StringColBox(n(10),title("SPC_ENTITY"),flags(16),
+ strings("DLS301","DLS301","DLS302","DLS302","DLS304","DLS304","DLS305","DLS305","DLS309","DLS309"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(10),title("#Runs"),width(7),decimal(99),newdecimal(-1),numbers(134,134,134,134,134,134,134,134,134,134),),
+NumberColBox(titleWrap(true),n(10),title("TMM"),width(5),decimal(2),newdecimal(2),numbers(0.29885677156417,0,1.11910852516642,-0.0867344840062752,0.577375090884072,0.664371125378715,-0.245937303592077,-0.275158908004406,-0.468969165818258,-0.0160049857457855),),
+NumberColBox(titleWrap(true),n(10),title("TMS"),width(5),decimal(2),newdecimal(2),numbers(1,1,1.16728556742276,1.09915550826179,0.818371494885872,0.980204092092502,0.756880290858238,0.881507074098783,0.93517568372834,0.848603906253269),),
+StringColBox(n(10),title("TMM Status"),flags(16),
+ strings("","Reference","Warning","","","","","","",""),titleWrap(true),),
+StringColBox(n(10),title("TMS Status"),flags(16),
+ strings("Reference","Reference","","","","","","","",""),titleWrap(true),))))),
+OutlineBox(
+open(1),title("Tool Match Status Report by PARAMETER, SPC_FACILITY, SPC_ENTITY"),sub(
+TableBox(sub(
+StringColBox(n(5),title("PARAMETER"),flags(16),
+ strings("RAW_VALUE","","","",""),titleWrap(true),),
+StringColBox(n(5),title("SPC_FACILITY"),flags(16),
+ strings("AAL","AAL","AAL","AAL","AAL"),titleWrap(true),),
+StringColBox(n(5),title("SPC_ENTITY"),flags(16),
+ strings("DLS301","DLS302","DLS304","DLS305","DLS309"),titleWrap(true),),
+StringColBox(n(5),title("FINAL STATUS"),flags(16),
+ strings("Matched","Matched","Matched","Matched","Matched"),titleWrap(true),))))),
+OutlineBox(
+open(1),title("Tool Matching Analysis Summary Report by PARAMETER, SPC_FACILITY"),sub(
+TableBox(sub(
+StringColBox(n(1),title("PARAMETER"),flags(16),
+ strings("RAW_VALUE"),titleWrap(true),),
+StringColBox(n(1),title("SPC_FACILITY"),flags(16),
+ strings("AAL"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(1),title("# Tools"),width(7),decimal(99),newdecimal(-1),numbers(5),),
+NumberColBox(titleWrap(true),n(1),title("# Matched Tools"),width(7),decimal(99),newdecimal(-1),numbers(5),),
+NumberColBox(titleWrap(true),n(1),title("% of Tools Matched"),width(5),decimal(1),newdecimal(1),numbers(100),))))),
+OutlineBox(
+open(1),title("Tool Matching Analysis Summary Report by PARAMETER"),sub(
+TableBox(sub(
+StringColBox(n(3),title("PARAMETER"),flags(16),
+ strings("RAW_VALUE",".","All Parameters"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(3),title("# Tools"),width(7),decimal(99),newdecimal(-1),numbers(5,.,5),),
+NumberColBox(titleWrap(true),n(3),title("# Matched Tools"),width(7),decimal(99),newdecimal(-1),numbers(5,.,5),),
+NumberColBox(titleWrap(true),n(3),title("% of Tools Matched"),width(5),decimal(1),newdecimal(1),numbers(100,.,100),))))),
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Variability Chart for TMM"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(2),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),color(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(-3),scaleWidth(6),widthMajor(0.5),
+nbin(24),nminor(1),timeCode(0),ndec(0),FieldWidth(10),
+MinInit(-3),MaxInit(3),LinearInit,MajorInit(0.5),MinorInit(1),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showLabels,noMinorTickLabelsOnLogAxis,),ref lines(n(5),value(0),style(0),color(0),value(-1.5),style(2),color(0),value(-1),style(1),color(0),value(1),style(1),color(0),value(1.5),style(2),color(0),),scaleTypeOptions(),nLabelRows(1),labelRows(LabelRowNumeric(),),labelRows12(LabelRowContinuous(options(0),Automatic Font Size(0),Show Major Grid(0),Label Orientation("Horizontal"),Automatic Tick Marks(0),Inside Ticks(0),Show Major Ticks(1),Show Major Labels(1),Tick Offset(0),Major Grid Line Color(-14145495),Show Minor Ticks(1),Show Minor Labels(0),Show Minor Grid(0),Minor Grid Line Color(-15790320),),),ndec(0),FieldWidth(10),),length(240),baselength(240),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("TMM",default font id(9),wrapWidth(240),justification(1),))),
+AxisBox(side(R),size(43,240),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,240),border(12303),flags(0),markerSize(2),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(1, -3, 3)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(5)),),settable(46),script({}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 0.256086783640865), H Line(1.425, 1.575, 0.0572945495244497)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, -0.468969165818258, 1.11910852516642), H Line(0.35, 0.65, -0.468969165818258), H Line(0.35, 0.65, 1.11910852516642), V Line(1.5, -0.275158908004406, 0.664371125378715), H Line(1.35, 1.65, -0.275158908004406), H Line(1.35, 1.65, 0.664371125378715)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(10),nv(1),MarkerItem(x(0.368497361956796,1.51620296856404,0.526220031072578,1.49987003358244,0.744773138718028,1.49060033960669,0.49686577035696,1.50197719085962,0.50632892402195,1.52249042949252
+),y(0.29885677156417,0,1.11910852516642,-0.0867344840062752,0.577375090884072,0.664371125378715,-0.245937303592077,-0.275158908004406,-0.468969165818258,-0.0160049857457855
+),),states(rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Triangle,-2211217)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,38),sizeID(1,5),num labels(2),labels(AAL,AAL,),value(1,1),total(2),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_FACILITY",))))),
+NomAxisBox(size(300,38),sizeID(1,6),num labels(2),labels(Mean,"Std Dev",),value(1,1),total(2),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("Type",))))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(5),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217)),allowStyles(false),sub(
+StringColBox(n(5),title("SPC_ENTITY"),flags(16),
+ strings("DLS301","DLS302","DLS304","DLS305","DLS309"),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217)),titleWrap(true),))))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(2),typeOptions()),length(300),baselength(300),))))))))),
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Variability Chart for TMS"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(2),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),color(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(0),scaleWidth(2.5),widthMajor(0.05),
+nbin(50),nminor(0),timeCode(0),ndec(0),FieldWidth(10),
+MinInit(0),MaxInit(2.5),LinearInit,MajorInit(0.05),MinorInit(0),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showLabels,noMinorTickLabelsOnLogAxis,),ref lines(n(4),value(0),style(1),color(81),value(1),style(0),color(0),value(1.3),style(1),color(0),value(1.6),style(2),color(0),),scaleTypeOptions(),nLabelRows(1),labelRows(LabelRowNumeric(),),labelRows12(LabelRowContinuous(options(0),Automatic Font Size(0),Show Major Grid(0),Label Orientation("Horizontal"),Automatic Tick Marks(0),Inside Ticks(0),Show Major Ticks(1),Show Major Labels(1),Tick Offset(0),Major Grid Line Color(-14145495),Show Minor Ticks(1),Show Minor Labels(0),Show Minor Grid(0),Minor Grid Line Color(-15790320),),),ndec(0),FieldWidth(10),),length(240),baselength(240),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("TMS",default font id(9),wrapWidth(240),justification(1),))),
+AxisBox(side(R),size(52,240),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,240),border(12303),flags(0),markerSize(2),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({V Line(1, 0, 2.5)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(5)),),settable(46),script({}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 0.935542607379042), H Line(1.425, 1.575, 0.961894116141269)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, 0.756880290858238, 1.16728556742276), H Line(0.35, 0.65, 0.756880290858238), H Line(0.35, 0.65, 1.16728556742276), V Line(1.5, 0.848603906253269, 1.09915550826179), H Line(1.35, 1.65, 0.848603906253269), H Line(1.35, 1.65, 1.09915550826179)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(10),nv(1),MarkerItem(x(0.516033804648588,1.51977322798399,0.295956436864712,1.50477854752036,0.520403654983912,1.52042573987842,0.47993625536974,1.51530218323898,0.496834318675059,1.67755865053463
+),y(1,1,1.16728556742276,1.09915550826179,0.818371494885872,0.980204092092502,0.756880290858238,0.881507074098783,0.93517568372834,0.848603906253269
+),),states(rs(0,Circle,-13977687),rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,X,-13596966),rs(0,Triangle,-2211217),rs(0,Triangle,-2211217)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,38),sizeID(1,5),num labels(2),labels(AAL,AAL,),value(1,1),total(2),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_FACILITY",))))),
+NomAxisBox(size(300,38),sizeID(1,6),num labels(2),labels(Mean,"Std Dev",),value(1,1),total(2),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("Type",))))))),
+BorderBox(top(1),left(2),bottom(1),sides(0),options(0),xmin(0),ymin(0),sub(
+OwnerBox(sub(
+PictureBox(sub(
+TableBox(n markers(5),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217)),allowStyles(false),sub(
+StringColBox(n(5),title("SPC_ENTITY"),flags(16),
+ strings("DLS301","DLS302","DLS304","DLS305","DLS309"),markers(rs(0,Circle,-13977687),rs(0,Plus,-3780931),rs(0,Diamond,-4222943),rs(0,X,-13596966),rs(0,Triangle,-2211217)),titleWrap(true),))))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(2),typeOptions()),length(300),baselength(300),))))))))))),
+OutlineBox(
+open(0),title("Graph Legend"),sub(
+OutlineBox(
+open(1),title("Reference Lines"),sub(
+TextBox("Solid line represent the MATCH Target.",),
+TextBox("Dotted line represent WARNING Threshold.",),
+TextBox("Dashed line represent FLAG Threshold.",))))),
+OutlineBox(
+open(0),title("Status Guidelines"),sub(
+TableBox(sub(
+StringColBox(n(2),title("Status"),flags(16),
+ strings("Warning","Flag"),titleWrap(true),),
+StringColBox(n(2),title("TMM Mean"),flags(16),
+ strings("1.0 < |TMM| <= 1.5","|TMM| > 1.5"),titleWrap(true),),
+StringColBox(n(2),title("TMM Std Dev"),flags(16),
+ strings("1.0 < TMM <= 1.5","TMM > 1.5"),titleWrap(true),),
+StringColBox(n(2),title("TMS"),flags(16),
+ strings("1.3 < TMS <= 1.6","TMS > 1.6"),titleWrap(true),),
+StringColBox(n(2),title("TTD Ratio"),flags(16),
+ strings("1.3 < TTD Ratio <= 1.6","TTD Ratio > 1.6"),titleWrap(true),))))),
+ListBox(vertical,near,sub(
+TextBox(" ",),
+TextBox(" SOS Version 6.4, July 14, 2020",))))))))),
+TabPaneBox(title("Tool Matching Variability Analysis Reports"),sub(
+EvalContextBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Name("Mean(RAW_VALUE)")), X(:SPC_FACILITY, :SPC_ENTITY), Analysis Type("Choose best analysis (EMS REML Bayesian)"), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(1), AIAG Labels(0), SendToReport(Dispatch({"Variability Chart for Mean(RAW_VALUE)"}, "2", ScaleBox, {Add Ref Line(0, "Dotted", "Medium Light Gray", "", 1), Add Ref Line(6.82, "Dashed", "Blue", "", 1), Label Row(Show Major Grid(1))}), Dispatch({"Variability Chart for Mean(RAW_VALUE)"}, "", NomAxisBox, {Rotated Tick Labels(1)})), Where(Selected() & !Excluded()))),Context({Y("Mean(RAW_VALUE)")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Mean(RAW_VALUE)"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(5),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),color(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(6.81),scaleWidth(0.0225),widthMajor(0.005),
+nbin(9),nminor(1),timeCode(0),ndec(0),FieldWidth(12),
+MinInit(6.81),MaxInit(6.8325),LinearInit,MajorInit(0.005),MinorInit(1),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showLabels,noMinorTickLabelsOnLogAxis,),ref lines(n(2),value(0),style(1),color(81),value(6.82),style(2),color(5),),scaleTypeOptions(),nLabelRows(1),labelRows(LabelRowNumeric(),),labelRows12(LabelRowContinuous(options(0),Automatic Font Size(0),Show Major Grid(1),Label Orientation("Horizontal"),Automatic Tick Marks(0),Inside Ticks(0),Show Major Ticks(1),Show Major Labels(1),Tick Offset(0),Major Grid Line Color(-14145495),Show Minor Ticks(1),Show Minor Labels(0),Show Minor Grid(0),Minor Grid Line Color(-15790320),),),ndec(0),FieldWidth(12),),length(240),baselength(240),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Mean(RAW_VALUE)",default font id(9),wrapWidth(240),justification(1),left,))),
+AxisBox(side(R),size(55,240),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,240),border(12303),flags(0),markerSize(-1),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 5, 6.82077426865672)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(5)),),settable(46),script({Line({0.5, 6.82090358208955}, {1.5, 6.82338358208955}), Line({1.5, 6.82338358208955}, {2.5, 6.82174567164179}), Line({2.5, 6.82174567164179}, {3.5, 6.81925641791044}), Line({3.5, 6.81925641791044}, {4.5, 6.81858208955224})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 6.82090358208955), H Line(1.425, 1.575, 6.82338358208955), H Line(2.425, 2.575, 6.82174567164179), H Line(3.425, 3.575, 6.81925641791044), H Line(4.425, 4.575, 6.81858208955224)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, 6.81232, 6.82724), H Line(0.35, 0.65, 6.81232), H Line(0.35, 0.65, 6.82724), V Line(1.5, 6.81504, 6.83172), H Line(1.35, 1.65, 6.81504), H Line(1.35, 1.65, 6.83172), V Line(2.5, 6.81488, 6.82808), H Line(2.35, 2.65, 6.81488), H Line(2.35, 2.65, 6.82808), V Line(3.5, 6.8138, 6.82512), H Line(3.35, 3.65, 6.8138), H Line(3.35, 3.65, 6.82512), V Line(4.5, 6.81104, 6.8236), H Line(4.35, 4.65, 6.81104), H Line(4.35, 4.65, 6.8236)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(670),nv(1),MarkerItem(
+x(0.302347342824623,0.500629743148363,0.356362610241411,0.645124814211802,0.494895345451292,0.610090483103313,0.459318971201935,0.495607406126885,0.49972010594118,0.496868803972159
+,0.505651506752525,0.51568760195487,0.543975338938083,0.340196466534968,0.499995557180948,0.538162916094656,0.358148769614948,0.499999834848352,0.480248704175777,0.363596682908897
+,0.483984721177018,0.500065835853042,0.530621192756346,0.34311605539148,0.648806824915929,0.632983692379108,0.404303290180736,0.28577389928427,0.428624574739967,0.551476849217029
+,0.518338082395668,0.339143758571839,0.499995917060613,0.499931916190453,0.675477490923984,0.502713314384974,0.427071615598312,0.364304033844395,0.668375140240314,0.394819671269907
+,0.280604256464018,0.499316517827324,0.574437235468886,0.560809976047816,0.525720302520709,0.631770813489192,0.618952162343637,0.500427759774754,0.481997137455758,0.498396963831686
+,0.499056256331295,0.435157744492834,0.499772869626413,0.496205074537234,0.627046948092987,0.500286254496555,0.499017407088501,0.611982247987734,0.460526689877274,0.499239894510432
+,0.273731568971478,0.65612057342362,0.50099094452193,0.555841759597293,0.469255345693621,0.508497071870639,0.510782670445532,0.505433327206461,0.499966245000381,0.466886673475608
+,0.392138733150081,0.496679282261249,0.658571041338329,0.444756704417363,0.504600491733151,0.54091275820766,0.493492424478125,0.500018094414359,0.504237631665072,0.331829737952636
+,0.499749970675114,0.553669925606482,0.476313503185298,0.289142563692324,0.324442320461049,0.458013768009374,0.657129015011845,0.465646682396565,0.608358301309226,0.502464462475076
+,0.740568256064465,0.542850808570308,0.561311134639665,0.499959190305221,0.681121081589027,0.341309931996039,0.499454780943599,0.35686481848717,0.500744007865697,0.499659805448529
+,0.499996057088659,0.490126486631595,0.257975549062338,0.499830232360231,0.355812131664555,0.701256691608659,0.49539196511857,0.540501799653577,0.498569227029505,0.512738334433089
+,0.499998693955985,0.543396657111088,0.685172801973106,0.606018399482484,0.473932431732349,0.495342567130979,0.384892550943799,0.48282220453009,0.521721741573855,0.506613253571151
+,0.501452626384979,0.468161597626319,0.500018574758381,0.48059651452986,0.50117192904352,0.499996862985217,0.494707692698179,0.499999999997784,0.351972722339058,0.560061743749407
+,0.500150961948945,0.501083525729477,0.478457109644359,0.502700771930654,1.28645486845384,1.55112803520758,1.49774904657975,1.46773404954948,1.34705598736779,1.5553039083367
+,1.49321321167709,1.49860454734287,1.50026408978217,1.48406505186771,1.4973207629931,1.50048219224337,1.47029373532132,1.33593845556005,1.48261485447609,1.41092654754427
+,1.25218335787482,1.49962672098848,1.48150612109742,1.50241196601334,1.50510991275271,1.40599341540144,1.51364362381307,1.50006332334085,1.5625485191211,1.49020779196704
+,1.50016094258243,1.53736195731038,1.5072839030587,1.61161428707206,1.28976799004496,1.49994418541122,1.49999565325769,1.48962014443121,1.49999415855279,1.53119033105843
+,1.46355413854799,1.52902182588031,1.50373356158541,1.49447922439948,1.35990475895373,1.64349594953471,1.45531579217218,1.49506856642038,1.45316579117211,1.49503555100939
+,1.45063271509077,1.35622727511823,1.48568411061481,1.48397366917601,1.39058048445125,1.42323157986979,1.29438998897077,1.54298850240923,1.30636313923877,1.52104705927202
+,1.49915303016998,1.57750339961021,1.58334676720427,1.50008288036527,1.49997770505177,1.66641473574809,1.73430886238825,1.5172455113521,1.63928689041275,1.50359363423232
+,1.49862346011908,1.53168857917101,1.62452447168958,1.52112790709537,1.5000513369355,1.48075471613888,1.48722455037766,1.39077106948182,1.33629870666202,1.37869213443881
+,1.53925911156006,1.52143272124219,1.59085453584177,1.46451949409305,1.51346937641051,1.7256976282787,1.61487228719071,1.47349915490471,1.50077671459767,1.27956039756041
+,1.50016911588815,1.49752434144861,1.44942792576472,1.60865770595555,1.41369202641698,1.44024192318102,1.50229740676965,1.30183731291831,1.52800973733466,1.4998298388312
+,1.4611845500394,1.50013381679939,1.70815863282306,1.63995139546653,1.34529512778304,1.49683303721562,1.51264993811373,1.49992453200711,1.50046049275596,1.48497967740581
+,1.4207396986225,1.70803577372991,1.71742388379834,1.5136027186291,1.48562194837795,1.52106464970974,1.64196071811139,1.49983072348233,1.50337248322404,1.40422394720353
+,1.4232733665564,1.4517098215227,1.50555881515197,1.67516949364444,1.47406432448375,1.4839497793871,1.30379836238525,1.61754759790431,1.52385691928184,1.49802072148963
+,1.54179530681681,1.50256169231517,1.52242254321227,1.39665352435253,1.51749328331719,1.53851032632897,1.60105266300206,1.49961253641929,2.60024316477912,2.30317647056512
+,2.70198494577219,2.6198792417848,2.32783941578768,2.50143249248264,2.5467284900539,2.29472602031365,2.51811855243341,2.49784136470066,2.50097167047407,2.59046923049771
+,2.42191424726682,2.48314380951965,2.49489631898226,2.63989679200992,2.40845204230782,2.48198059171215,2.48584578184442,2.50606972263654,2.49890404612539,2.50225637983167
+,2.35634520966741,2.39556607096351,2.49999411691899,2.50289429166511,2.49989242873961,2.39595685070394,2.56268285835308,2.46587878614937,2.49254063641788,2.65116911888501
+,2.49982215692026,2.50026113503915,2.36995031167518,2.28250096171773,2.49999348594172,2.50004260823425,2.45895262839405,2.34331129043682,2.49997344043586,2.27791324340375
+,2.50000289602311,2.47682473878398,2.47228193843113,2.49660302009179,2.4962824909325,2.5107879714868,2.49987359104371,2.26170347344754,2.50232610505502,2.49999999998585
+,2.49887434583364,2.49820415189405,2.65542473032793,2.67973425774486,2.70150456790616,2.49608608967381,2.5772321480548,2.49747166607147,2.54585675944747,2.50225084465256
+,2.47142747338156,2.50018540932005,2.50436882234635,2.49084246832425,2.50860089929341,2.73410918929968,2.3304016650125,2.50116094751244,2.47836963773953,2.46458818500284
+,2.28739185329171,2.5652147172914,2.49207147595575,2.47516519226173,2.43767164673035,2.49833939684317,2.50009598695704,2.74475669998303,2.49988059436702,2.49122519407448
+,2.44227595545285,2.33026686440583,2.73834697067585,2.27754108981845,2.49251502514689,2.3549785500486,2.37207225016415,2.57851306987533,2.4981176351832,2.27722373554
+,2.29001702494121,2.53308297730894,2.52892799913803,2.54838172154317,2.50791756791322,2.70641417785054,2.50975728527424,2.38322129785331,2.41485651138377,2.74964319649782
+,2.4999655691223,2.50026085124143,2.50149016676276,2.68236903081299,2.28122383112819,2.45112286705523,2.49944649875035,2.29638433030691,2.38638539050017,2.48362248109506
+,2.50162770972209,2.42117435441992,2.5288086557262,2.49972886455967,2.50000859751571,2.42215209810484,2.44666910744795,2.49999932240804,2.50338049885079,2.49719385631449
+,2.53675886581095,2.50822054726543,2.50811518136575,2.50326219101699,2.51380399068284,2.49899818240875,2.44624383226986,2.49988167703327,2.40462844963489,2.49883606065986
+,2.4940417231854,2.51174783242467,3.43867411198112,3.39025586942773,3.49892581567027,3.49802914130749,3.51183229359574,3.65705008315411,3.50006892085974,3.4734023496782
+,3.50986426726216,3.50002526880526,3.52267854224227,3.4322279625176,3.51085489647098,3.56224091952559,3.31465288095541,3.59052801589755,3.49308652552272,3.43206711863812
+,3.58716939139873,3.51883444615366,3.42126703595044,3.52533344501423,3.51579040984033,3.54073859856403,3.73464595947675,3.4793659140426,3.47078514273359,3.48989654977235
+,3.55542406248471,3.51468839285953,3.500788142694,3.49682896073869,3.68599909186986,3.49962636326389,3.49905207950365,3.59299128896945,3.392260845221,3.31383184029882
+,3.42347279250666,3.50114446720376,3.64637018660345,3.55393850975742,3.33593223754839,3.68915704505614,3.52756354926827,3.60340641881551,3.506971109254,3.49954421485099
+,3.53723749547414,3.74733218552433,3.50037195494619,3.52062794652444,3.58221688350148,3.51323677349075,3.67563464788539,3.5246645675734,3.55058979034442,3.47116785808178
+,3.50042549108537,3.49998467991912,3.50099276870453,3.4967843250852,3.47103047154274,3.50030200351527,3.36153634728226,3.25144887612638,3.65725883105243,3.27715616167639
+,3.50719651679866,3.48783717028592,3.5152464469335,3.53025494844745,3.39976341915644,3.48089956914461,3.50002187154251,3.33308239066061,3.50320778030056,3.49742525544035
+,3.50514021276979,3.50000360499153,3.42651393651764,3.54486168118926,3.49358955853306,3.29382774251209,3.40253380003867,3.48248689055679,3.47907680843961,3.36865386983149
+,3.51990048003565,3.49941042235983,3.50364466983192,3.50081401814604,3.36182038939668,3.71637637121862,3.43279530817039,3.49850836936257,3.50069455729792,3.44297081304311
+,3.49711371237811,3.49309987023024,3.41876536654462,3.55854648660907,3.43558505812814,3.4583298929629,3.50000951257628,3.30139213628966,3.44501489462221,3.5273990672768
+,3.60367692439703,3.44205254678697,3.49077677896049,3.50000061208051,3.49105574834646,3.51869391742984,3.36406300262879,3.46599223869878,3.53323047765039,3.47904109070153
+,3.49999236253414,3.4452420032395,3.69766349756743,3.51319903351131,3.74396678450155,3.48248647772175,3.72322722507481,3.3970351236048,3.39549770697673,3.46682084806088
+,3.48104584117477,3.49923740414774,3.50252652194188,3.53226764605319,3.74064460081838,3.6194124662855,4.72160090567561,4.42995190194589,4.47915966202827,4.51184729426885
+,4.50412369886102,4.42653731420298,4.30281970741357,4.50669284822997,4.4899337845937,4.46635547102495,4.50000301392734,4.41168952219881,4.45687234759811,4.45711678589676
+,4.50011277706185,4.50573057073378,4.49987543682621,4.49906282060641,4.60408158318543,4.73580876298319,4.50000510689404,4.48714928075461,4.52232551671734,4.52102697834863
+,4.39342117669476,4.67804681192621,4.68268983158616,4.43761312032806,4.50150323108727,4.50000932599562,4.68026790824776,4.50014989766197,4.37044034461654,4.52885131202498
+,4.53960767060636,4.50002690626695,4.51051528528687,4.48731081309065,4.50317902308961,4.49999594805674,4.54662979841091,4.5128200008429,4.50947802703398,4.73096282747411
+,4.56022020763963,4.50223361163313,4.31152776831734,4.572750685497,4.58185550187935,4.49971810166659,4.49623119202027,4.74647305095572,4.50018098898966,4.4551484866529
+,4.4932058730818,4.47180407049605,4.49917923455327,4.50004742570306,4.49035823973655,4.33617101749872,4.49993983152495,4.46803127493245,4.63060967938217,4.49966225578509
+,4.38026859817501,4.5623304306734,4.48225114608882,4.61839754893874,4.61360967276144,4.37590841478905,4.32478035801854,4.4075296130834,4.50410497623366,4.68145841701427
+,4.57483393374019,4.49949817098214,4.49460856640472,4.39008255450732,4.49966035687956,4.27854251966329,4.48759615778906,4.48495002836556,4.27114930844596,4.46800200033962
+,4.53571244084509,4.69499750513676,4.48648690662469,4.49468715608686,4.50000365863734,4.49166246681018,4.45901143138769,4.51329871321708,4.4998338725569,4.59908796311785
+,4.34319703017148,4.50169466445965,4.4899623539153,4.41011813101986,4.50001287613871,4.5206491704784,4.60244210981879,4.68934533973622,4.54723209864152,4.47056544055353
+,4.49933404810737,4.49999858027656,4.387532276415,4.32285925418034,4.56479446942862,4.51004275306962,4.49282970821804,4.50856211098849,4.48993160666109,4.49136525971456
+,4.49414562703229,4.55927511700948,4.54466662587207,4.61842869666351,4.64552948884346,4.71404285066224,4.49474815431481,4.61761199973251,4.44440185810254,4.47736761089576
+,4.73533882680731,4.46023087983333,4.50607474238445,4.48537210625404,4.50176286661411,4.57163369752259,4.45512787894764,4.58267220013642,4.35327875664428,4.52090983389405
+),
+y(6.82188,6.81704,6.82072,6.81232,6.82352,6.81952,6.82396,6.82432,6.82628,6.82424
+,6.82148,6.82232,6.82592,6.82432,6.8222,6.82548,6.82556,6.81872,6.81468,6.82304
+,6.82068,6.82304,6.82152,6.82196,6.821,6.82676,6.82436,6.82552,6.82424,6.8194
+,6.8186,6.81512,6.82268,6.81744,6.81704,6.81944,6.82112,6.82392,6.81984,6.819
+,6.8188,6.82024,6.81744,6.82224,6.81704,6.82104,6.81784,6.82188,6.82592,6.81504
+,6.82192,6.82508,6.82184,6.82068,6.82304,6.82236,6.81388,6.8154,6.8162,6.81908
+,6.81824,6.81632,6.82144,6.8226,6.8198,6.82236,6.82184,6.81912,6.81864,6.8224
+,6.8214,6.82068,6.82192,6.82188,6.82268,6.82228,6.81668,6.82308,6.82388,6.8198
+,6.81704,6.82464,6.82064,6.81588,6.821,6.81988,6.82388,6.82508,6.81944,6.82512
+,6.82148,6.81876,6.82724,6.8252,6.82228,6.82388,6.81832,6.81992,6.81904,6.82308
+,6.8226,6.81824,6.82548,6.82,6.82264,6.81912,6.81996,6.819,6.81984,6.8186
+,6.82072,6.81672,6.8158,6.82184,6.81588,6.8212,6.81868,6.81624,6.82268,6.82068
+,6.82312,6.82304,6.81908,6.82032,6.8242,6.82448,6.82312,6.82068,6.82064,6.81624
+,6.82308,6.8234,6.81672,6.82104,6.82476,6.82512,6.82432,6.82792,6.82224,6.81908
+,6.82796,6.82024,6.82352,6.8182,6.81708,6.82156,6.81828,6.8198,6.82068,6.82064
+,6.82308,6.82028,6.81712,6.82268,6.82964,6.82392,6.82992,6.82544,6.82224,6.82564
+,6.82552,6.82912,6.82676,6.82672,6.82592,6.8232,6.82628,6.82624,6.82752,6.828
+,6.82544,6.82552,6.82756,6.82592,6.81636,6.82068,6.82476,6.82108,6.82228,6.82192
+,6.82744,6.81868,6.82104,6.8198,6.82032,6.82384,6.82712,6.82344,6.81828,6.82348
+,6.82504,6.82628,6.82508,6.82268,6.81824,6.82076,6.8224,6.81904,6.81988,6.82064
+,6.8198,6.82148,6.82228,6.82064,6.82664,6.82672,6.82796,6.82916,6.82668,6.82956
+,6.82792,6.82668,6.82844,6.82828,6.82552,6.82712,6.828,6.81904,6.82308,6.828
+,6.8194,6.82636,6.81784,6.828,6.82432,6.82584,6.82428,6.8272,6.82156,6.81984
+,6.81792,6.8284,6.82064,6.81716,6.8202,6.81988,6.8226,6.83172,6.82384,6.82668
+,6.82844,6.82388,6.82164,6.8222,6.82104,6.8198,6.82188,6.81788,6.81504,6.82424
+,6.82432,6.82624,6.8206,6.82228,6.821,6.82276,6.82032,6.82464,6.81876,6.82552
+,6.82428,6.8234,6.8206,6.81796,6.82588,6.82596,6.82308,6.82144,6.82152,6.8224
+,6.82424,6.81956,6.8212,6.8248,6.82048,6.82076,6.82148,6.8252,6.8224,6.82196
+,6.822,6.82264,6.81824,6.8232,6.82364,6.826,6.82432,6.81852,6.82112,6.82548
+,6.81676,6.82228,6.826,6.82628,6.82284,6.82192,6.82272,6.82676,6.82512,6.82408
+,6.8272,6.82224,6.82108,6.82148,6.82124,6.81596,6.82156,6.82392,6.82,6.82072
+,6.82184,6.82188,6.82472,6.81796,6.82064,6.81948,6.8208,6.8218,6.81904,6.82352
+,6.81756,6.82032,6.8218,6.82592,6.82144,6.81792,6.82152,6.8276,6.82356,6.82232
+,6.82384,6.82356,6.82084,6.82052,6.82076,6.82428,6.81784,6.82268,6.81488,6.82032
+,6.81868,6.8204,6.81988,6.82064,6.81864,6.82076,6.82032,6.81876,6.81924,6.81832
+,6.82148,6.82316,6.82436,6.81916,6.81912,6.82432,6.8206,6.82116,6.81756,6.82808
+,6.82028,6.8224,6.81944,6.81964,6.82192,6.822,6.82268,6.82432,6.81992,6.82528
+,6.82116,6.82132,6.8218,6.82356,6.81728,6.8228,6.82156,6.82028,6.82472,6.81904
+,6.82392,6.82024,6.82228,6.82152,6.82276,6.82024,6.824,6.82356,6.82108,6.82352
+,6.82312,6.81844,6.81872,6.82028,6.82188,6.82304,6.82648,6.82344,6.82272,6.81836
+,6.82428,6.82152,6.82104,6.81824,6.82032,6.81864,6.81788,6.81664,6.8174,6.82028
+,6.81908,6.8194,6.81712,6.81784,6.8194,6.81948,6.8178,6.81584,6.81384,6.82072
+,6.8174,6.82144,6.81512,6.82384,6.8226,6.82352,6.82508,6.82104,6.81904,6.8208
+,6.8194,6.82024,6.82072,6.81784,6.81832,6.8146,6.8138,6.81624,6.81864,6.82264
+,6.81752,6.81864,6.81996,6.8194,6.81668,6.82024,6.81876,6.82392,6.8178,6.81624
+,6.82304,6.82144,6.8194,6.81904,6.82028,6.81784,6.81948,6.81828,6.8198,6.82184
+,6.82064,6.82148,6.81592,6.81916,6.82064,6.8202,6.81748,6.81912,6.8198,6.8202
+,6.82144,6.81912,6.81912,6.81864,6.82032,6.81704,6.82072,6.81868,6.8202,6.81628
+,6.82268,6.819,6.82104,6.81908,6.82228,6.82112,6.82068,6.81952,6.81792,6.82068
+,6.82028,6.82148,6.81872,6.81584,6.821,6.82152,6.8186,6.81748,6.814,6.81824
+,6.81944,6.81828,6.81988,6.81832,6.81828,6.8198,6.81596,6.81824,6.81468,6.81984
+,6.81788,6.82028,6.819,6.81904,6.82112,6.81864,6.82228,6.81744,6.82512,6.8218
+,6.82156,6.81624,6.82384,6.81824,6.82104,6.81548,6.8186,6.82064,6.81668,6.82512
+,6.8186,6.8182,6.81624,6.81584,6.81904,6.81944,6.82288,6.81884,6.81964,6.81272
+,6.8188,6.82076,6.81792,6.81844,6.82048,6.82,6.8212,6.821,6.82088,6.8184
+,6.81468,6.82124,6.82092,6.82144,6.81968,6.81472,6.82304,6.8192,6.82116,6.82124
+,6.81716,6.82168,6.81788,6.822,6.816,6.81632,6.81468,6.81724,6.81708,6.82044
+,6.82004,6.81476,6.81884,6.8164,6.81228,6.81508,6.8152,6.8176,6.82204,6.81872
+,6.81348,6.82076,6.81708,6.82172,6.81752,6.81628,6.81704,6.81636,6.81436,6.816
+,6.81344,6.81876,6.81672,6.81748,6.81504,6.81908,6.81748,6.8164,6.82192,6.81104
+,6.82032,6.81424,6.81344,6.81468,6.81268,6.8162,6.81716,6.8236,6.81228,6.8134
+,6.81512,6.81668,6.81872,6.81968,6.8184,6.81968,6.81552,6.8168,6.81844,6.81636
+,6.82324,6.81688,6.81836,6.8188,6.818,6.82264,6.82076,6.8204,6.82076,6.82164
+,6.82236,6.8222,6.8218,6.82284,6.81876,6.81588,6.8232,6.82028,6.82008,6.82128
+,6.81948,6.8232,6.81952,6.81956,6.82168,6.81912,6.81916,6.81676,6.81672,6.82164
+,6.81672,6.81832,6.81996,6.82288,6.82128,6.8192,6.81992,6.81912,6.8204,6.82112
+,6.82124,6.81704,6.82084,6.82116,6.81428,6.82036,6.82052,6.81832,6.82056,6.81768
+),),states(rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,60),sizeID(1,5),num labels(5),labels(DLS301,DLS302,DLS304,DLS305,DLS309,),value(1,1,1,1,1),total(5),horizontal,right,rotatedTicks(1),dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_ENTITY",))))),
+NomAxisBox(size(300,38),sizeID(1,6),num labels(1),labels(AAL,),value(5),total(5),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_FACILITY",))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(5),typeOptions()),length(300),baselength(300),))))))))))),
+ListBox(vertical,near,),
+OutlineBox(
+open(0),title("Graph Legend"),sub(
+OutlineBox(
+open(1),title("Reference Lines and/or Shaded Zones"),sub(
+TextBox("Dashed lines represent the mean/target/center line.",),
+TextBox("Shaded areas are TTD zones.",))))),
+OutlineBox(
+open(1),title("Sample Size Report"),sub(
+TableBox(sub(
+NumberColBox(titleWrap(true),n(1),title("# Samples Per Run"),width(7),decimal(99),newdecimal(-1),numbers(25),),
+NumberColBox(titleWrap(true),n(1),title("# of Runs"),width(7),decimal(99),newdecimal(-1),numbers(670),))))),
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Reference Tool Report"),sub(
+TableBox(sub(
+StringColBox(n(1),title("PARAMETER"),flags(16),
+ strings("RAW_VALUE"),titleWrap(true),),
+StringColBox(n(1),title("Reference Tool"),flags(16),
+ strings("DLS301"),titleWrap(true),),
+StringColBox(n(1),title("Source"),flags(16),
+ strings("Calculated"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(1),title("Target"),width(7),decimal(99),newdecimal(-1),numbers(6.82),),
+NumberColBox(titleWrap(true),n(1),title("Std Dev"),width(7),decimal(99),newdecimal(-1),numbers(0.00302346199091478),))))))),
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Tool Matching Report"),sub(
+TableBox(sub(
+StringColBox(n(5),title("Facility"),flags(16),
+ strings("AAL","AAL","AAL","AAL","AAL"),titleWrap(true),),
+StringColBox(n(5),title("Entity"),flags(16),
+ strings("DLS301","DLS302","DLS304","DLS305","DLS309"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(5),title("# Runs"),width(7),decimal(99),newdecimal(-1),numbers(134,134,134,134,134),),
+NumberColBox(titleWrap(true),n(5),title("Mean"),width(7),decimal(99),newdecimal(-1),numbers(6.82090358208955,6.82338358208955,6.82174567164179,6.81925641791044,6.81858208955224),),
+NumberColBox(titleWrap(true),n(5),title("Std Dev"),width(7),decimal(99),newdecimal(-1),numbers(0.00302346199091478,0.00352924354564611,0.00247431510923555,0.00228839879108241,0.00282746813458038),),
+NumberColBox(titleWrap(true),n(5),title("TMM"),width(7),decimal(2),newdecimal(2),numbers(0.29885677156417,1.11910852516642,0.577375090884072,-0.245937303592077,-0.468969165818258),),
+NumberColBox(titleWrap(true),n(5),title("TMS"),width(7),decimal(2),newdecimal(2),numbers(1,1.16728556742276,0.818371494885872,0.756880290858238,0.93517568372834),),
+StringColBox(n(2),title(""),flags(16),titleWrap(true),),
+StringColBox(n(5),title("TMM Status"),flags(16),
+ strings("","Warning","","",""),titleWrap(true),),
+StringColBox(n(5),title("TMS Status"),flags(16),
+ strings("Reference","","","",""),titleWrap(true),))))))))),
+ListBox(vertical,near,sub(
+ListBox(vertical,near,sub(
+OutlineBox(
+open(1),title("Variability Gauge"),helpKey("Variability"),rerun(Variability Chart(Y(:Name("Std Dev(RAW_VALUE)")), X(:SPC_FACILITY, :SPC_ENTITY), Analysis Type("Choose best analysis (EMS REML Bayesian)"), Connect Cell Means(1), Show Group Means(1), Std Dev Chart(0), Points Jittered(1), AIAG Labels(0), SendToReport(Dispatch({"Variability Chart for Std Dev(RAW_VALUE)"}, "2", ScaleBox, {Add Ref Line(0, "Dotted", "Medium Light Gray", "", 1), Add Ref Line(0.00863314386645801, "Dashed", "Blue", "", 1), Label Row(Show Major Grid(1))}), Dispatch({"Variability Chart for Std Dev(RAW_VALUE)"}, "", NomAxisBox, {Rotated Tick Labels(1)})), Where(Selected() & !Excluded()))),Context({Y("Std Dev(RAW_VALUE)")}),sub(
+OutlineBox(
+open(1),title("Variability Chart for Std Dev(RAW_VALUE)"),helpKey("Variability"),sub(
+ListBox(vertical,near,sub(
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(5),typeOptions()),length(300),baselength(300),sub(
+PictureBox(sub(
+BorderBox(top(12),left(5),bottom(12),right(14),sides(16384),options(0),xmin(0),ymin(0),color(0),sub(
+ScaleBox(id(2),axis(scaleType(0),scaleOrig(0.004),scaleWidth(0.014),widthMajor(0.002),
+nbin(7),nminor(0),timeCode(0),ndec(0),FieldWidth(12),
+MinInit(0.004),MaxInit(0.018),LinearInit,MajorInit(0.002),MinorInit(0),NObsInit(100),
+options(showMajorTicks,showMinorTicks,showMajorGrid,showLabels,noMinorTickLabelsOnLogAxis,),ref lines(n(2),value(0),style(1),color(81),value(0.00863314386645801),style(2),color(5),),scaleTypeOptions(),nLabelRows(1),labelRows(LabelRowNumeric(),),labelRows12(LabelRowContinuous(options(0),Automatic Font Size(0),Show Major Grid(1),Label Orientation("Horizontal"),Automatic Tick Marks(0),Inside Ticks(0),Show Major Ticks(1),Show Major Labels(1),Tick Offset(0),Major Grid Line Color(-14145495),Show Minor Ticks(1),Show Minor Labels(0),Show Minor Grid(0),Minor Grid Line Color(-15790320),),),ndec(0),FieldWidth(12),),length(240),baselength(240),sub(
+ListBox(horizontal,near,sub(
+ListBox(horizontal,near,sub(
+CenterBox(vert,boxcentering(0,1),sub(
+TextEditBox("Std Dev(RAW_VALUE)",default font id(9),wrapWidth(240),justification(1),left,))),
+AxisBox(side(R),size(55,240),locked(false),scales(0,2,0,2),))),
+LineUpBox(nCol(2),spacing(-1),hspacing(-1),vspacing(-1),sub(
+FrameBox(size(300,240),border(12303),flags(0),markerSize(-1),ndisallow(1),disallow("Background Map"),help name("Variability Chart"),scales(1,2,1,2),seg(
+,CustomStreamSeg(description("Separators"),properties(line(color(1)),),settable(46),script({}),),CustomStreamSeg(description("Group Means"),properties(),settable(36),script({Pen Color(8), H Line(0, 5, 0.00873359996242245)}),),CustomStreamSeg(description("Connected Means"),properties(line(color(5)),),settable(46),script({Line({0.5, 0.00863314386645801}, {1.5, 0.00848106993061106}), Line({1.5, 0.00848106993061106}, {2.5, 0.00979800387637169}), Line({2.5, 0.00979800387637169}, {3.5, 0.00815070025013868}), Line({3.5, 0.00815070025013868}, {4.5, 0.00860508188853283})}),),CustomStreamSeg(description("Individual Means"),properties(),settable(14),script({H Line(0.425, 0.575, 0.00863314386645801), H Line(1.425, 1.575, 0.00848106993061106), H Line(2.425, 2.575, 0.00979800387637169), H Line(3.425, 3.575, 0.00815070025013868), H Line(4.425, 4.575, 0.00860508188853283)}),),CustomStreamSeg(description("Range Bars"),properties(),settable(46),script({V Line(0.5, 0.00476095228569074, 0.0137735253294131), H Line(0.35, 0.65, 0.00476095228569074), H Line(0.35, 0.65, 0.0137735253294131), V Line(1.5, 0.00493288286231615, 0.0165531467300492), H Line(1.35, 1.65, 0.00493288286231615), H Line(1.35, 1.65, 0.0165531467300492), V Line(2.5, 0.0045825756949576, 0.0142270868416543), H Line(2.35, 2.65, 0.0045825756949576), H Line(2.35, 2.65, 0.0142270868416543), V Line(3.5, 0.00454606056566178, 0.0131974745058793), H Line(3.35, 3.65, 0.00454606056566178), H Line(3.35, 3.65, 0.0131974745058793), V Line(4.5, 0.00479478883789559, 0.0131495247062398), H Line(4.35, 4.65, 0.00479478883789559), H Line(4.35, 4.65, 0.0131495247062398)}),),SegPlaceholder(description("Grid Lines"),),SegPlaceholder(description("Reference Lines"),),MarkerSeg(n(670),nv(1),MarkerItem(
+x(0.500043937720815,0.477813462079719,0.566677941947612,0.498094660915693,0.500009418088184,0.491428856030158,0.541419384941669,0.455138334588432,0.543802383998822,0.582258900565889
+,0.469784871334954,0.39319209935052,0.416068383654618,0.521925725197547,0.576161673603432,0.487675737806178,0.641126285158546,0.415796357305206,0.35388142688399,0.455296345132422
+,0.498714050927768,0.494604576962878,0.49640426591276,0.634123273442482,0.705589795026737,0.505042876249308,0.442723289474223,0.476864647213618,0.512248923754659,0.353303650208085
+,0.407095420553006,0.494040189294905,0.501137547589799,0.470514878338792,0.433443884150912,0.52218820284817,0.292007256154292,0.472768157358886,0.49640617279573,0.471726247743922
+,0.284663297716149,0.522681540159806,0.382009237723609,0.566558180362475,0.478600240209016,0.492387972536867,0.479840083450913,0.46749599798812,0.570193817740609,0.500324904205035
+,0.461753191632404,0.461318400876115,0.55802739606773,0.405648598788719,0.460354463408127,0.445610533661866,0.5149368632874,0.257188808107118,0.500001897839069,0.489592147359147
+,0.535896874715348,0.5098509984296,0.643960904803538,0.499995937045651,0.438177277258805,0.473733174958363,0.439626725757315,0.589844942784865,0.535358464059944,0.402878350660375
+,0.373062579657087,0.499937421156461,0.486266085094205,0.499635836571819,0.51464705656596,0.712687781405482,0.602960578746806,0.271672908811772,0.45560855248121,0.508896090794346
+,0.4940987399336,0.543550129294101,0.524198632748364,0.550208081115309,0.493984888638913,0.500412793689557,0.670322109791157,0.738928986962548,0.499999988642312,0.623219657151197
+,0.347380139552176,0.505701198275117,0.30470906992231,0.501524033942447,0.439479689226576,0.530171194102248,0.457206476775878,0.291136745338131,0.635274826193142,0.400887845697265
+,0.582344502732965,0.40785970816188,0.500213300151597,0.497415265603351,0.37799685119606,0.364829359622465,0.435873101518951,0.500107781521643,0.49677211247997,0.499504976278025
+,0.613363973780146,0.714319574971934,0.436201424316827,0.710885530913981,0.499398646924841,0.392788616649054,0.418454628893599,0.699772981545956,0.654347565428871,0.436761628069187
+,0.66238218100417,0.501599841048593,0.507722127161947,0.512319063541813,0.49973669793095,0.644037213304043,0.467038194125564,0.644283725287137,0.405112010472446,0.504339666335446
+,0.30110224257219,0.499746913276668,0.403146074083494,0.578744262531183,1.49872658267541,1.3821524935665,1.48084254297086,1.43280259678781,1.47769382042682,1.44754194394269
+,1.73940226644918,1.37320214483612,1.47175306830706,1.49988761681129,1.33584895021255,1.50738549841691,1.51975784175096,1.45052974342607,1.49915858582679,1.52319718257184
+,1.56989778627904,1.31539091430041,1.50000309422691,1.66341809451604,1.46870889918718,1.40845654269742,1.50204508280117,1.54618121889551,1.50472084105667,1.52380354391892
+,1.52674310542686,1.49292003825825,1.41281773712548,1.49901686426682,1.4989879613051,1.49811784664681,1.51822296132169,1.48337065972292,1.53943237303412,1.33466042962555
+,1.66935789234216,1.50007178515879,1.43921782367469,1.6613219048355,1.50011653916004,1.53589549685874,1.31704042526777,1.36983629107055,1.4151851954729,1.34353144638212
+,1.4706308560229,1.44988776445131,1.50871153583721,1.53947723801585,1.64496231670782,1.45672225928528,1.48166049923167,1.50124545751936,1.39423458928699,1.49543660514546
+,1.40987187787973,1.59224716731274,1.58261163245721,1.59741634454656,1.56433811586997,1.59446927673617,1.50234868037249,1.48546901274498,1.50032411434287,1.32329469689833
+,1.52460057352825,1.3754703052599,1.4588581174414,1.49876241697892,1.55588793611114,1.57976836579606,1.55885155285885,1.50007669669994,1.49958385942749,1.37078952495629
+,1.5245307845658,1.2518321444499,1.60115619780318,1.46947532885323,1.50385563351829,1.50326164044951,1.41623961257898,1.56484289497257,1.62720582722309,1.48238875237097
+,1.37721543041698,1.49378110074447,1.37796216860235,1.69562354935573,1.27375124441361,1.49856630856709,1.34098948380638,1.64184569730225,1.51773244861571,1.49928934417536
+,1.52738576689182,1.50070141318329,1.50124376027862,1.492418808224,1.43120936741728,1.5470195767603,1.50086141156349,1.49999543925403,1.48170838730947,1.66320842825126
+,1.51040982942761,1.53996332780405,1.50673758497556,1.50018040999245,1.51273554503498,1.58499540612394,1.67155312261659,1.59153991801495,1.47560658442122,1.49133139327881
+,1.37788180936521,1.45844903297374,1.49782259173005,1.55766714750132,1.49428838004205,1.57244095995397,1.50335571035186,1.50141637084218,1.30186394940031,1.49691248014231
+,1.50401705280801,1.55861714676879,1.50003006894005,1.46752246143438,1.68883516472177,1.53704402185843,1.49999740526839,1.56176820234369,2.49847967562555,2.50012766131541
+,2.42345939013093,2.49762787649869,2.49933611133031,2.4990343099811,2.50021999766912,2.50341471593813,2.50003493813826,2.49273913647884,2.65886421429748,2.30490030144088
+,2.59391248056469,2.49228337036122,2.45539254543668,2.50494221349507,2.57467510278262,2.35804167292206,2.60721165226759,2.33405721288581,2.54682525923294,2.53328123162383
+,2.499287159635,2.73808985233664,2.50251502314866,2.67039090206745,2.47629151065904,2.47284233623481,2.41388406498471,2.49940267113924,2.52907258360715,2.50265937846247
+,2.58909760571052,2.60004322197803,2.53144490512825,2.49907549208984,2.46571835164361,2.59011537728161,2.46266346020031,2.5065520543283,2.47365098016951,2.59690238913694
+,2.46831879961761,2.38721934051278,2.68830238910186,2.48724387932013,2.45379102089909,2.49215247477308,2.50116369620564,2.49705291835651,2.53595087924165,2.25967328988595
+,2.48092017240171,2.49591304309233,2.42929589686868,2.45802468876108,2.62859437906022,2.54829573392572,2.50723710849507,2.40467205712262,2.68622565249049,2.50640083133685
+,2.28451364011031,2.61096139752024,2.52095319506989,2.49764136975567,2.49582280610307,2.52830775512177,2.60757983084516,2.5000064169618,2.66119243672821,2.48202369776989
+,2.47063943143107,2.34253813845942,2.5005364241158,2.71683637002018,2.2715507100182,2.45325856668147,2.50814158511824,2.50220526398977,2.49457717441305,2.45838991029072
+,2.50029415024804,2.40482199966282,2.52431175368667,2.49869145108643,2.59499805516161,2.74806304394577,2.49562016935768,2.53457803953062,2.51026019501308,2.51469053813858
+,2.44474634182188,2.50035470452909,2.54522895802354,2.5121980795331,2.48584803842536,2.50017756917383,2.25314541614337,2.50032016052985,2.28893365673565,2.47925577003367
+,2.48173074314001,2.49587927042038,2.61981260323245,2.45291737809287,2.49903495845049,2.41504511361294,2.49773634941757,2.49999999767514,2.50223757717875,2.59138105870725
+,2.45223354523587,2.49999905184334,2.45760701191131,2.4979629951435,2.49986171202305,2.5188938657052,2.69234277982225,2.32620044999243,2.44540121928103,2.53891388711925
+,2.50299730284123,2.34447750490644,2.49971354981923,2.44695684416348,2.50091704717315,2.59840017831745,2.48440479789136,2.46952352123057,2.48301232502388,2.30640540098119
+,2.51049046716711,2.49994447600189,3.57412919539131,3.40908791729373,3.73522820181809,3.48667709249617,3.49943458473804,3.51171742050055,3.39677369557478,3.50851970211856
+,3.56138730999271,3.71898038579885,3.51028412152434,3.73046802081832,3.49954737174951,3.49869487954337,3.5002142913076,3.50399090754517,3.40581790773533,3.50356304214681
+,3.68244398898826,3.37255680239527,3.50407086156369,3.50071661853609,3.47473182788517,3.49943853954844,3.47916447723601,3.2627670470759,3.73876766334078,3.27897725901265
+,3.50157229965887,3.48573525381958,3.4966056352614,3.74307291167126,3.49994614486021,3.37686126347645,3.40515280736852,3.50051221489599,3.66185588567429,3.34285959614169
+,3.51716772727147,3.54402437750013,3.62503331283376,3.6369058185457,3.4818392691723,3.60550323358389,3.7311727755469,3.49002732633512,3.49983708769885,3.49730134979084
+,3.5766992355759,3.50000000365425,3.47882737803374,3.50225349407238,3.50586483149303,3.31475457762947,3.57680706135509,3.73510895492773,3.49223997218268,3.49846827071212
+,3.65142121894122,3.50051361412083,3.51239748753386,3.33918221699583,3.5177228644867,3.50155694935496,3.49495949342977,3.46566151323456,3.36058818993847,3.47630025623853
+,3.54512362904584,3.30724608426014,3.58853390793289,3.49941143117755,3.63702671944655,3.6187401206482,3.49443727108512,3.50061805758124,3.5393519230572,3.50020855442722
+,3.39331891022736,3.37023726230118,3.54725371030776,3.54538365888943,3.32511479420326,3.5455260856564,3.49946096719012,3.33836868576266,3.45159402680245,3.49512422343193
+,3.50000046524931,3.42117998390578,3.52191233527899,3.32029419757246,3.50812110557173,3.43368165499133,3.46600877030825,3.72168162526927,3.49568403289079,3.53541342928545
+,3.35221609766623,3.54632281222745,3.42412658967936,3.64507149679891,3.31113035804684,3.48347818442051,3.50000000711928,3.30738109613321,3.30185016005752,3.56087655793033
+,3.38244143700703,3.4998543273879,3.39579719582806,3.49701707193151,3.40912887164997,3.50027578714904,3.49990025265054,3.26706808866962,3.72557350911437,3.49924081362361
+,3.49910870088522,3.55502578750834,3.53478040448186,3.33492715318241,3.65884365639184,3.50611878197553,3.69217482380074,3.6697460785296,3.51724410672982,3.4999999976368
+,3.46520693323722,3.38345291160878,3.4966262816964,3.45415129205756,3.30459834326606,3.50991371027728,4.49663505751814,4.71716900365437,4.46908795682261,4.48225690021606
+,4.51882566775246,4.50133410269808,4.49988736868552,4.51158060257864,4.73265323733665,4.49215548991094,4.43723531609893,4.51269082121425,4.40627883255797,4.27431166977595
+,4.27289331985763,4.49995081940728,4.48895221830352,4.50974924120441,4.45343085311384,4.54338032809373,4.54863144484992,4.4723519521676,4.49991733595423,4.49975346289955
+,4.50000015027556,4.50567045693301,4.72296070572451,4.73730047923525,4.48748609664804,4.5396229361905,4.27911934012315,4.47724593488796,4.55516082453918,4.50085064047575
+,4.49601284733274,4.57279270209922,4.4975751776386,4.67984279667924,4.48719743662955,4.66934216068698,4.50399576200167,4.50185003302349,4.33232712298376,4.37038395180305
+,4.70310244074994,4.41483957235638,4.37758343386181,4.53237730289281,4.35884530228728,4.5000032969391,4.37685135798586,4.50598272577678,4.50764803737421,4.39645914485687
+,4.39427419417944,4.45927979492608,4.48855897130749,4.43411046401541,4.5747659590335,4.39419374801144,4.49343155814146,4.40729346183172,4.35716860809968,4.57200840732521
+,4.56178519902645,4.72926385359853,4.44710458413435,4.63402262802485,4.51054323877777,4.67089935385695,4.67755105976108,4.49817124350954,4.7182116577249,4.49999998406384
+,4.53506976508304,4.62955690908779,4.36681178219721,4.50000137012722,4.67850370953286,4.50026172024007,4.49954641085633,4.5024587538634,4.50185784793014,4.35701444131649
+,4.6008500542804,4.51080450876119,4.35773299446454,4.52186413696586,4.56034554198258,4.50006710265074,4.33568676441013,4.32418918051867,4.47087473380133,4.44176022790984
+,4.50184181710049,4.38876428920973,4.5095618063804,4.47480697283948,4.64069794171128,4.45677037706134,4.26649181030836,4.48800101000223,4.41000650916876,4.58487606993308
+,4.50000000000103,4.50094284314486,4.64809952821127,4.50665406875928,4.49557173534384,4.5066764345078,4.52134374288979,4.57830605450647,4.61262578787927,4.6956148714206
+,4.57122569953427,4.3084901695012,4.46508302524477,4.50707241766127,4.52752923844395,4.66154228769665,4.49858799182778,4.497259101611,4.31648206987361,4.49848605509816
+,4.52271508624088,4.30133074031153,4.50050865840074,4.50000160585711,4.34626674455215,4.51347224634153,4.36237629801703,4.49858666907742,4.50219859228923,4.50000475234191
+),
+y(0.0069959512100462,0.00857554662980848,0.00808558387914661,0.00726704891961489,0.00873746721500832,0.0114313895335022,0.0092847545291549,0.00938846810365565,0.00884364178378959,0.00596713219785232
+,0.00828713862962845,0.00950315737005301,0.0128092414555534,0.00893364427319368,0.00476095228569074,0.00964416922290344,0.00886979894548563,0.00987640285394276,0.00693853971188046,0.0107101198250371
+,0.00897087881239135,0.0135906830831504,0.00837715146494806,0.0109638800917685,0.00577350269189684,0.0085599844236616,0.00945550985757351,0.00780021367228619,0.00662872536767102,0.00888819441731669
+,0.0061101009266076,0.00843267454607341,0.0104949194057571,0.00790611577619867,0.0100932320558558,0.00746145651553923,0.0110125685771585,0.00826095232605225,0.00871626831466983,0.00577350269189614
+,0.0103762549441822,0.0100468900660852,0.00677052435192368,0.00700761490570632,0.00775929550066623,0.010482048145918,0.00792506572002158,0.00934219817102383,0.0104599235178841,0.0101014850393407
+,0.0108969414669136,0.00925976961556581,0.00747038597842677,0.00798811617341703,0.00656048778674165,0.00913272504057052,0.00905225570414998,0.00700000000000124,0.00678232998312408,0.00816965931562218
+,0.00872391349490649,0.00885870569929091,0.00609699379475993,0.00994987437106626,0.00702376916856856,0.00931343116150002,0.00747038597842926,0.00966660919523051,0.00779358710735859,0.0104801399481736
+,0.00663324958070617,0.00798811617341664,0.0084897977989268,0.012407390270856,0.00949438430512191,0.00767311323171214,0.00760328876210748,0.0105392915637946,0.0101788997440792,0.00571547606649423
+,0.00754144106476516,0.00696945717637571,0.0063697200357105,0.00670397891802567,0.00707106781186303,0.0086183911878417,0.00838311795614759,0.00879829528943031,0.0066337520805827,0.00732188500319626
+,0.00721179589284191,0.0106116288413542,0.0120217857797138,0.00945163125250629,0.00710938347068449,0.00886622805932811,0.0092001811576355,0.00987809023377833,0.00632771680782642,0.0125595912884669
+,0.005686240703078,0.00988803991362195,0.00655820097282673,0.0112175457803065,0.00868370120781879,0.00949262871916734,0.00996025434748858,0.00645497224367889,0.00770108217503667,0.00789514618821892
+,0.00950666432912684,0.00920380356157121,0.00627162924074281,0.0110667670678181,0.00729908670085882,0.0102956301409875,0.00790421828308606,0.00727598790543368,0.00753724087448309,0.00710469328448953
+,0.0115805872044584,0.00656048778674165,0.0105708719287168,0.00870689382041636,0.00770281333885995,0.0114677809536089,0.00870497941793493,0.0105107881087325,0.00756571212775135,0.00972659584164006
+,0.00781515621511585,0.00711805216802051,0.0137735253294131,0.00751930847884336,0.00879052520235883,0.00838311795614696,0.00938846810365312,0.00942920993508633,0.00757891812859925,0.00885494212290505
+,0.00855608944942878,0.00842258867570159,0.00844649828824566,0.00640312423743527,0.00798394221755944,0.00921990600096746,0.00792948085732376,0.00640312423743284,0.00915478017212736,0.00636972003571371
+,0.00666408283261886,0.00780235007332657,0.00977803661273535,0.00837516168998572,0.00711734969399885,0.00875080948636684,0.0126521407938189,0.00867025566712519,0.00811007603745877,0.0118035305452789
+,0.0078002136722866,0.0145238883682482,0.0132893441021989,0.00687095335452269,0.00770778826901704,0.0104163333280001,0.00631479743671231,0.00798582076766816,0.00648151216923947,0.00758287544405204
+,0.00817557337438727,0.00811439050904875,0.0100667770413355,0.0124930647427554,0.00968194195396869,0.00868773081228121,0.00897812155557351,0.00783645327938658,0.0100271298651862,0.00985274919332993
+,0.0107241161251948,0.00676830850360695,0.00657317782101417,0.0057154760664941,0.00935289616464575,0.00778716893357399,0.00929749070090056,0.0066085802812215,0.00792948085732351,0.00730365205450996
+,0.00771621668954303,0.00631479743670768,0.00723947511909757,0.00827506294034494,0.00770973410695828,0.00984581129211802,0.0120346721323573,0.00826881692464714,0.00890374453062657,0.010980588933811
+,0.00640312423743284,0.0101000000000001,0.0106713010765644,0.00675080242144086,0.00532979048994001,0.00942744221232049,0.00855608944943092,0.00786172160958579,0.010221382815777,0.0165531467300492
+,0.00849960783409254,0.0089149686856803,0.00795340597899448,0.00511957029446786,0.00926516774447829,0.00669153694353267,0.00758287544405203,0.00948894093142114,0.00726246055640393,0.00758287544405204
+,0.00611010092660772,0.00818983109308881,0.00792506572002035,0.0111430097669649,0.00845438742113498,0.0080915593882344,0.00731733102526622,0.00847545475672679,0.009661262857412,0.00770108217503231
+,0.00964762492361001,0.00934523051258231,0.00840079361330242,0.00917278583637494,0.0088128693776016,0.00861839118784212,0.00757187779440139,0.00996460402290767,0.00596992462264128,0.00919111890177973
+,0.00982802116399838,0.0067287938493227,0.011604165918612,0.00556776436282728,0.00717913643831916,0.00493288286231615,0.00789155666941978,0.00834326075344608,0.00635400136396924,0.00723002996766469
+,0.00740337760755021,0.00744580418759433,0.00624499799839558,0.00849764673306691,0.00707106781186564,0.0156399062230785,0.00978825827203215,0.00923255111006682,0.0120805629007936,0.00780021367228755
+,0.00731733102526622,0.00506622805119047,0.00687992248018375,0.00974029431451406,0.0070670597374956,0.00878673242261448,0.00812875554230928,0.00733757453113814,0.0100088294353873,0.0123423390543823
+,0.0078383671769062,0.0104406257794572,0.0116261200177302,0.0103762549441806,0.0137420279920154,0.0102602793984042,0.00797976607844226,0.00899999999999963,0.0107160316037859,0.0113742399013425
+,0.0110302614051817,0.00715821206726972,0.00918912400612948,0.0111877909645604,0.0116686188842844,0.0119023807142382,0.00874509386265646,0.0129779299838873,0.00946625585963108,0.00716542624924191
+,0.00957113716685032,0.00897459376982101,0.0102062072615959,0.00907615924643588,0.0119675951357548,0.00985274919333064,0.0104423815929781,0.0085599844236594,0.0103009708280326,0.0132944850721384
+,0.0103360211558089,0.011362511459474,0.00998715842136122,0.0087755341717789,0.0118683051303324,0.0100269636480834,0.0106461260559872,0.00795256771950501,0.0112175457803032,0.00950666432912593
+,0.00747038597842926,0.0091620594482507,0.0079189645787808,0.0107953693776542,0.00840079361330445,0.00789577946331668,0.010731573354669,0.0045825756949576,0.00922171350672037,0.00793788384898722
+,0.00929193198425375,0.0093528961646482,0.00541602560309209,0.00876983466206315,0.00839682479671041,0.00854848914526211,0.0102148584588012,0.0109848380355249,0.0113360780990006,0.00950315737005376
+,0.00663123920042935,0.00975568210497656,0.0121129407384554,0.0128618298335304,0.00984581129211868,0.0108109512378267,0.00654268038854048,0.00876413144583887,0.0120807008626722,0.00987302722910804
+,0.00790421828308556,0.0105987420637231,0.0086183911878416,0.00734211595295736,0.00779358710735982,0.00941311142325596,0.00944157472741161,0.0104533886052944,0.0121527774603175,0.0090172057756236
+,0.00905593727893531,0.00968538417754605,0.00992841041321922,0.0104150532083759,0.0103332795697517,0.0107149428369905,0.00746100976186406,0.0114151945522915,0.0105517771015142,0.0117008546696381
+,0.00899314553794558,0.010319883720274,0.00943433445806844,0.0119299343390235,0.00968211409421203,0.0110302614051811,0.00992354103466315,0.00845438742113477,0.00899499861033892,0.0131672573707129
+,0.00909981684797349,0.0134991357748049,0.00678232998312387,0.0111880889044251,0.011749184368858,0.00996661092515133,0.00966126285741005,0.00908533617062636,0.00842872074121085,0.00856582356422051
+,0.0142270868416543,0.00736704373092206,0.00897459376982032,0.0104168133323005,0.00964053940399711,0.008714355971611,0.0132602161872791,0.0105754432531222,0.00864542268100616,0.00824681756800728
+,0.00961474561979285,0.0121074357318152,0.00926696642201019,0.00861452262171368,0.00789155666942045,0.00878673242261721,0.00976439108871045,0.0066085802812215,0.0118971985497991,0.0106335945631446
+,0.00817781551923705,0.0102148584588007,0.00657317782101389,0.00714889268814848,0.00889625389326003,0.00746592258197393,0.0107056060080698,0.00769675256195702,0.00553774924194504,0.00851723742379727
+,0.00866467925930851,0.00454606056566178,0.00907064863538869,0.00715122367151212,0.00675771164423773,0.010440785411069,0.00665832811847911,0.0073918874450333,0.00815311801296368,0.00858545281275287
+,0.0089814623902056,0.00674586292972603,0.00891309897473095,0.00596992462263867,0.00568624070307891,0.0102311615502205,0.0072394751190968,0.00590536479257121,0.0118338497539855,0.0110378137931996
+,0.00734846922834812,0.00677790528113209,0.0101016500302372,0.00792506572002185,0.00946801633571312,0.00583095189484834,0.0100498756211241,0.00727598790543155,0.00663877498740025,0.00709976525433616
+,0.00843662649799452,0.00723924489616591,0.00953275056494199,0.00675771164423773,0.00833526644245377,0.00935984330353197,0.00979489663038822,0.0100785250243615,0.00525991127935245,0.00928834394999134
+,0.00716751932911919,0.00887918915216971,0.00538516480713625,0.00753038290305987,0.00880586925484034,0.00963362167965185,0.00978144501935367,0.00703870253195366,0.00812403840463853,0.00800874522007089
+,0.00699333015570342,0.00848587060943159,0.00776165789850422,0.00983903789334571,0.0080977363091979,0.00525991127934822,0.00881343671144701,0.0090430452098099,0.0070237691685713,0.006658328118481
+,0.00733757453113875,0.0123872246017143,0.00922550811608761,0.00779358710735939,0.00889625389325951,0.00923074572646566,0.0101016500302356,0.0084148677945645,0.00599999999999989,0.00717936858876846
+,0.00775521330031007,0.00707106781187056,0.00751930847884105,0.00885494212290505,0.0102734285091856,0.0094662558596308,0.00819410357106659,0.010116488191726,0.00938491697707876,0.00985613176318873
+,0.00970618359603832,0.00896344427847544,0.0114401340318489,0.00793557391329537,0.0064549722436844,0.00913838060052036,0.00734846922834938,0.00781088983406834,0.009916316520429,0.00749043834943425
+,0.00746145651554348,0.00863384811850023,0.00812055006347073,0.00946801633571592,0.00703870253195376,0.00493288286231645,0.00888106600208132,0.00770973410695837,0.00965107938695591,0.00652993108692581
+,0.00834326075344763,0.00747506967637538,0.00763762615825836,0.00991833319330427,0.00873365139370098,0.00800458202115077,0.00767311323171174,0.0131974745058793,0.00787040871450311,0.00678232998312485
+,0.00894464458023211,0.00882836338173745,0.00663123920043007,0.00714889268814848,0.0100767058109288,0.00814514170124329,0.00538516480713432,0.00636972003571122,0.0101395266161685,0.00787040871450257
+,0.00611010092661051,0.00702376916856561,0.00782772849129066,0.00739188744502949,0.00774854825112409,0.0077893089124346,0.00782794140669682,0.0100526944978279,0.00916460582894881,0.00835922643949001
+,0.0100083298640016,0.00958853482029429,0.00623778806950007,0.00982802116399913,0.00864156621606682,0.00785281265959282,0.00837655458208524,0.00892094912738325,0.0101214294115676,0.0073484692283496
+,0.00911829662455407,0.0102073502928028,0.00930017920974281,0.0113140031229739,0.00773369252039427,0.0082286086308679,0.00847289796940789,0.00842614977317639,0.00601165534607676,0.00889887633355926
+,0.00735798885565842,0.00905409667866773,0.00981206740023037,0.00758287544405199,0.0091287092917529,0.00759232068167198,0.00762517759355969,0.00901054937281698,0.0059506302187243,0.00637102817447868
+,0.00841367933783868,0.00969226495717089,0.00962929557825111,0.00874642784226724,0.00869156679392938,0.00663902603298687,0.0102956301409871,0.00830662386292035,0.00815209584503747,0.00806494471979399
+,0.00730365205450826,0.0108138799697438,0.00777238702072914,0.0099646040229047,0.0100171519571858,0.00694334213473511,0.00770540935533803,0.00766420250254332,0.00802537641900301,0.0104083299973321
+,0.00877534424775799,0.00953624664110365,0.00687095335452165,0.00909267104137832,0.0087296429862091,0.0119753914341049,0.00909267104137573,0.00921050125309958,0.0131495247062398,0.00965435998223958
+,0.00939734004918451,0.00596713219785498,0.00660858028122088,0.00669402718847254,0.00775521330031207,0.0102143689640296,0.00735798885565842,0.0113210717984941,0.00849764673306691,0.00820568908339312
+,0.0095887086374201,0.00614898365585645,0.00563116329012031,0.00773369252039523,0.0073484692283493,0.00773369252039676,0.00831725114846783,0.00832666399786392,0.0102432091325594,0.0084896014825994
+,0.00973943872441843,0.0103171378459975,0.0083510478384441,0.00708284312029188,0.00758287544405093,0.0088970032407926,0.0095885348202958,0.00751664818918755,0.00818168686763358,0.00901794507265057
+,0.0108046286377592,0.0101118742080765,0.00960468635614739,0.00879715863219605,0.00812034482026681,0.00741237703664085,0.00927361849549672,0.00736274405368,0.00741012820402206,0.011249148115895
+,0.00943451111610988,0.0105356537528498,0.00694094133865517,0.0056868268832436,0.0056547914786177,0.00725327512231548,0.00786172160958935,0.00836301381082251,0.00897459376982304,0.00479478883789559
+,0.00897459376982384,0.00595622923221268,0.0101262036321616,0.00782794140669489,0.00795047168412075,0.00842614977317708,0.00876032723894115,0.00725327512231542,0.00805191488612058,0.00878122998218429
+,0.0102073502928039,0.00714422843979832,0.00922261712675217,0.0130181923988456,0.00886246767742055,0.0102829956724714,0.0110495852109163,0.00924535919619513,0.00872773357369048,0.0108463511529614
+),),states(rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5)
+,rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Circle,5),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)
+,rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0),rs(0,Dot,0)),))),
+ListBox(vertical,near,),
+NomAxisBox(size(300,60),sizeID(1,5),num labels(5),labels(DLS301,DLS302,DLS304,DLS305,DLS309,),value(1,1,1,1,1),total(5),horizontal,right,rotatedTicks(1),dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_ENTITY",))))),
+NomAxisBox(size(300,38),sizeID(1,6),num labels(1),labels(AAL,),value(5),total(5),horizontal,right,dividers(1),lowerFrame(1),),
+BorderBox(top(3),left(5),bottom(2),sides(0),options(0),xmin(0),ymin(0),sub(
+MouseBox(DefaultCursor("Arrow"),sub(
+TextBox("SPC_FACILITY",))))))))))))))))))),
+ListBox(horizontal,near,sub(
+ScaleBox(id(1),scale(type(0),origin(0),width(5),typeOptions()),length(300),baselength(300),))))))))))),
+ListBox(vertical,near,),
+OutlineBox(
+open(0),title("Graph Legend"),sub(
+OutlineBox(
+open(1),title("Reference Lines and/or Shaded Zones"),sub(
+TextBox("Dashed lines represent the mean/target/center line.",),
+TextBox("Shaded areas are TTD zones.",))))),
+OutlineBox(
+open(1),title("Sample Size Report"),sub(
+TableBox(sub(
+NumberColBox(titleWrap(true),n(1),title("# Samples Per Run"),width(7),decimal(99),newdecimal(-1),numbers(25),),
+NumberColBox(titleWrap(true),n(1),title("# of Runs"),width(7),decimal(99),newdecimal(-1),numbers(670),))))),
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Reference Tool Report"),sub(
+TableBox(sub(
+StringColBox(n(1),title("PARAMETER"),flags(16),
+ strings("RAW_VALUE"),titleWrap(true),),
+StringColBox(n(1),title("Reference Tool"),flags(16),
+ strings("DLS301"),titleWrap(true),),
+StringColBox(n(1),title("Source"),flags(16),
+ strings("Calculated"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(1),title("Mean"),width(7),decimal(99),newdecimal(-1),numbers(0.00863314386645801),),
+NumberColBox(titleWrap(true),n(1),title("Std Dev"),width(7),decimal(99),newdecimal(-1),numbers(0.00175332726757153),))))))),
+ListBox(horizontal,near,sub(
+OutlineBox(
+open(1),title("Tool Matching Report"),sub(
+TableBox(sub(
+StringColBox(n(5),title("Facility"),flags(16),
+ strings("AAL","AAL","AAL","AAL","AAL"),titleWrap(true),),
+StringColBox(n(5),title("Entity"),flags(16),
+ strings("DLS301","DLS302","DLS304","DLS305","DLS309"),titleWrap(true),),
+NumberColBox(titleWrap(true),n(5),title("# Runs"),width(7),decimal(99),newdecimal(-1),numbers(134,134,134,134,134),),
+NumberColBox(titleWrap(true),n(5),title("Mean"),width(7),decimal(99),newdecimal(-1),numbers(0.00863314386645801,0.00848106993061106,0.00979800387637169,0.00815070025013868,0.00860508188853283),),
+NumberColBox(titleWrap(true),n(5),title("Std Dev"),width(7),decimal(99),newdecimal(-1),numbers(0.00175332726757153,0.00192717932393684,0.00171861856245098,0.0015455703895746,0.00148788036820157),),
+NumberColBox(titleWrap(true),n(5),title("TMM"),width(7),decimal(2),newdecimal(2),numbers(0,-0.0867344840062752,0.664371125378715,-0.275158908004406,-0.0160049857457855),),
+NumberColBox(titleWrap(true),n(5),title("TMS"),width(7),decimal(2),newdecimal(2),numbers(1,1.09915550826179,0.980204092092502,0.881507074098783,0.848603906253269),),
+StringColBox(n(2),title(""),flags(16),titleWrap(true),),
+StringColBox(n(5),title("TMM Status"),flags(16),
+ strings("Reference","","","",""),titleWrap(true),),
+StringColBox(n(5),title("TMS Status"),flags(16),
+ strings("Reference","","","",""),titleWrap(true),))))))))))),
+OutlineBox(
+open(0),title("Status Guidelines"),sub(
+TableBox(sub(
+StringColBox(n(2),title("Status"),flags(16),
+ strings("Warning","Flag"),titleWrap(true),),
+StringColBox(n(2),title("TMM Mean"),flags(16),
+ strings("1.0 < |TMM| <= 1.5","|TMM| > 1.5"),titleWrap(true),),
+StringColBox(n(2),title("TMM Std Dev"),flags(16),
+ strings("1.0 < TMM <= 1.5","TMM > 1.5"),titleWrap(true),),
+StringColBox(n(2),title("TMS"),flags(16),
+ strings("1.3 < TMS <= 1.6","TMS > 1.6"),titleWrap(true),),
+StringColBox(n(2),title("TTD Ratio"),flags(16),
+ strings("1.3 < TTD Ratio <= 1.6","TTD Ratio > 1.6"),titleWrap(true),))))),
+TextBox(" ",),
+ListBox(vertical,near,sub(
+TextBox(" ",),
+TextBox(" SOS Version 6.4, July 14, 2020",)))))))))))))))))))))))
+/* preview image PNG (v=1,x=300,y=300,b=22630,c=96,d=126,e=42,f=92,g=59,h=34,i=39,j=47,k=44,m=447E5C046A17CA1C45008603E513F533)
+=v}uA%:{<d&52G3ALL(O6HX[^kT0#M!!!84QUmey!!!$|=wLI4kK=3<!!-=)<#fB$!!$Abz!YXr!!!67>>vs>!!&+I!!&.XpDyf7!2nY|>k-WpMb<{{@asJKNB74+dEI7N_Q3<%Xvp->uk-c1$]H?iErx60xn^1te8WxXR6^p3-pZ.CXQ|>#g[M>LZiX]9azOCgq=#DMjbe5JrIzQs4cplcG?j:^6o.VF1xMz6S+1:uvs-CjmKEQdLe9v457vryaE[+MPh.5=@?4ecM9ltM58P4G!!Rwy-E?iAfME5K3)S6|72Wh8uqiJEYG1%B:%!#v
+y._bR1I_X[UHiIYd0eoaZA[zKWkvR:{6mBqmj0C)oEqwfY.)T+GvMXtedcTyL-}IU0R(-[UsnGQdULQ]4C}BYj5-Ls{.ZfNsrvQNz2?U=aN:$+htE8.JPr?Lka)Z1?:GBXro]g2w(w^EMup[TAP$Lx<p+#B!!!!{#$2r(!!!!!!RW7PkqC&M!$fMdTAzyaL#t_eSI%f>!:1vAA5q8Hzc-(.[:K>k6I6C}C3nTv^cSNs#$1aX)ueqcNJ<3(!(Lvv(Wj].i4[V#!!Cx:F79+oeX%B1!!#mdLY4g3N:h8C4[Rm}_{g1pW5P%Otlv6|x?|Sb
+v%>H+EOxc}qyFZ5!0tl0^qvank58G)B[KxzUU[::n1:$udc3]D&XV^^v+uf$y:u^$&U^uI6lHZ2fR}:7bG+|lar0rNoS_TsJmrW>o|x>t!#EfRQT=9?F9dRPtBStbIBw^8aCht<e}QbUcMILpxLQwV5GhuFWyk{w!#F!3tyaCzxB@Y7mi{hbI^{d]nS{cwLVbcSA?|m:MNpl6?8d?&&eh.tWQ{_-NL&oJ18+o|P1nYvilDS)RMQB6DPO^_yjH0^fTb.&c.5hVgq&gt%Ooo}AE-!(!#Eg$tpB_Kyl]CAeI7)BMVm.+@:8F!V=x4wu_AVh
+E+r>&zN{(iTWYHaBIjs]1|H8CL=VDmu}in}j6N@fwXL2kI@.kC>@&@R:L)XJr>4j!_ernTp_ps-d<3wQHhFzUEZZs(6%y.v_R:<!!!#mdL=!(&atJp9]ZkApFQ0}xOvNHk>v-q{=mR$&[S0LPI|=)r[SE:<EX1cC:S6>QnT0BpnHNLE^ol7[-6R:}gK|Rwc>4}L>ZuA92^V2JM!FAOeW(bixYUB.?(Lf>b3Sin!RWBRI@{ZOlDa|S=MuHp8){7yyps+kBSEY29K<h_tfN5>R&YtiwgPKWbr6Yljd|{De:b22e<l:o_hrnNKkPQeSCd7T
+b)clKN}o-3kh:nHb%rl.og$[SP#g:e@X|<In9v.7^0rPA9YE1d+:Hsd!!!98%qX.|5bSHwD>)_fNaKM&W5@.qs2l(X]f6.5s.{}k:wdq<z0<vts@eCss8L%u8=DXyOS3#in#$mnhc6}Dbg+=4274ImqKIaEisu&Lk6^z6PT^[rF7C[BwJmry6IU4eN|R?HgWDquMVD12ZqW:TAEVMuEaj][.Y=5pBN24wAgbX{YFzVrj[en@hq=W1W!csnEL!Qh>]>m$3Y_eZi$Ro7Mc5LgmL]tMUQ[{X-eiYt!$fMv$ktAVr+]_Vd+67e<LF=8Kp7vq
+75$#6GmG9FlH:=QSM{FavWUU@_kP3RxWJB[tm>{fy0r8:WxufXeh>%:G_Y[@mpcdLJRQ$!Tr9{m&S.MmzRIsha(ocCN|L>3I]}|H{7TaR_g_jbG-+L??b8Uk{<>fYESZ{PYj5yKG0r80#$1_$mZy7yP21f<c!sU$$vQx)C.L)#A=(XJM&n}@Knz5SheN1RfCP[c7xb@2Y8xvoYjLh}!(-zXY&Fh?uB?ukgoA3+^zExy5M70uBrobmb5r?ac0Bc$o9u.>LH#U^I}jE?)F5qt(YW!.:WIlz5b]vT-<X%Y%15Fs]6:y]GmKGwI|gG(hiTgu
+6<-sXY[%67r8V1?FuM0-2CT{qng_I)T0TiNZXp6KG4iZ6D8Y|%xJAc@gzaurNj!.bV.eVFIr<To!0to]o?8iGWHU$kv}NeIZqXt8$3cp9J+R=Ugke}}hyhs:en.Yjn#!F}2z?KJMv0v{FMG5{@l]B8x_hk3Fq@(MDsix}cO[zYuU}+T!x.LmV->2ns7g[Yq+tRRWxufXeh>%:&-[]71LCAdM}#%$)xq9I!!!98&-URl{+.fo3T_quwvpz$)k5Zl!!!98&-URlXavMbEYj&LhqQlMj0Bb[!RWBwSY4}q_X4G4[$4+DD0iWRI$f_G#CI39
+!#Eg&QT=9?rg(BMEj&{#GOOBCaS[9V12RF)P1nYvZxY>ZgIt|4sV|YsSGg+OjZkZHEF^#[^6nYO&-UaCBZrJgtGEO9!<ka^=@+QK.qVl#!#Ef|QT=9?vhs}R!!+9mWxsD852=)k!!!MK-7-$X19_z[P1nYvF9YhtyijO<wu7PZtz#yh?JR)0_>Z2|!$fMwtJz>8@a3H81EvZ|wiSa1W{!M^Ot_T$Hq_$|9Z?9x6I6AcC3nTva&GU%D4W8E4lVgHWxhe3gxb<Uy?Nf:BGbfl)jXt@w82_^3?0S<!!!MKR&YO5]P7mIKyG-DT7^3}GmM!(
+jZiZ+EF^#[s%fwrqlBiJI>uvWH1+53k%T(z&O?>0x&IRvyyNtDr0]ERusz>P02]d1]r@Dhc^J=E1^v?6bwbw3Oc2PRh%(d%W$[eN9WAkgbkbo:Dp{=_5G)F_LJLRU_y_]|Npy%U^4qx?m[%I5!!Cx9uib[h^Fb>GoSHm|^R3M5^+A:BVGA3XpQ+6)6l=c+lB}SYK]230OfjA^cXXTtO7XhbR:Lt?CPT>(EWpg8i>DVROVwB4gwl{n]vSP]aMYka!0toVo?8iGEq_WE&<TZ32{5]3CV?zA5aFD+vv(s@OOxK:sL#F)kW9Xk#EmVI[hi-c
+SiHEMAYm<uDsaD>sAJMpovQRyY%)9hdGu&|MzDBFi9]tuC$7Z(toQivx#O7_!0ton^qvanr^z(4_.NDvW{(=Kl86dv>9Wn&IK31o7<VWyEu.ji+@Iq%l3xm|1[9uU6d4hST9n!<@RHixe&>yCE.&]]Xla4^nu^DHXD6yi)JONi!!4N[+Sk4<SX}X!XhhYs6IFL=Y[gISKOiO64pTl5$2rUkI)cNMb-{)wp44Ik0:dK+%aBWI@xHi=9qe^l.s):>%nt.#NDIS]C8tVj!(Lv]u>wydjCY+?=ir76hiY1DBMUgOq}$}ln%T[!_?QB_hjz!y
+j[XyUcKT8_^K=|n!!#md<6&iN?=v{l9D{3tHd2yGcPPh@yJ4OcNnp0!O.X4E4!j2vaRi[]&zdG.8VP4u_K3dfNpR^srcW{sc[$jCv+]cb&-ULIBZrJgdC(+4_}LX[7:%(GoFQ^i=i@rQT:Pt4cM?anyJ4Uek<!UG]tpdu<]npTet+<@uEvDwwf[xTN:UaCo_#<<%_^>ZuQ7kkPHa^Jy=uT+z=<O5&-UM3BZrJgM0#0I[L[%dF&(xUW|fd:^eFUI$QhEP](>!Bk>1low2M1!Z7q-Gdep01jZLThIKa901gqxG?Gj!JU)z--!!brO-WTK5
+-:^A5w2mH2edO5xD9Y0JLe@u}!_Sgihv1$&VRU@Vv95])KwVA:hhEBLqE9.^5|J:9)po_8_)Qg.tVV3+d)ThIefjmmYw]pb6I6<mC3nTvjo91u:MlC>2i-c_T3PmVjZi_hEF^#[]^rO@LD5B=jZR@|6I6NNC3nTv]XoFU?^Fk|s.fu2!!brOgIM5_y8U@pBMC#r9lnORL&rM$!!Cx:F79+ozWIoLBYlP)+E]%B!!!98gNT}8p12ZR!!!#-FK8(x!!!!)F5E8)!!!!)GmE=W!!!!!$&>2%:WIki!0tnn6eXR[-7Lo8[5AQqtL_(KYjx5M
+sVD0-+!D^a5Ehyff?C[!zsMa#s9}gxXF5NfzV.?:H9so^@7_zdrA(RNbP9lE?3=Bc{-Rj.v?QNe_Q=!7tQbNt_ndd-U&:|mejCj?-gYsCwf^yEo|D^rka(Q|n&3{=Jn?N_kniwI+W<>wy5esOOTVUK!&H-lOFI8@fdQatB-Mz<2f8.ZUuvT5b?ZI5.n1N0<e45C81y|r36=^O$Qemo!!3P:jZ^7T4Y1]u!!!MK-7.6{=HK:F!!!&m<YUV]$lwuwZK#{P2|_+MF7E40L>}@LBnLu^inm)6Lm}?^tbR4FBK2_yhAV(M<qVbyEFJTMxZ.%5
+$Sqg9!!!MK+Gq@CaQ%8NCC_%M]ijW)T?kL^EBt61L1+w)F!J(?tmi]$M2Q|NWAf5R]W?KCa3N-uS?EI-M:dt>j[8&uiL8RInFYI8z]kcH0DDQ-UAvh>W78f|!0tvo0laLw=wi<NWYqkSbl_2xlg0p}KV6e-a7A@JdXXIIZ+XLFy{xn>W3r2XoI)1E!!!uqw8JRMIA%z3?8%HI>>^_Ds:1Rg^qpq.@c8:{j](Z:wHI&9)H3PZv%@jqn:r}6TAqW2H[mMFGv6fj$ePnFZK#{Pb|?u_8RKItpDUr7o?PTkyv?cm]O@>K..])&Bpab|0>BQP
+NR1K-o6C&}jo9AxJRgemFsk![v!A(tysBUG&.[!kgGfltwHs7ku5[tLl2)|)owH>_B38D#B1|4A:@M[hy-dN7_ii2R>1L?H_(#^GRZ=:0y2BsZ:Nr<smbSbSuu<.OQw[8zU=6QfwBX9z.v4LSTKa{64G}|bGnnJEO|}2h9^Q9ZOjv&S{.>PaO.C4eYsgXyFy2zS{>Lkh3hca28RJySE>!.HyhhDrTi?FuYHH6ciT]tV4EP9-j4k0jfjsbboAv7QpP}nXZ%Rc@EqU.E!>w#nR=Kjw(1gqRI{.^F0=<1us}vUD?SZ6ypW-^SJ&6?@Xg$hW
+J1^lorLHI_ydSJz%OcaQzF?HAA{Xf25GFOp><320^Z]bz5$}ZAtK7.:i:r|yTdPP}wcB{ADUNlv8{p?oG(]l.2q^}DgGEveO[GMkE.Al3qtw=y53hr^j5&udYv>r|5HdTfWx[se8B5%c=VjI7$Iqh}qB#>cuUWs&[HdB}MqRQ@n4?8T%oV^RtD}j^Hj)6ZX1ClcM7e2CM9yD_D9-PwrV|!O)Hi!NFshLqx}_6BZ7qPjFn-L8d5K-%{%NPKZ4zQma667j@|+o[N5e>IBk{N-fbw7bFmC&3ck]#pE?]0N+<?kSb.W34u+FmBX!1oZAbA2}
+5Y[5IK^E+GY=^M)WBcquzx%wzI_]y+j[}}BM8j[RQ8s+8Y{S@rwpeWw6IhP$Wg[:WcDy|HHrf=Q%&A=fDm)RH).T$jkh:n7yq9s:_br%)u{oVrydkr)YxPWGmj{!vqI7b)k7L)DXCy{yns0ip9h(?mXD:ZfSwycdKL}!FH?yDlOjI-s!!4NW%2k8LH!bmD_bDWtxPxj$ByI2U<m.EXIW3&NnADZ[PH][M5cWi}et1b-4%>K:^Xq!7E_K?HbA^NHQ45W>?t%X{8::AEDr)dawH=?FaBnGG.PEM=YJXQpjmt=^:QV#hW|$U5$.tQD!#Eff
+5Y%-&nfP8s.@:EEJD!s5@x!-Vow$XfTKo)@-7-&pwV?Jt[<VaJeT7MoIRkB]f$b2vNS9SxOZ0Y(vx<XAaVHL+@qmCuY@Ev-!!+9ri7:!5[e&RHUUxDzb)dhQwHrCULkC9HK2t_MuN22rw@?E4r#Yi<E<+e7zdpC!IR(OH.wl+?GoO09{&jm_x^[Owv#z!F05|>z9P(HXpDJx%!RW3V_:.i[0??4H_^SW^<8MgwBYej<(wG5Xe49W?8I}91Fqg1kEahMH-{Evok<?SwkSTyQ!$U|?k4&|3M3^ytFJ3)UBOb{OWrJ]z_)9vIng<8Co6|J#
+u<j0^dooDBc^7<2%5YKLvW{l4)&g8czJ#NjXE.a_i#TeFxp!{oWzP$(2^gL?!0tv-I=h8F3}H^q3SqHHoQ0I9A}0)rGp{gYoM^uvR6AxMF7]WE_Uj(+k65}Tpu(p?BD3+@ru=J:ve!Es4TjH!cHf<g){7Y^u!Lbb4Xm9cwng.6OKD2kEOp9Kzg.#-sssJ{:xjJqi#UJCMd6IB=XnrRB289uj[9Queux+gVA):s_-MgBBpaTJdWGc&$366dBdf|mKGP(>x}h[_c5N@#j7co4kKU!1m9PfgdC(0qOTf}i.Z1icQuG]puswCMqKLr[Btggi
+QkIPk:l!f1wyY#DoAmj1o?ge|j3u+Ojr_XdmjW]Qs%ij@jfDvZtq=#w6I@9xA%}J!K6[#Gz|[=D0<+N:Guvbh87veZGy&00uNxw$<1kut51Rb?%Y(Sq<LHzV!!)4yGmB-jyfPdNA#[f9_GA^0_Rh@L!!#mdGmKlr^8Bv:w4(1#IAJ!)^Z}Kp-7-<ouKjp:p[LCm9<Vxz^Ywf<@Jup=1zPas!0tpG1OewBEcM]vyqhg@@yj@=z[N=m407b:!!!MK-7.6{=HK:F!!!&m<YUV]$lwuwZK#{P2|_+MF7E40L>}@L=6F%xjZj]>JRgem3(!#}
+-7-7?uKjp:=73Th#$1_?p=BXltfBS1ta|w9r$:QEm:EYh-7+vouKjp:L#sL@k:eYjxLH|)!B.cZLl6>9VeWK6.W<y@xckY!KmfMx4j?v_MV1rkBz=pXPjcw!DUAb.w[c4XOWiOSeZnp^0Lnz$YJ]PzqE$g9^Kk+ito.{+OnHD6UAPnVi@>L^V!CZ>g[#i&xMu.=xFD!SvH:j-bnTs5_T^<^8m0WaFy5!|4rANYgX]=.zyYFwkNS=FgY_OFU%HgU]|>.Q=@oh=V6P9>2gJ0j2}pqp!D$CZr>e4jBE1Zgcm-.P.=vN[FA@oMDm4#[&%fCH
+]>hBRp5.#hV&MHh4fYDGGx#Sfc%ke)oJHC?Y%pWkP&!F.jmL16!<kjZM[FyFpSnG<JFT%A&85efqeO2mgs-Wzq?v|DXpe+7@Z[SdhiX_4#d]&3Fs1UZj:NAPy%{shI=oD}EG:syz?tV&3<U{>9X.qY5&euHZI:IVyy!H|{)B!0Orhx@=[iQND%<0O)|d()[KN@I!!qW)5ZRahs)4funIk&k&351Pao%sssIJoquFA5?sPyKQeFgQtobM^5]Y}wWys5}SYi?wq-2RCQt6IjxJ=e6z{-Z#LI2CdSbS]&7f>oxsGv]#&!!#mdChkh}6s%uF
+-=d9x7xa9[Bf]7^J2$ZMwFzs8pP<q^J+0X6a(P[-QeLS}s3FYI%1t[fcJ(%Qgqv)qbc7:&Ofh]XpP@]bBS{X.f04Se?Ft@[!!!&mgSjYWs5ot$o1XU.vMSozk+YBntX@DhkSL3H+J1N78Y2wvv+2uSDr6_F8MREOxCE81$2S?^_UHmTXD&<g36Do!jD8di[yK}4N{VEUM_!&c+&xpQBYMBqa:(%K!!CxGMEykcXH=Eda)ctB?|tPlU1bDGrO@JKZwOrAuP8@D]a5vqKpK}QDk#w+kNk&0NU5wtX}S1aGmtO3ctFFx?ay@D95iiB6C8lI
+2!v#OzZxqit3f2TNv7^gP&pzSWyW&ap$OK[Gy1569df6FcICU5lIpB+NOCbts4w^PTKporw#9LGO^9PlsMTlR7I_dbm-Zq(YwzYB^=m)ALaiTF9R#ECE]B|i>YiRRzz?c8v.<By!#EfluexR0=aT^-t&&FB?|#D&in%tOQvgVbvIk@yH2+^W)Lk@aa6qQ_A^t-I@2VhonFNUFQg&)mQOWrA6I2&TD^e9qE]EKwdjW-h{!u6(<1].!d4BpMP&WmLWyW&ap$OK[hiTAalZQ2CDXjJ8]2^cxNY{.PCbt>pHb%HYUXRNr4E_)MRD4+lfOzXV
+J4K_9F94NlwwkC&:>m6qjEdXGU5RY:e.l$t:Sn3qj[-YpJRgemXE.Ne@XYKTDXisM^rzTemtu1eMF.Kw81%9&rn^It68S|po?nG!HW)%rdeZjzv^d5L>#6h<mpQ(%]^FTNR@FY{Yr702!<kjZn:E.CfeA2M0=m?-bwAeQo?Hcw%}.F2:hPT^k+(^aq=NdnkDN29YLxcTy&C)3ogz(_n1?D.[lC>Ga=YJ<O88NUeW5hF[|3uRuzQhkzx&$TfXfln_9W2]Hh>u-sV|Z5Gmr1sTjT+0@hJ]1oR|->oKD&u8^J_DYpeHUKx%g>g<_lccVP@$
+$E|TEu>p:>jI3_EBv}%Wr85O}VF!En3fWIkv!}{:IG&6%I^loox&F}ZfURh-i@(Okr?MlBFN|dmAQEmqrPPnUKkdmNy.rB:rTs6!gM53N]}Wn0jfLd5_G[1s3}v(yxN):JL)z#Y]roy03<j24uXQDm+d.$-4wt68&NxDC7^8>oZ&S=Qm|?CJBTrea_6(QdI[6e=kChL9MG#_9_9@VQWxXHuGE_J]jnGg^!!#mdJ{j$GdU#w?mhy>zd+Xt<tGSNk6O)bz7hCa1+9-5)iDGvdU1#OMX$mVYx6ET+UIM5@!!!H}giF0rtIOx:AwP2Z2oj:)
+YCd=ojZij|JRgemggH5hC4u2@3fZ3-K]2>j5Z6=idkAf9?a}Knx.Gpp^7&jT&-Ub+M8Gw0z&mn1u<y3w!0to_I[bV4ZK%a8So(vi!!!.ZQaN?Xd|a)#eJ%klZHLDXa$l<.fL|fYyY$t.yaAb1Y-xrDXED9&xG$YwEf$Kg7hKs%%UcCqJD.rOVc&NzdR#-Q9SRqLBfE4!Lg#TXn&.qJ[_G4XSKri)htEIvGOxFe:=>tPa_E:&9wjWh!0u@!ZK#ztGnk@4A]xu&+$FIYMOg2NVs(4R8O1uevLM#W>hcmPP-CR+c3>aLV7fo=OU}ovvxkpn
+lC#<Xyl|@G6(lZv!<[tpQPP(_%JTIy!!4N[WxCFM@wayA!!!uq-7(3D=61kN!!!&mZxY-DQSdb{kqC&hSGg)SWxpF]?hV3ws%k%4UW>+kx(3|soyuqWc}&=NXjqOUWWKqep[n|qzyy]?cV^15c}&jMb.dzUseaX.NmKK[Uzceu+g5m_f8w@Pb!U.78:=$[yKSe-fYRh(8^B26{9?&=l4BtR:ReKUr.CZ&sqCcfxFD!0vH:j-z4FtRX!^}-:%&]jL2A}ghWEKobnT!ezg$N%&{W?6XD=.#9+bi-xq4Y1nNQ|6eXZ|fKGP)t^r|q>$2f_M
+ZQxy{dL-^!R0fSGjH_Jk!.T0.dM!ZjKGO{mNFrk&.yFI1=]8F<{=HpscO3Azy$mr_XAz(E3ExEu!!!MK)9#(bqz)F!O^!tL+.5wU@}TYUaMM9PCD%6RSYp?s^qdL}x:5z&<nuE12d]6p&gL-1E=J=MLoYsS[y7?%Hf8Z+^K<$S.mU3af<a15HJ7FmC=d2DU4l17f^_tqGuvb6P)S$>yrK8a6eX3C3keV?65d$2z[{pnw3e>u!!Bly5a4:+OGQE[e{_x&-&&|)2dbWw4H6c=IooG^Xh_jhet2?[LqVP&f#]&Y%_SlNM1opulcz=ehj)b=
+i^D&9{<w}gEfb[kIvIa-b)>YCa&GJ)HJp$T!(LuuFuJ3@t-XRxuBeiJ2q&$HwmM$HU7_>cx0ojszu>Jinned}2??Pa#Mi58BxhyR#oFNhzny<s:Ib3:GvJ{)F>zoUe<y?X!06Gq!!4NVv_?OaOhrT&xLObaEayQ@cd&pR_vzz=bZFOcagG@nPY?Krvv(beqEYp8_fBJh#o9t6+=$C$0>^J&?a{3KxRcy=b9L#{osMDX6T6Io!0wu+u_XV(3QHaU=Q2UAu9UUx46tNL:OGO[t}gNLngf$E0g@9&DvcSu1)ceE:&[2R!:JI-_Ow>y%q=sU
+QJcv:Gm]GRpY?.slsQSFVTKMm0<lVb?bMTly$1T3yA7r:-D71+5k|6B(tN}:24rgvhiXp:cGEvimDZCCJDkHqEp942j^TN>u3Pr.FNjz+!Re#)nG6z^r#qwro5SjUFz5!&gBDIw]ln{D&T]GNZID)QFEwh5.M9.NxY0IQzitxhpzLj<VADN%xX3nXEd(!n!!!!!Ra$:vdUbFeW(vpRk#v99zpgtrY>C^QoD3fanc(Ab?b+-JZ_J92Mikth4yr$$Z+umijmr4!O(|E2OSur3!!#n9.iTF5=EF+W:>ds7Wd_z^8Z$X|kFk0v-hy5twK%(L
+anC+r3px7WFMybL_J6s=chMt=redql_![s{o(5(D3|Bj9QsD8!-f7UGw?X.%qSq7OGmPf@?=X!HzDIH=nJd@D$Mqlv9B|_YFYk?!IokUm_&&{K=uskRouTy!@bsphy^4)|{:IwXEi1O[6IP%JyR+S+c?^2!vn0!T6KY++wh0{w<YXKSBhh<|9U!?W.|QQCmfeuPgK|)QOYZ&R!.:S^QP!<-%JTIyGu{N&GrRWdF@i+iEZH?BW)OG^DEj:LH&{:O!!!&}@{@-&YocYWP1nYv@{@&4gI4I}HK4$F=6F%=jZgiB2Fk)z#$5E!!!!!!!<kX3
+HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx:Le1[e{!(=7>}iMmhQPQ!!!#7kiWx9&#l]Sv?ul1OcigKt|vfrTnM(kiCA7|cb3Nv&6=ndNSbAeY6ygUef3aCd?<O.heE}kxD@UzC_vQ}-!}JDXb|WFmN{vzG@0B$aH3t0sP&F}t6=p7+5ahEw1{xcvjJ:4u317^?zsG(t#!Y:Clg4%#+0uea(r_JCG<YO]g@8DaJ5Fno3eKa]r[^&9h@Fz3r%9zF1[83HOIX&Cv#A:UkLHoK{n|J$y_.D$1p(4Csz|DS64pbGS_b]IxKNp
+.]DGElS9X$ADR3<3<5XVW+Iki<Z!_C!!!&m5Z11n@Mq|L20!tr=dfzAohxXFXD(&LNg}R!-cg7tkI}?)CmN(daLef0W(9jt9i8mjsaiiqcF[s.WzTj3t2NVO:RU{-EP@>1U8[R9o]yByu3|=XFn&%=0p-AcP1nYvVQ3mGZe0r|a:Q}uBH7S}]PrYmxVl!v<:qp7{<?3)k.)fO#clJ.>.Z-oq+OMZI=sZ-mLu:sBE{1tNN?Nej[Fkhtb2m-v.+M]lvk-Pa6I=V[YHEVwWQEbHFLwq%ogdFGG9dN!!4NWV8S^D7.t@AznB_QqenaFL(plP
+Om|jTVdiq9-yA2x<3t1+I!7P_9r7w=[D$@$6!JZOyNYaQc3jp(oF0JygZ)7TivMq&Va2ZR.zr+$utzg62F9zdsRYgBeu9DID+5pvre:}f6.iKX{89sz6rtd$YWF2z#$1OJm.<w:_PZJhhe&i86xbGMoHV03sPwXC8y#.<hqXiFElreT(EsnT6cJDc$3=m^-z-l0&Md(CG@27Ca)vV&a9QwQydS@xL}Fn6xN>^tIX_y6wIQ!AC3}OtO@:oln?{h}4D2YU4y5vN>AzY|6vvWO-Kx--X]2^+!!+9l@TbMhKslN}OmzRso#+vBTGtYshp]PI
+ztO&.pJsZiFxT5:Q{gwoYlwY-Fkx?D:BuDg_|aA%htR$E3jmo6V2ZoeO_V)qV06wsFz4&<xLr@>+9I&U##y=8h<.!$FgwN_W0}yhTC]4<T]h(@z2^&?s2ROk!#EfbC(:ixFwrV&!S-1fHSTaJct6NCeqGcaWH5N5e-#l#tl:)LXNulp0Q.as1mJ![8Tr2GI&9ygFK1tSa11hMceV%3GL#&+vule4_IhGwn@S-+R#G(yf}s7J]Q8h2x&ePvO$VB!BsjOsi7q7SihEM&6I3Ze:0pt[4=w_W0.9_6yj}OQxTJ}jb.^G9@9#jEI)m?Jtq+I-
+z5tA{7T:V<Zt-jbsAp)qXTQ3Z8.$vYeyTg#VqxZrMW3VHD7u@Z$PI@KT^qx4tfYl0f%l-ST_%cmo=tagViXvPrTQ&7G{D}yKZEj)2Z(Q+7UAtp!!!MKQxVZ<b0hj{Yu!{$D%QWqeC}IYJQgEoH.7-}I)jeUTB.U#Lbmkl8hyn)U[jteQu3d0R?[77!LH>.K6ll3<olXCeL9CJC4]:9wqZz|IhV{MnFYRAz]kcHQj1xvrSyFrXF<jT${8U(1?vKpXWBPjVQgMXIq!b6[^@GP>[8.MR6x}6!!!.ZFCE]qO%^S<YjIrP6]UFrZ1s3Yr#[4c
+dgHBazdLwOA8(?cj8R1px!Q|S:>}|YF6]v1Y[c|Vif@Z#R^:i&dKnBM8}rrrf+.JOiJLFmob<UUx&i|VkE>mYXZ}zrt-HwA<WzqV!!!&m5b.-OQJ&5lo2a+LoLw!JZQF|Nd!{wHraOA$iJ:METdg+4oQc6_p[pdc_2KZKYA7%fp5uzic$+-gT>Sa1V3{7-u=#k@3imfnQo]<{j3MKQ?_i2?jmn>_^wYHEMfI+^.VGwVWB0z_7PVO:6IDXZ^r@-V6I5mj:0pt[D&Y__7x3ECbnf|RVnsSo^NkuivOu[H]YEx=t]17^w#>Nqa9KHq1&[Ii
+Tv-db$TU<dL4#-_3nVv9tvdOJXWKiK?mI@[JlB9v&#>!ZQgQ{BSAERc8RKbXHr7z:.dRZ2XC}VJX@fM6]A5-8id?w1(H}L4:WIlzj]bvbsLh>x$-8#AIoVrOAmM)0e1T0Dnge%pQt}y(@9=yl^nhIUvrRddS$EYr:Hq1nn1_60KbbBre&RPw[[Wh{-cZUE!}-c1WM-ng5-l^.e@^F>QjW?[XZ^#Mi#Q]bGuv4qoGTFC4t$vnYKC<S6I3ZZ:0pt[l[rM+pCn$e>_TX{7mIt_0Dqb8SX1)XMU)]y6IY)gEG{#:&z@93S##Y+o1L#y9gL12
+sG{p_AAop1_h6LtLA_9oEan=MxSE|BWjK$HoR%%9vAn0<0#Uvxs%fcmEnlEy:E{2=TE!eKWBEv}4B($<jmnHLc)NiIF@gEzGs%HKF@i+i+JeALN%T{ABh^=+]Bg^&!!!VhRNiRl!!!!@F6AE#!!!!)GmE=W:#i4..vS2K!#3m=<l:Z7!!!&mQRrMq!!!!@Wxkw<!!!!#-7+W2!!!!!!RW?=kqC&M!$fMdTAzya!!4NZ>I3D@A9)]VxopKx+(Oka$#rG)!&t|%(i57x4vVfUA$gCE]p=z__6-l20?.98NQ]GQ6+(u8_XRAqiy4:Z{+GJ$
+X2JQzE)L&75J):+<(ew|y2)Byz&0.vWrm4Q9v)y3p|0rl72GZ_7@b^b4TLrJUGnu&z1]K-MzeuDmflwOb=!=7jiXxFaMkFr8^Q2dGu{$xh_VcR(b+o)O(h^xZn47S5&WwnMaL=+I=h}RB=K^bD4zf8O&n1}Q@S$+Z-X1qf|-G[8Vo>b^bRs)jd_iHz:GDu:Fp[5w5O?M$PRC<F8_@MNkqH3m!q$MKc4AdXF<ODi!{ABu1eZHgnK..6I3Zf:0pt[j&AXp$E0)c>|x-yJveAP+XjcR6IOz7xO}##pnZ0tkJsbSUp1m|sLD([F_BGUE5Za7
+DVMLiYuy^eNoZCrt2L+7sz|=&J006Gs?q(CqwTc$O:9CcODr}yo[Bwg!!%[H7D7MhadX9fLTj}G_>BwlaY4gG>O5%.oe06|oMbgtn!V|?xtKvM[]T76:6Sv#W[q{Ow3%Vph88AUO7Xn+0(??l(k]ktiiN$GeE?S]EF#_nOnJw[hhFRSyqPV8QMO:L@eRP:6I1].I!m$<3n$ax-<4.GX0|jbIFt9EnB&-Obg2I1knnrDO882}nfAiZv66x-m.5B(%OlltxS=UUa<}?>IbCHZl)>@O@lOyVDK.^-cMNFRW|}.Cn)6N%f]0w1XZj4Oj7tb?
+N><g^r=EVgIp^^altU_.!!brEOyX=7mabz3_6vQ0(U:n]DpabCSc29Qa]4PCgJNEhl+N<iZhj[@kNZ#Ja0y#oe=m]qNfnW(1T:3KL=.fE4#[lFUuC>x@9I62qR}<X:IAD=r)@8>H@sgyx]&+o_JTsj%F]NcH2s26P_Dp8yWq$i62B3bS8g?ox|[p]Ye9E@#$1OJbo&Sr0??6(2OY[[6T0f#9c.ZHz0nd=bvLvGl:>8bU7}0f%!))$]]^@(J69d$oX[nHXl!ATcvDpWiWaoVb^x}d8Q@OfEziaqV.(?MO_V)q4)VJe7Zny}.z0awY6Wj5
+#xYFae>Al4tMdHr1@m?1uq!>u.}rudi>$MU4)]ef!!!uq&|6)NT=HF:j(+f%o^!c^tj@!5)d_@EfxU)Ez3gqGy@LsN0pZjXFW7[.X2gX1ibdLX[?{[?V-pE@s3LXR]w@_v(pyZ^apvwu2][4qd&K0Empci{Tx!yc1B4wvi@(V{XF=jI&pK%5L13qczLQl5:!99OHzu_X!!Cx523J1bXhY%2ryJT)2N3jP>J#_3k6iUUM3{uIeGb0f7whB#&@.Raa+0i+v(ge!Q9zOon<bOnhZ4uNA{u=hIQNa9N[LB(3L:$X3dEFcs-YD&_&We!bI2NB
+L3EV0pa80>hzpJIJ1Lorj#[$<vv(YZ6P4}{dLQMUVLDnU-j_yJ!!!98gXtgyX]R?5+!{{cdPq](q.SHu[0pA>.obJ_JqQ^X-YAHj7>JXu8v)U%.F{v%]aPhg+$FQO(DX7Aeb0LeS1r!M$yVR85Ex&&@]H{%b.tK8cSNAxx&F}BfURh-F=6S9y+edOGvO9GgM>}>Rzlbe]T2cyrXa8_-eQal33WpsV%[q00l|hUP1nYvW|@I?W9?cOgXQXtB!a@CxA<N?GgQ%wT0Dk@H$T67HTBI%NQkc%xzssoOf8D1nB6ecNQh}>EeIk&jfFbRAu:v6
+8Frf!F:#zDo_|Yi#5w}@9:n5-jgL]Q.VV9YplAm._WTyqiml40EIO?XQPLQJ@eRP:6I1&w>V>HWHiYdb=X$E5&BDiRXkFX5G)o?sIR|q>6ITTqgde5De{b)f_uR]gXft:Yc!c#HOEMKE^f5K|{1L8|fNWtFjb9J!A?Ojp^1qxNj-Dn@2BsZZs%feCBN@6beQS.oTw#$kj@GUoXt-A0XC}EmBK_&>-7+utZ7:RnA->^4meT.z<Ib_wIcUVs<CdNj]X!tYWe5jOCiDecgfu}e((^vmYBaOdNth95&2mq5T=a5n[SPbZ+4yI2yy]PM=S!V>
+w(qLBG<(Xk4nY3DJ<N)T&p&|]DtB=w00JN_QnF(qh?}u=.<ep?6x-|0T})FXjmnDe?_EfYA_Y&.rPNT)$dQ8XZK#{PGnR]7n^&K+1W]Pl-vJNyieYLQU)oZD9Y8G!Md^xNM%o<jcl8]z:(E>hGjmFcIWAyFNJyjq0!iU|PCn51aGBt_b^k{w+!e71PFGh<fMR2.yV3OQTT0^7m#%nQSGbh]4D@A-Wg1pX5]g3}ObtkP2YgxwL#rG[QPW5K@eRP:X4]T0I@zJsNeOxhW1]1%IdmAOD#xA=Jjqqn+-EL[l_fzubF+oj-%{C=IABtC?srWu
+R1It|hYZ}#u7TXO.rf(WL3eXS%?m.[D+TTeZb>-Gv#<+7HD>$0.5=m+NvOJEQH=AV.<ep-jVd_GHH|d3A:?<56B]1<Qwyo%8RKcm7U=Emj[n_Gu-cJx46lupqw>%654#tTSZ_-jB:!.i!!!({ZG([y!!!&ngH4i_!!!!2jZeT1O%HJbd}uUB!!%gf.]QO:!!!98(R5UF!!!#7F6sH{!!!!)GmE=W!!!!!$&>2%:WIki!0tnn6eXR[!!brK1B}:4p=F76rAHKK!!(o:ybW{#P+mQYB@LsnFCLdXg}eoC.xJpNv9dM8HhFmdiy4:{{5RD3
+jeSn|i@=BFU0#xQ1uN.VY_<mgZDPeQy62S%izPx2wDcg+CVM+_BDHsVXHPlQUt({)7VFG-55jr3WWS@4Gb)6-Ni=Qwa6NArRF^X6!!!z<)9$cVuF+v+Ww2uR07.&bf)B#|&8=XX@Ep+p8WaJ!zS)Z(_P>)KQ.)GS:9#:R7N}VRX+1g#u%Q_x!Gg{hAC%{OOqHq+L<lI}YAE_5s&?fYveNxCNZCcDvJ+1?&-Tub@Z0<vg8w{_7Ck%sr&6pyBSJDn^mZOU3hHUg+^:(kpPp0N=qtliQheR!@S#yL8Xs20+4iJ7+c#1Pa14:sN]JAYsw^bQ
+@Wj_EL$.OCB28Y51g#Z(j#tc!I3nGy$&=|W]xsdN&.aA-L}?R>@W?Yg@!5N^-]%^u]<FUJYz{b:?|62}]ufMo1[j1e{:N=C%HM<ty#v&sGS5ulz:|}fl9Bl=E[mNsU4N8MS$]zyrS&+6E52=A55RBv:IeNAFs5i=zW(D[gF&cf]}Wn0XCxw(vzexcyif@0VGg)4M5ED_-[&u3TMVG#sHVrcHgq9b1U>.5_K!b>fWnYl-R=EU0nKkRI-.a^o%cOG&xo$40X^&>&]7A:c>E]{A]28q2CPff@@KKzz]k).6|)sJpN-7:wEqcF]q[ot5{XS>
+6PO-K!!!uq%.Qu{I:tld?qi!dcXuBfhyP&Hu]j?Rbph8|34t-?cZhc$VBipUx|A?L6xGrAH%nJvY^OiTHT%4=J?c3qlg5rz^X):20N{+:_vZHqBwcN@4YIeNGmSkl?<?J05GiFmGvjnaMHv?(4F&bYdPg9^T5z$gF6@[Nm1ZOW?a}3YN.hm<6qzKI6>hF+$34.^_niT)${d1Zen1K&sGyX1GHb_+<.5W{Ds>iuv+OU?^u1U?J!!^G6V(ZeSS3=bNrnW77s<1qz%zf|Ig{_6s(FbuMYpBF^x]89ZAzg@T4_vCJvQj71fiUfj?1l-(El{e
+:WIlzj[[7Vb[:aF[6i}#PUAjL7D0SnURCGY-_UpcL8^CjX{46wW%ove6q^cg[]Y>2K]cs+lY!Gv6Q|DNy0a}fEhogUL=[jhm%sSd3eu7=T_qgzUlv(=r?DqPjnyz7RVT+Y8W)wpOf<HY0!.[:6|MBl!!4NYa8MZbO]K@M&7m}:lJ{|:#7JOZWCb(P!ldyF-fG5Vjc9hQ.2fPxb?jr5^n=I0oOL?RsT+#oKI&OLaO8i2tLi$ay<Xr63itwh-lspuf(7p##mZ(_!X@+a<D[[%gd[kB=o}8AGa6A_bWpB%rTKZ0^l2]%GmJJaO<ck9=.O8v
+ZqO.IbYg=$?b$<=dMj=^Z8NHJek4xR-fG5S4X7z{jZr0S.2)KLaFTN6SBtj--JrC1RQLwZBA]FRXt]_8WL:__np4yE4YJ.)Z8Mfosz}pyP_Dqw.<eofCBGsRrTVqz-99#SlE1@iU=fqO3<U7<66Uo+XC}dM@xTi?-7)m@Z7:Rnnm_%+rp)ZfMLd26Q<i%^a68=<x!9S7C)i1-ps5M0x}=<ZOG[+P.7n{!TI!EvXm%n=t3$&|jJw8uVn}BPxc2#0#0n0k4#W5SD&[2@gT.S$^k1-jHFg32[}e|k^8>wp&-Tss@Z0<v_O9mbAr>H4l=7V$
+=Sic-iPGxuERDJe:44V<E_E.+4f49&s70pUvflKQO>.|KiHclnb]QqY7YMvcwCYe=y-#H9E[(?^i0=?Wz1iJ3:4+&WCW8w%f+0hpWOZ&ei1Frnj[JtEz+UK0?CgH0XcQUE202iC!!4N[j8GX!Z&g_Oc-x%e@%(!0YMe<mQ_LOuEc&Bw-@f]G-<c9[_MB-%baiwXaUT>XVU.Oyu74(4nE?e}p7|m7zWmwCO4SILs4yIXnMn4#y#YFnOAI@ISeDRc8I6u0jA7kJlP8<VSM7:H7LVgKF=Ao7+qJz_#$1OJm.<w:IL8Plt40^+nrN^q-m8FT
+8AZ0)z[(=rTaecp=.O5jQ{MllFJ1_!EMJ_SKqglwIc+h4u04e5#hwm$q&BU)aQd.$n$bQ?SP.r#V|d[Ys_o!oUOj7).<ep-w%$V-6s&N66W{[&-gZj1%?B2P6t[ZX!!4NYoEP>6C}SW}e<BaUyfV@]WAV=NVEFxiq=yD$E[SY9^+KFl.NRlflEw>nSvJW8L8h6Ln!9U#I)WppL=VF{<m}U8Xtl@hJ9@E4ZsI}QP!Fa>F&W.Skhh#O2|-r]OaZelEbW4|7r{U)GmdyDVaGI.KwIVFE2c%zc>!Qg6MeIn9%17X%UcCu3+NlubNRM=-fAYv
+Oix-[rZ$>d!<lO{:WIki!(Luv-E?iAOCr:6_-ce71T4@.!!!#$&-U)!P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2#i^_o9>UwWm42#Ry<=)YpwOWU!!!&ATx-Tpd=)M9[IzF^=wgaqj[%W1F|C[Y@[Ga?Z.fZa<=tq(Ebw=}+ou4)pnWv<R2#cu]@oEvs_t=v^X(h@cKunHAb0CE7.xdfnkR5jOO_D^v#Nvj@o&SXZESv]U7x@Om%O5Dnn%#CIYl3]N#R[C!#LEJOIce-KyA){d>L!>m=iouaiihX
+7o$M<TOk>daN}-]S:0(JoG=dEcG-:92#N%NT$^q$TBQ#R%[0l$b>)^:d]8tYe[!(C&>b0<M3OP{1&%kNcZMefCVL1|OkQ?jwZ$Nx)n6{uyDGOj8HnN$Ysq}P6}?6@!!4NYnFnn{4IuhXD&n{kek)ti@|)rhAiG#HBPl-O5>O1VDq|xfh}eG&9ud5^nrEt%L_v2YVfAlvsBm+D]<)>-?b1j.U4Mi#iZ#r+XBzbz8f:]j:GyDn2i^)$2(g1%5YdJst7[ml]OEc=.YtEUtox}fR@+IF>x1bV:)nimsz3M|JV$UpYskdtcQ#5w!$<U_]CL>b
+1[HzmiH|E>8]LjLdLdy3wYKEl]w_yvIR5b}lE^Wq9.)zEt4]U=x19d9E]nO7!<kXsLYfRnyfOu}vcpVVt+S7(e8ztf?!%&tluO887SYvby@7$>=9.RU_)Cnja<T%n4YH^ErM)@!zS^jon9]f%.L8vt4%!#vR]GP%SYizVw9u(zJViT2JM=zZjD1TGw->UWbYf0b.Y{rOtR^JkjD59QKizZR$dQRZZK#{P6e3(:pwAkYT?{xLo3=-$>nNrG7%F$KZp[-i7=C.t9+i83DgTM0L#]^TWSsyM#z:wEqM=<+<IGw+Vdbv914OU[4x.3^IZAOR
+$+O)rep40atL3dwHswr4C}_3iT^qx4m!U-(NRr2Q]8JJ)rr7PLi[{bsG{D}xFv9W#6PO8t!!!uqzlIJ>&zpXW>bC]:@MPDi!jxwr7%h4MZp]:1EE]6&jCuFVq1JAvx@^HX6IP!o7>=t79VdUdrQ<!x-#)ukb^8OYcj>tG:fTX=SS39U_K9!}N2)H+!rZ69k.<zgtkmC&]_W>x-kjbm{%)U>y(+(Y_nt}zhfwuf8R7vSjZ[A3yRGVM>_Uss3sMA8&l%e.p0%<^_00LPu>5d1pbi=f?92iAf1UEVMM}(6x|NIxr]:iNa$d2fTd-!JT{+du
+i<1DDKFrF)Tgsruzz&ZMEf^zkI$2PdiH$X:pk|FoL.YaE8QEF9z4GsQ=ZiveE^8OarDbHZdZ35#QPWD:@eRP:6I:d0D%Z^TWzj}7]XdZ<(Skps:IXUf-^Y<}d%j.$1D$[1LmKR>IzRPxFK8os-fNFt^ev(NA_W6eT[qefqpQdqB1@72c^|]zyZ7g7qsOBv7!vOSu}BX[Q&%=RPKN[C0bAA#FDmta[VAba6C-3Bnwgg$vv$s(BHWn#6I7eC:0pt[Vd+bl6q6^GAgaG4Hq^=.4jeDCY?:K{AVBbshnsll-iS{4liD8!GmK[icW.Sdex6Uz
+2i?kG+ee=7MYZE{Pm[pdsj+RYn=GHmVOk72biMl|^WpbZyM9A}E|Q<9$Abe5W8aTty+rnh=]8?]LIcr6[e!$sj#rIWT5z>SGuv7r)P1LB$&=yo]xsdN4:8z8!G+NtY=^SU[Oy6Lb$F(mR@e+kZZ!G-OZ(2U.mWmfsH$<Nzl]xzw7MCLfDEVL&ZI|QIP0SGb_34+YTBBsXAxD[1z:r[@Ug5F0E6I&[@Q3lGaz}zj[JtRyVU1mBlm[Gj#jaho:DUV!<k[PwgU+BJ4sy3HM{QK^-N:ku7FgWlHOJRNw5LvOZusNE@3xR5>b))Fc=sKzjg(.
+Oq^NI_9:dHf[?q{Nag}5N_5S]fdFaIeY<6Wx[9V=po6AhTmQqn]hv)m4?.N#pbsyK?:@Sqr7R!JGmeLbzc+kW]A5j(?phjbV6tyb!!+9mG.r(HfJgzzix|XW-Y2_DW@$$#sp<csua.Th3J8B.w1Dnz{1O|.9IK[^x5Ec_sS0yhHxhU5sJ_$lMLecb7p>8-9_e0S2mf>)t.%L=y#t>Cr=3.HX<1>7iUshKHi_&k9zL6r@7JGv=E4iDYCw#WG_ZH7Hh.0khEw67-f>re5]_vZT(T&C!RW:7o&DCL6u?^T4eVj2paG?&oHk^bkp?}U@rlZo
+%DPc}J_:7Ead[WHM]2I8ki!+V1EtpIiHSvrGnQ>s)o]XCeEIKYYOQxW0!%o&nrR|)d#!^:%!%mzMW<79?uomZ@FCa?Gmd+gGvjnl:?3E8ilOq%Wab:e.9d+p=^_}U!<k[Zu3}:9wbaGOkX^$_R?wbb:fefm3YL2y6wm}BXwC^bZNRPH8KJFRaL[uEc.btlu+<@#cHiXJHbz86hYT<GdhcafIQ[>!c5-z|4fXGhu{BOuo#kqt40=thu2Ep8i!o#{dwbpS=6@=oU8u$|S{i{<RFc^=?a}k4la_>uTi01w_6ENs7WC)pGvMOgH9soM<#07:
+GPb2}Bh{evFy>]F(-.tMDjJ({&.dg(!!!!!!0tnA6eXR[9[1C2Bwh>@?J2pZ!!!!%6I8NX!!!!!#$1WSZK#zt!(LvI-E?iA!!Cx8UmAcY!!#mdS(NEw!!!.Z$i+jc!!!!Z5YxdP@bp(v1Ifq_!!!!(5f&+@RKtnOoH0@.tML$&=p2_V)njy_hv1nW<X10yf@%rr%vyXT8|Dj}.NrdlTo0vad-Ggq>|D=e9)gj$]+f%{<Eb7n.zpnpp#(PBv&}%+O0<JlWIU!8iC9S$OWAeU9OqybIEuN:C]Q]ZGslNcnF7iLYN(^q)4:uFjQs#[qT5sx
+VA-|%s$Rv4DPUy@i8([&8)$>]%6O<}Nr{_.G#9GUgWqqM?48i2^]rhVMBe^YEfS3k?a}r#4@=5LO8aFoQp[V|O_i36@4EuRH?]$sjz@IC!!%[H13h6nj{q1kJ$xq+^:nnP$ptHuFAY|(t+S2-gV#[i^3{v}HKI5jsLBy?F_BGUE5Za7)Zn]eH@2Lx)o<csL<pUtw[mdTcdG46w?:Z4vZ+J#:0.apfAi(|JA3zr!!#mdvgNI&82e&MfO|q6@3nvRY0@M{r#Z(hR<_ECyR&x{I_X+=@}0@FyQ_:S)&l2y]}ZmG9l_9I>ON|qb:Aa)%<M&6
+oud)yyL$hum-_%zcHIvQsn^EK.V%Obwf]p^ydxJ[5Av:-!0tlLdxboJ@oJ8q[bct%U8kTKm[8r7fBBzq-e=3:wlrtqM!G+3KwZc@Kyxmdcg<68K|4(MWW_k%9qv2{eJML1b.-JzOJI5}(|wVTfcW@rkkzPLZ#@<#w{trjEB]QfZ?w%>BRQgSS!rqKw7pTH0#e[-BW[:cjZ^KnyRGVM3FBpUTYFKP4FwZ%g<+#Aver-&eDv}B_$<TxwdqC641kl.y^{_X_eTTlxHlcOM@VY0.|=RoZ<!Dmefx$]hWrj=TNP!LkZye-s3VeNz?Ii5sd9nx
+CGxwCs(Uc}2tOR1ZA{jF1?{pJ3&0a5U1g<.XMADu!(Luup.3P8aS{32f@]_cLmVY(@$]Ey^A(<LbA$6[Tf27?n7g+KJ0EcZQ@C7zdfIy#kox=lT%!Sxb95qScjMLR_P-2sZ7dk>]an@aoL?mzjUCItZ8Mf@jNKf[6=W+xadlNeJ}HW?<ngkpOg6%o.}WBh_WK_j#$1LYm.<w:me-$|H70o8)@nm&k-g<rBKbT2[d)>Jf<%z_wQ4_fNO[ed3P5d)5!]62I^3D%NzN.UKTaO3^KMdH_)i#j8vrURX1io1-7CexsOLZ3Lr0nO8V@C5YG}i0
+OXcxh1@szEaMwmpvn3=mDm)Y!gGZ:]]}Wn0-78?6p!CW-mM.f|p:<7zJ#w&RZ%9StPtqe>{2]O_2LXIc[M6hIDK0lZkE8.#RcTs])v>LxHWQ&F8]Fo+{6gXydEL4Puu6!EPW[a2s<@D=NkXk=PePCD^8X+N2D#0)6IE.W]&aK[MtC%PjyIJQ]<{=J!!Cx=QZsc%S7F+^x[}RMf<G1siv|Bl1Nv1fsvKxv7XZ}UDL.&kuDdBsLFtGyr1NTSyPuogn-CBoJ8Evvz}QJ@X{@p>wDTgC=z2[qCS#bC8M9kH1taX-Yxi-H>i$MU0rCzN5+2K?
+rxf^wjU{Bb4)Smz)KZ@gOKDL[P[]M!?Gbe$J6SHc[CU_tyC]501Vr_#zenNC:KsvWMVSxPvrq2PDGye$UZ0li:@DUqjVe1AzReCpkRV^=5EKZJy0RU:9>bm-xrd+xz]y2P<RJvVxKLuUJNl&X!!%[H5Ztt6v1.0[f%Q-XfYMI?4MPu)km$]ZP0W+Q]ekZFJ:jjcZ%dme6=>#_vVmP]>0c-:6XLQpA8x!>yNosCaQO0%@c^JVt3D>sX.Y}QG%:i}iaY_>etRT!oOGx<r+_IinE6G!k%D>QLX#$PGeN.M-mG-gE7Y_tM?+f.zl_$^zi1_!
+^qv+vKb@J[sVulE6Bh>PyCC0zlOU^{0osC5fd?Fm:(Trk!!+9kgLxMSt-B@bj0Hl3%8oh7xECBN:@6Ay]z&Dzny5YbYdGMqE|P|_pyM!lL-G3{W>D4Bf8AT2onn7)ez|A!+e=]>aQJ:T+>)+Kw:6{JRxwFK{2vFTf^5X9qqIy(pzIaCj{#xTKvV<zTTc#!kKabGcqimzjvwjGoZBQfse2F.O(ruYZH2q@0ZR)v]mDfW203US{:BvuEkJyS]zx+euK7%ly>{l5?sE?ZiJLRk0ZBPXOUuaD!!!N3jZ{8eRb4$[u{Dsug$91?wI0iFT?nkV
+kldWEMHI%hKKS98F}?&CZv^QnI!_x4sV?:9I_uLumz]!GEie^WoXuZ]XkKt!Z@=H?4[i8YNaf@khQ!?4p^EtrCZ6N7a(uONCrcuuWmliCkoN3VDTj34:AtM:OgifqpwK]]L<l<|Vm_!v<c=NN-kqNjw3Fh@y&{%cT^2eaIp%)3KoV-IX=<2.1^ANPTV_c<e!rL<!!f5@(u_^$Y0J-Ft{J%ykRTR!v>i4|tnx!s=37a=RCh8Zst>fn5XZ]j@G7L@oLnrZg|%^WG7(Nip7X]^IrqSJurv6t^+j<<Hd42vD.MXsbF)TGp@usliO7GR$TM7b
+:SV<YE]nSBH!wbF4#JI>!N1DPO]G28iJ$K?vru5DNnHh|z04ma:3]G9pwr@[35&Ek2C[epbRzVHzKwU%Q)hK$1-$3PzMuokw(TZ60oso{Jd#$#QTrd|@eRP:Do0OMfR09ZYD|oT&Y6d+.m7J->wPh=i<=w#O>C}F]MJ<oK}k<RLKJ)^04}{%aPud>^Z8ammfMz6:Bm9v.R)BbmeyK>-4cE]IreLbEG{#dI_gCNkO@0NIt0iqGMUcFf#pUeM5^4yMAbht4%Db_D7hhSs]@NafC]Suuj+n]5=7vkOMb33nDAzFvxN$Uy)b8^]DqlUiS&0s
+UGYUMrTtTZ+KeQgt4m4jfdEo>cZ<N43_BGr2crt(WPb]qj8{Vl9R9VQmst2plN(u5y<KSk(-.t_DjJ({yoT1qEXLcj!!!!!F8mk@xP??$!Qh.7ZK#ztDo0Ov:M1[(oQ5DmlJVupC9J>k<ky+(!!#{kgLeop{.{Re!#=tjHK4$9O.BrvieO%k!!!!>>PQSUuB<&2!!]x{6eXR[f6P!NrODB2!!!!11h<=>^<KQ5!!m<I&52G3Y!mytEXHdS!!!!!F8mk@4wMWC!!!-z10>Q8%Udh{ejmk}.L2DI_=AS}aRpD!y2!HxdAUbWLl>Uf!!!vK
+1jmzVL6R-SplbI4V@!m&dyWE8M0tH&K_3NXoF%+=U6#^gwprDxnnugmV|XC3Skw!$6gUs(9f^G-WLQ5]9po5FSl6J_ToLD]]iB{x=>GA9f&=awB:60$TJU}ccXd.ypoH6Ji={MSAx8MIhtQ[@uPJ@@lj_Q)7VMJ0k)RZNitPRW!01ceU{)n.dFGs!xZe0:rpn58d{n%?kS=q!4uAp$?^oA@jD3zZj^DZ_=>N[=.4F>4t6htuEePHIE&9DfuByn.D6&0.V2UY:.::i$f[d@SNZxaeJY?%%b<aQbd]8tYe[!(CD]AZyuAy|z=-+VwIx>?K
+b.s>{zV}XTv[8L)YeM5ifjT:s[Mu|^xKc)nLlRx(4x[86W?WM@&-U[pdg%tfeG6[[Fmpc%f$!]5Yf2IPI?(AAovzd[o0Oeju5(6J7g-1q%g7@9fG6DeIb=@XuwRsze+M7mBYg{l+@7BAmkOm7hz>0JkD[@wdhb{Sgv&lWh2f50eEY)>9iw>4^7.4Y[_{o:8aydd4YINkmfjO_z1C40zogdE9LLo4EPB.qjkOn0Y0s&RgDXzswX)maN03^i9P)sH&-TO?<-_jhWf79zx0S]z+U0Zmv(CAPuByeDn6XX&CmM(d=VC3vKar4KYdK5K^zI&L
+pgKerm%$!Dn!^zooUPss?u:2ieQN[nn:)d[f8r1Lfz>zfLI#[Ndl@otXm8(f4wG^st}gKm0j#!!L(>3n$cIKFfw]I9wH>rAIcbLss8y3&V:?6cxL$XiNn>IKSx.K(MOdNP]mp9aUS#fRN%4mfO>f%ZkqC&Z_T]{$r>G>LLKrE.u3qO)x4}0?vq&mGo1iRy_UtAfU0O:vdjD2({3aW$y}=JIVO7_ltL}6Vi=M!Os5]ge{$XQa+|.N{4FQsrSXoi[E.COWb=ZfEt3=}nIPWRRE7fp2CV&7|+KNm0JX{[r<N88s1uEbvinm<]y<j-|sDQw^
+n_:+:pe.!I_n#.3rh3pHV)}1I:.sMf9m)!GB@V<vG_Gg<ECw]I]xsFd!RWNi>7[GOp|VF8[u}upiX7q?-6Mybu8{+0.g[&8y{Y_hoGLg1Ov0UMB3<f5@M.%xfA{+6]^GCuRZYC(UUrs!M|tu{UV><xcHrzF%_ZYwDrZ|Ty^f)(sxk:{L5+&AcSNWzy[EL4xQ+g4F|>fO>M6Lx]i#aX(#IYSre#&7nA[}eYWCk[&9}9jSiuNZvdJ:ID(}<Iy++v4MTDhRUV&>)M|$eA+bh5gS_o)+a)qR>XC!:vka(b!!!#me5Z|[1@C>@{6]?KzKyEEl
+A(Q?iH}e#=r<)NOfVdE[3CNMCcC8Wjn(:zrCd^Q(P{QdUk76T=@2b6rz3gtKW#21Oe9m(<YxDl&((}8]b1UBzfD3}po|13[J=^m7u%Lmc7?.1>O.4_7J==hCT[RHutj%8<GWQvGjlKOcj(??rx}$67O<$s#6Mf4o4!>z(9I6LHxd[9eex9b)IKm-cGc@^Ara(34Iw<Fr!!%[I5Ztt6iJy#Nl{)p#jo3px^nzK6V2B]U966I6R!4nVb0M^yn[o}@k?&9zLs%#Ax>l]MICeh)UUvuDyah!y9^6DezUS22hvE=93(Q)ble}auX24APM=]?E
+)_xb_Tf$V2y@jsc1r{?vITR?H&Oa?XLTURaNjlHUjijzS3=[gkXyk)cdiJmtGB5Q%uZ0RLXGLulEC2pmdi)Ql20YNqZJ|bfX+B<0NZeS$$]ZI4Eq[5gbY=X.MV[05z@UqOjzrKwyqdE<w(wOSOI&&E5J)>QS28WHz[L09LC-21tF4bo9Ds4xDvrz%k?3?iDs@x%Is}yI8Ae-M?1:mQyICST[4{<5sG+K=ItAU{1t<|=Yf5#etA0zE^6-AO[!D1LsRK(>@UEhC=zVPw]<7EE_@?]aT^qx4m!e9irRD$SynXVjEP6FzJ]npB:Osi3)He$5
+.ltrP]C1z:V6vX%C7k!I^^8$!ht}@tJaTzzx&2^0CHPfALtmCC4xwI[7[Zg<o<:j<vj@3{Og9RULuWdWkjGCIo1^hze56L_d#&Y&NiZe?O]ntbfMquWhrkJ#s?w4#hf|I+U3KF.8?hX+u+6r8tnq]?Wl=Odyn7y[eL0<QxZk-NL]vu|7>4fJfy]lSaOtN(u@5{QL)RA:uc9%8GZ|kHYrlF2wED^lkkT:k_ndgcTK&(NM{@gqwxILM]}VqT?g{5#$TgG74dYK=GmPO{kM5JcL+Yq1srWKy>%4TXdFGq(2KY97_JK[[r^B5x?=(+?oOBj?
+p{B=(Ox[Jhqbv#3f^23bcg66E60<yJ<xLSnkt[^Qt!93e@YTl#z<P_vn!|V5V:ecHLXzN+=gchus<vP?c)3Qz7BO-=m$I{zWW7@lJ8RIx_u{83XI-1!gWvFgn]<P_{!FckIWCtYIsfrN]6>S<:W<B6knhQu!!#meWy>)lH:O?m&Mwx}G_<2No3krBniN<Gro[3WIVFTIb)yK!ZC}e=jGD<mm[Dt5D0?@s&BDiRn#62-na3blIqNLccL7]eJ=Bs3=Hfm+V5@Uje{a|8_uR]g8%|Kd8o6RmuPI)Tz]f-<oFq--sIA{yEc8&T_uf-L5}!B$
+fK!b@57EvvcYMh4I8d>-I(AzMzVo1X2nbsp3yN{c4^FU#<%dq8!!!&mjmkv3pfAO[^7d]$tQ8IiI)T0bHb#IuSJz!UZ3ic3e5H&X9aF[r0>=<8jGDVDyl9W&n<sVcNN-rrvPh_iT#Bo[tf_9n(-4w6q?4qtph!^$T=a#8[SPbZjRB^kYqN@Xe2Vu2O}l6xYP6H6sl5oLt]QOEi}#Yk68_=^B]Tn<tZc@8v+B^&]aQxz_go-<NW{[cvRj6#:Jxm.<[-Dart2-_p]Wy14Ie.v[0dA5!RW_g>7[GOK>93+bHz>sIL<BwEdQM=6UZ(_XrVt0
+MZFu@p2ug&nlm!47k0<XS[t@8WZYI[kjG#.aH1ulOWJDP$3t6iCJzEb7Pt<Cz6._0i#nT_dYx-#n=3vfmx1z^[_t@lDL:D8pBiN?kG)%?(!#vSIx<}%o^nt]ms:snP1T8tnDkD^DGAIlQyOHhz:5Y|<LR3o(.BBcqI7qeiEU:dN)pMD$&=^5DrSLr>#UB.>N2_Cz--l5J0AK6XWnvV_++mTckbPdD:rt!x&+iW{(}q|cP%FPl+HCJ7u{nzsAxaGIjSEID>Sv_nH&+2?{5c._l(LHhY[PzEai7iKY>XSmFZ6b$BJa8Z]RIbwz(l:dl^Z>
+paN}XmxO.tA?>_njk?eh]uN8hwV.{oN8Z<.x|:noOr+mlWd_eWSwLi6[d^^6]CU98<pUKs!yf9G11jPGE>#-F!a{GAfe9E=?a{CG!-ir>HK4$9N9=a)?Q7nCKzpwu1W7e=!!!!xjZ{Q2!2SN<?hV3v!!4NY>I3D@!!4Na]RY_N!!+9l1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC
+!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g
+!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1
+!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]
+HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m
+1dX4_!!!MK1#F+g!!!$IgHhlx!!!!2jZeT1!!!!!&-U?)P1nWR!<k^]HK4$9!#Efq=_|OC!!+9m1dX4_!!!MK1#F+g!!!$IU^dBA-pQ68BE4Bu!!(!)==lOb<K^fU!!&[a
+ */

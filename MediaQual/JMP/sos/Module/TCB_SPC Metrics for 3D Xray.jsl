@@ -1,0 +1,302 @@
+/* 	Script: TCB_SPC Metrics for 3D Xray
+	Author: Anne Hansen, Xin Guan
+	Date: October 29, 2014
+	Purpose: This script computes the SPC die level metrics for a 3D Xray JMP output file. 
+	
+	Rev 2.0 Added WCC for Max of Max and Max of Mean
+	Rev 3.0 a. Update script for multi die product and auto populate dialogue box. 
+			b. Add DTS variation as range of FOV DTS including center
+			c. remove UID missing rows
+			4. close background calculation data table
+	Date: May 13, 2020
+*/
+
+
+//Reads in current data table columns for analysis. 
+clear globals();
+dt= Current Data Table(); 
+dt<< clear select();
+//create new column of Die
+dt << new column("Die", character, Formula(Item( 1, :Name( "Field-Of-View Name" ), "_" )));
+
+//Column Dialog Box to read in Columns needed for SPC/Offline Metrics
+	Result=ColumnDialog( Title("TCB_SPC Metric Calculation for 3D Xray"),textbox("NOTE: For Unique ID enter either a column or column(s) which taken together can specify a unique die."),
+		UniqueID_col = ColList( "Enter in \!"Unique ID\!" Column(s)", MinCol(1), Columns(:UNIT ID, :Die)),
+		FOV_col=ColList("FOV Name", MaxCol(1), MinCol(1) , Columns(Name("Field-Of-View Name")) ), 
+		DTS_col = ColList( "DTS_Dist",MaxCol(1), MinCol(1) , Columns(Name("Die-to-Substrate Distance (um)")) ),
+		TotMis_col = ColList( "Total_Misalignment",MaxCol(1), MinCol(1) , Columns(Name("Total Bump Misalignment (um)")) ),
+		NCO_col = ColList( "NCO_PassFail",MaxCol(1), MinCol(1) , Columns(Name("Non-Contact-Open Detection")) ),
+		SBB_col = ColList( "SBB_PassFail",MaxCol(1), MinCol(1) , Columns(Name("Solder-Bump-Bridging Detection")) ),
+		LargeVoid_col = ColList( "Percent Large Void",MaxCol(1), MinCol(1) , Columns(Name("% Voiding by Area - Largest Void")) ),
+		MaxCum_col = ColList( "Percent Max Cumulative Void",MaxCol(1), MinCol(1) , Columns(Name("Max. Cumulative % Voiding by Area")) ),
+		VoidVol_col = ColList( "Percent Void Volume",MaxCol(1), MinCol(1) , Columns(Name("% Voiding by Vol.")) ),	
+	); 
+	
+
+
+	
+//Summarizes by FOV
+dtSumFOV=dt<< summary(Group(Result["FOV_col"]));
+			
+//Searches for simple FOV names.	
+simpleFOV=dtSumFOV<<NewColumn("Automatic FOV ID",character, nominal,formula( 
+If(
+	If( Contains( as column(column(1)), "B") > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "L" ) > 0,
+		1,
+		0
+	) == 2, "BL",
+	If( Contains( as column(column(1)), "B" ) > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "R" ) > 0,
+		1,
+		0
+	) == 2, "BR",
+	If( Contains( as column(column(1)), "T" ) > 0,
+		1,
+		0
+	) + If( Contains( as column(column(1)), "L" ) > 0,
+		1,
+		0
+	) == 2, "TL",
+	If( Contains( as column(column(1)), "C" ) > 0, 1, 0 ) == 1, "C",
+	"TR"
+);));
+
+//
+nFOVName=nrows(dtSumFOV); 
+origFOVcolName=column(1)<<get name;	
+origFOVcol= column(1)<<Get Values;	
+guessFOVcolName=column(3)<<Get name;	
+guessFOVcol=column(3)<<get values;
+Close(dtSumFOV, nosave);
+
+FOVcheck=new window("FOV Automatic Location Check", <<modal, <<on validate(FOVtable=FOVt<<make into data table; 1), vlistbox(textbox("Please check that the automatic FOV location assignment is correct. If correct, click OK. If incorrect, please manually enter the correct FOV Name."), textbox(" "), textbox("Note: Any Center FOV=\!"C\!", Top Right FOV=\!"TR\!", Top Left FOV=\!"TL\!", Bottom Right FOV=\!"BR\!", and Bottom Left FOV=\!"BL.\!""),textbox(" "), FOVt=tablebox(stringcolbox(origFOVcolName,origFOVcol), string col box(guessFOVcolName,guessFOVcol), enterBox=string col edit box("Manually Enter", repeat({""}, nFOVname))))); 
+	
+
+//Get Character column Names	
+dtsN=column(dt, Result["DTS_col"])<<get name;
+totMN=column(dt, Result["TotMis_col"])<<get name;
+ncoN=column(dt, Result["NCO_col"])<<get name;
+sbbN=column(dt, Result["SBB_col"])<<get name;
+lvN=column(dt, Result["LargeVoid_col"])<<get name;
+mcN=column(dt, Result["MaxCum_col"])<<get name;
+vvN=column(dt, Result["VoidVol_col"])<<get name;
+
+	//Subsets Data Table taking only important columns
+	dt<<Select Excluded;
+	dt<<Invert row selection;
+	dt_new=dt<<Subset(selected rows,columns({Result["UniqueID_col"], Result["FOV_col"], Result["DTS_col"], 
+	Result["TotMis_col"], Result["NCO_col"], 
+	Result["SBB_col"], Result["LargeVoid_col"], Result["MaxCum_col"], Result["VoidVol_col"] 
+	}), OutputTableName( Char(dt<<GetName) || "_Subset" ) );
+
+//Joins with correct FOV Name Column and points to correct FOV column Name. 
+If(ncol(FOVtable)==3, 
+	dt_new2=dt_new<<Join(
+		with(FOVtable),
+		select(all), selectWith(:Manually Enter),
+		by matching columns(origFOVcolName=origFOVcolName)); Result["FOV_col"]={:Name("Manually Enter")} 
+		,
+		dt_new2=dt_new<<Join(
+		with(FOVtable),
+		select(all), selectWith(:Automatic FOV ID),
+		by matching columns(origFOVcolName=origFOVcolName));
+		Result["FOV_col"]={:Name("Automatic FOV ID")} 
+		
+	);
+	
+close(FOVtable, nosave);
+	
+		
+
+
+
+	//Summarized by FOVs
+	dtSummary=dt_new2 << Summary(
+				Group(Result["UniqueID_col"], Result["FOV_col"] ),
+				Mean( Result["DTS_col"], Result["TotMis_col"] ), Max(	Result["TotMis_col"], Result["NCO_col"], 
+	Result["SBB_col"], Result["LargeVoid_col"], Result["MaxCum_col"], Result["VoidVol_col"])
+		);
+		
+		//Naming functions
+		tempN=function({col, type, fov},
+
+		apple=type||"("||col||") "||fov;
+		char(apple);
+	);//end function
+	
+	//test=tempN(dtsN,"Max", "BL");
+			tempNoFOV=function({col, type},
+
+		apple=type||"("||col||")";
+		char(apple);
+	);//end function
+	
+	//Summarizes by FOV	
+	dtSS=dtSummary << Split(
+			Split By( Result["FOV_col"] ),
+			Split(
+			column(tempNoFOV(dtsN, "Mean")), 
+			Column(tempNoFOV(ncoN, "Max")), 
+			Column(tempNoFOV(sbbN, "Max")),
+			Column(tempNoFOV(lvN, "Max")),
+			Column(tempNoFOV(mcN, "Max")),
+			Column(tempNoFOV(totMN, "Max")),
+			Column(tempNoFOV(totMN, "Mean")),
+			Column(tempNoFOV(vvN, "Max")),
+			),
+			Group( Result["UniqueID_col"]),
+			Remaining Columns( Drop All )
+		);
+		
+		
+	
+	//Columns for Final Statistics			
+	dtSS<<set name("Background Calculations");
+	dieTilt_handle=dtSS<<new column("Die_Tilt", numeric, continuous);
+	DTSVariation_handle=dtSS<<new column("DTS_Variation", numeric, continuous);
+	TotalMis_handle=dtSS<<new column("WC_Corner_Max_of_Max", numeric, continuous);
+	TotalMis_handle2=dtSS<<new column("WC_Corner_Max_of_Mean", numeric, continuous);
+	Warp_handle=dtSS<<new column("Die_Warpage", numeric, continuous);
+	DTS_handle=dtSS<<new column("DTS_Dist", numeric, continuous);
+	NCO_handle=dtSS<<new column("NCO_PassFail", numeric, continuous);
+	SBB_handle=dtSS<<new column("SBB_PassFail", numeric, continuous);
+	PCTLV_handle=dtSS<<new column("Pct_Large_Void", numeric, continuous);
+	PCTMC_handle=dtSS<<new column("Pct_Max_Cum_Void", numeric, continuous);
+	VoidVol_handle=dtSS<<new column("Pct_Void_Vol", numeric, continuous);
+	
+
+	//Set up for DTS Metrics
+	val=dtsN;
+	ty="Mean";
+	a_bl=tempN(val,ty,"BL");
+	a_tl=tempN(val,ty,"TL");
+	a_c=tempN(val,ty,"C");
+	a_br=tempN(val,ty,"BR");
+	a_tr=tempN(val,ty,"TR");
+
+	//Die tilt is the range of DTS of four corners
+	dieTilt_handle<<formula( 
+		Max(
+			As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr)
+			)
+		-Min(
+			As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr)
+			), evalFormula);
+			
+	//add DTS variation as range of all FOV, including center 		
+	DTSVariation_handle<<formula( 
+	Max(
+		As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr), As Column(a_c)
+		)
+	-Min(
+		As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr), As Column(a_c)
+		), evalFormula);
+	
+	//Note using mMean of Mean formulation, not Max of Means
+	Warp_handle<<formula(
+		Mean(
+			As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr)
+			)
+			-As Column(a_c)
+		, evalFormula);
+		
+	DTS_handle<<formula(Mean(As Column(a_bl), As Column(a_br), As Column(a_tl), As Column(a_tr), As Column(a_c)));
+	
+	//Set up for Total Misalignment
+	val=totMN;
+	ty="Max";
+	b_bl=tempN(val,ty,"BL");
+	b_tl=tempN(val,ty,"TL");
+	b_c=tempN(val,ty,"C");
+	b_br=tempN(val,ty,"BR");
+	b_tr=tempN(val,ty,"TR");
+	
+	TotalMis_handle<<formula(Max(As Column(b_bl), As Column(b_br), As Column(b_tl), As Column(b_tr), As Column(b_c)));
+	
+	vall=totMN;
+	tyl="Mean";
+	bb_bl=tempN(vall,tyl,"BL");
+	bb_tl=tempN(vall,tyl,"TL");
+	bb_c=tempN(vall,tyl,"C");
+	bb_br=tempN(vall,tyl,"BR");
+	bb_tr=tempN(vall,tyl,"TR");
+
+TotalMis_handle2<<formula(Max(As Column(bb_bl), As Column(bb_br), As Column(bb_tl), As Column(bb_tr), As Column(bb_c)));
+
+	
+	
+	//Set up for NCO
+	val=ncoN;
+	ty="Max";
+	c_bl=tempN(val,ty,"BL");
+	c_tl=tempN(val,ty,"TL");
+	c_c=tempN(val,ty,"C");
+	c_br=tempN(val,ty,"BR");
+	c_tr=tempN(val,ty,"TR");
+	NCO_handle<<formula(Max(As Column(c_bl), As Column(c_br), As Column(c_tl), As Column(c_tr), As Column(c_c)));
+	
+	//Set up for SBB
+	val=sbbN;
+	ty="Max";
+	d_bl=tempN(val,ty,"BL");
+	d_tl=tempN(val,ty,"TL");
+	d_c=tempN(val,ty,"C");
+	d_br=tempN(val,ty,"BR");
+	d_tr=tempN(val,ty,"TR");
+	SBB_handle<<formula(Max(As Column(d_bl), As Column(d_br), As Column(d_tl), As Column(d_tr), As Column(d_c)));
+	
+	//Set up for Percent Large Void
+	val=lvN;
+	ty="Max";
+	e_bl=tempN(val,ty,"BL");
+	e_tl=tempN(val,ty,"TL");
+	e_c=tempN(val,ty,"C");
+	e_br=tempN(val,ty,"BR");
+	e_tr=tempN(val,ty,"TR");
+	PCTLV_handle<<formula(Max(As Column(e_bl), As Column(e_br), As Column(e_tl), As Column(e_tr), As Column(e_c)));
+	
+	//Set up for Percent Max Cumulative
+	val=mcN;
+	ty="Max";
+	f_bl=tempN(val,ty,"BL");
+	f_tl=tempN(val,ty,"TL");
+	f_c=tempN(val,ty,"C");
+	f_br=tempN(val,ty,"BR");
+	f_tr=tempN(val,ty,"TR");
+	PCTMC_handle<<formula(Max(As Column(f_bl), As Column(f_br), As Column(f_tl), As Column(f_tr), As Column(f_c)));
+
+//Set up for volume voiding
+	val=vvN;
+	ty="Max";
+	g_bl=tempN(val,ty,"BL");
+	g_tl=tempN(val,ty,"TL");
+	g_c=tempN(val,ty,"C");
+	g_br=tempN(val,ty,"BR");
+	g_tr=tempN(val,ty,"TR");
+	VoidVol_handle<<formula(Max(As Column(g_bl), As Column(g_br), As Column(g_tl), As Column(g_tr), As Column(g_c)));
+	
+	dieTilt_handle=dtSS<<new column("Die_Tilt", numeric, continuous);
+	DTSVariation_handle=dtSS<<new column("DTS_Variation", numeric, continuous);
+	TotalMis_handle=dtSS<<new column("WC_Corner_Max_of_Max", numeric, continuous);
+	TotalMis_handle2=dtSS<<new column("WC_Corner_Max_of_Mean", numeric, continuous);
+	Warp_handle=dtSS<<new column("Die_Warpage", numeric, continuous);
+	DTS_handle=dtSS<<new column("DTS_Dist", numeric, continuous);
+	NCO_handle=dtSS<<new column("NCO_PassFail", numeric, continuous);
+	SBB_handle=dtSS<<new column("SBB_PassFail", numeric, continuous);
+	PCTLV_handle=dtSS<<new column("Pct_Large_Void", numeric, continuous);
+	PCTMC_handle=dtSS<<new column("Pct_Max_Cum_Void", numeric, continuous);
+	VoidVol_handle=dtSS<<new column("Pct_Void_Vol", numeric, continuous);
+	
+	
+	dtFinal=dtSS<<Subset(allrows, columns({Result["UniqueID_col"], :Die_Tilt, :DTS_Variation, :WC_Corner_Max_of_Mean,  :Die_Warpage, :DTS_Dist, 
+	:NCO_PassFail, :SBB_PassFail, :Pct_Large_Void, :Pct_Max_Cum_Void, :Pct_Void_Vol,:WC_Corner_Max_of_Max}), OutputTableName( "Die Level Metrics_"||Char(dt<<GetName) ));
+	dtFinal << select where( Is Missing( Column( 1 )[] ) ) << delete rows;
+	close(dtSummary, nosave);
+	close(dt_new, nosave);
+	close(dt_new2, nosave);
+	close(dtSS, nosave);

@@ -1,0 +1,710 @@
+﻿/* 
+Script: Metrology Matching & Correlation
+Author: Criselda G. Ramos
+Rev: Rev 2.4.6
+JMP Ver: 6.0 to 9
+
+Revised by: Damien Chee
+Date: July 8, 2010
+
+User Input: Paired observations for two metrology tools, entered in separate columns.
+Output: Correlation Analysis - scatter plot, calculation of R-squared value, slope calculation and test for significance;  Matching Analysis - plot of differences, paired t-test for significance of bias.
+
+Revision History: 
+Rev 2.1 (by Elaine B. Macospag, Apr 2007)
+Corrected script errors to be compatible with JMP Ver 6.0.
+
+Rev 2.3 (by Damien Chee, 25 Sep 2007)
+Corrected bug of script stop when missing values are encountered
+Removed scaling of scatterplots
+Added :: scoping variables
+
+Rev 2.4 (by Damien Chee, 12 Dec 2007)
+Fixed bug when both columns have identical values
+
+Rev 2.4.1 (by Damien Chee, 13 May 2008)
+Fixed bug when UCL or LCL could not be calculated
+Bypass error when all data are the same in one column
+
+Rev 2.4.2 (by Damien Chee, 4 June 2008)
+Corrected scaling when exluded rows are present
+
+Rev 2.4.3 (by Damien Chee, 4 June 2008)
+Changed wording for bias test
+
+Rev 2.4.4 (Paul Wenz July 8 2010)
+Formatted for better readability
+
+Rev 2.4.5 (Paul Wenz May 2 2011)
+Changed frame box sizing syntax to work for JMP 9
+Fixed scaling bug for scatterplot matrix
+Changed wording on rsqaure failure to “Not > 0.75” 
+
+Rev 2.4.6 (Sherstin Mortensen Nov 5 2014)
+Changed wording in dialog box to "Refernce Tool/New Tool" instead of "Tool 1/Tool 2" to standardize use.
+
+Rev 2.4.7 (2021)
+Fixed bug: when UCL == LCL for Slope or Bias result was set to be SE to 1 or SE to 0 respectively.
+
+Rev 2.4.8 (2022)
+Added TE script.
+*/
+
+Clear Globals();
+::i = .;
+::nc2 = .;
+::j = .;
+::a = .;
+::b = .;
+::cobx = .;
+::allz = 0;
+::Rsq_grp = {};
+::Meandiff_grp = {};
+::Sig_grp = {};
+::slope_grp = {};
+::LCL_grp = {};
+::UCL_grp = {};
+::corr_grp = {};
+::testbias_grp = {};
+::testslope_grp = {};
+
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+//Include("TE_Analysis.jsl");
+If(Is Empty(Current Data Table()),
+	::db = Open(),
+	::db = Current Data Table()
+);
+
+::dlg1 = Column Dialog(
+	::T1 = ColList("New Tool (Y-axis)", Maxcol(1), Mincol(1)),
+	::T2 = ColList("Reference Tool (X-axis)", Maxcol(1), Mincol(1)),
+	::Bycol = ColList("By")
+);
+
+::Bycols = dlg1["Bycol"];
+::Tool1 = Column(dlg1["T1"]);
+::Tool2 = Column(dlg1["T2"]);
+::ok_button = dlg1["button"];
+
+::t1 = Text Box("There are three criteria for matching:
+1) R-squared > 0.75
+2) Slope SE to 1 (Linear in Accuracy)
+3) Bias SE to 0 ");
+
+::t2 = Text Box(
+	"The criteria for correlation is R-squared > 0.75.
+If the R-squared value < 0.75 then either:
+ - The parts were not selected across a large enough range, or
+ - The two metrology tools have no relationship."
+);
+
+/////////////////////////////////////// Result Summary //////////////////////////////
+::Result_Summary = Expr(
+	::R2 = (bivplot["Orthogonal?"][columnbox("Correlation")][1]) ^ 2;
+	::intercept_dt = (bivplot["Orthogonal?"][columnbox("Intercept")][1]);
+	::D = diffplot[Table Box(1)][columnbox(2)][3];
+	::UCL2 = diffplot[Table Box(1)][columnbox(2)][5];
+	::LCL2 = diffplot[Table Box(1)][columnbox(2)][6];
+	::P = diffplot[Table Box(1)][columnbox(6)][1];
+	::S = bivplot["Orthogonal?"][columnbox("Slope")][1];
+	::LCL = bivplot["Orthogonal?"][columnbox("LowerCL")][1];
+	::UCL = bivplot["Orthogonal?"][columnbox("UpperCL")][1];
+	::text1 = If(R2 > 0.75,
+		"  >0.75  ",
+		"  Not > 0.75  "
+	);
+	::text2 = If(
+		Is Missing(UCL) | Is Missing(LCL), "  No Correlation  ",
+		(CHAR(LCL) == "1") & (CHAR(UCL) == "1"), "  SE to 1  ", // precision/rounding issue. If perfect correlation, then UCL==1 & LCL==1 doesn't not work.
+		(LCL <= 1 <= UCL) == 1, "  SE to 1  ",
+		"  Not SE to 1  "
+	);
+	::text3 = If(
+		(LCL2 == 0) & (UCL2 == 0), "  SE to 0  ", // precision/rounding issue
+		P < 0.05, "  Not SE to 0  ",
+		"  SE to 0  "
+	);
+	::tb_box = Table Box(
+		Number Col Box("R-squared", {R2}),
+		Number Col Box("Mean Difference", {D}),
+		Number Col Box("Significance", {P}),
+		Number Col Box("Slope", {S}),
+		Number Col Box("95% LCL Slope", {LCL}),
+		Number Col Box("95% UCL Slope", {UCL}),
+		String Col Box("  Correlation  ", {Eval(text1)}),
+		String Col Box("  Test for Bias  ", {Eval(text3)}),
+		String Col Box("  Test for Slope  ", {Eval(text2)})
+	);
+	tb_box[1] << Set Format(7, 4);
+	tb_box[3] << Set Format(7, 4);
+	tb_box[4] << Set Format(7, 2);
+	tb_box[5] << Set Format(7, 2);
+	tb_box[6] << Set Format(7, 2);
+	tb_box << Table Style("Bordered");
+	
+	::outline_box = Outline Box("Summary Report", tb_box);
+	outline_box << Set Menu Script( {"Technical Equivalence", Eval( prompt )} );
+	//t_sum_1 << Set Cell Changed Function( update_table_1 );
+);
+
+/////////////////////////////////////// Plot_Settings //////////////////////////////
+::Plot_Settings = Expr(
+	bivplot[framebox(1)] << framesize(200, 200);
+	::scx = (xmax - xmin) / 8;
+	bivplot[axisbox(1)] << Show Major Grid(1) << Min(xmin - scx) << Max(xmax + scx);
+	bivplot[axisbox(2)] << Show Major Grid(1) << Min(xmin - scx) << Max(xmax + scx);
+	bivplot["Bivariate?"] << Set Title("Correlation Analysis");
+	diffplot[framebox(1)] << framesize(200, 200);
+	diffplot[axisbox(1)] << Show Major Grid(1);
+	diffplot[axisbox(2)] << Show Major Grid(1);
+	diffplot["Matched Pairs"] << Set Title("Matching Analysis");
+);
+
+// Continue to rest of script
+If(ok_button == 1,
+	::output = New Window("Metrology Correlation & Matching", Outline Box("Guidelines", H List Box(t1, t2)));
+	If(Bycols == {},
+		summaxis = db << Summary(Min(Tool1), Min(Tool2), Max(Tool1), Max(Tool2));
+		::xmin = Minimum(Column(2)[1], Column(3)[1]);
+		::xmax = Maximum(Column(4)[1], Column(5)[1]);
+		Close(summaxis, NoSave);
+		If(Col Std Dev(Tool1) == 0 | Col Std Dev(Tool2) == 0,
+			allz = 1
+		);
+		::bivplot = V List Box(cobx = Bivariate(Y(Tool1), X(Tool2), Fit Orthogonal(1)));
+		::diffplot = V List Box(Matched Pairs(Y(Tool1, Tool2), Plot Dif By Row(1), Plot Dif By Mean(0), Reference Frame(0)));
+		Plot_Settings;
+		cobx << Fit Special(Intercept(0), Slope(1));
+		bivplot["Linear Fit"] << delete;
+		If(allz == 0,
+			bivplot[1][pictureBox(2)][Text Box(2)] << Set Text("1:1");
+			Result_Summary;
+		,
+			tb_box = Text Box("One or both columns contains no variation. Correlation analysis cannot be performed")
+		);
+		
+		::output_box = V List Box(H List Box(bivplot, diffplot), outline_box );
+		output << Prepend(output_box);
+	, 
+		::db1 = db << Summary(
+			group(Eval(BYcols)),
+			Min(Tool1),
+			Min(Tool2),
+			Max(Tool1),
+			Max(Tool2),
+			Std Dev(Tool1),
+			Std Dev(Tool2),
+			statistics column name format("column stat")
+		);
+		::nc = N Col(db1);
+		Column(db1, nc) << Set Name("Std2");
+		Column(db1, nc - 1) << Set Name("Std1");
+		Column(db1, nc - 2) << Set Name("Max2");
+		Column(db1, nc - 3) << Set Name("Max1");
+		Column(db1, nc - 4) << Set Name("Min2");
+		Column(db1, nc - 5) << Set Name("Min1");
+		db1 << Delete Columns("N Rows");
+
+		::L_grp = {};
+		For(i = 1, i <= N Row(db1), i++,
+			For(j = 1, j <= N Items(bycols), j++,
+				::temp = Eval(Expr(Substitute(Expr(a == b), Expr(a), Column Name(j), Expr(b), Column(j)[i])));
+				If(j == 1,
+					L_grp[i] = Char(Name Expr(temp)),
+					L_grp[i] = L_grp[i] || " & " || Char(Name Expr(temp))
+				);
+			)
+		);
+
+		::misschk = 1;
+		While(misschk <= N Row(db1),
+			If(
+				Is Missing(Column(db1, "Min1")[misschk]) | Is Missing(Column(db1, "Min2")[misschk]) | Is Missing(Column(db1, "Max1")[misschk])
+				 | Is Missing(Column(db1, "Max2")[misschk]),
+				Remove From(L_grp, misschk);
+				db1 << Delete Rows(misschk);
+			,
+				misschk++
+			)
+		);
+
+		::Correlation = Expr(
+			V List Box(cobx = Bivariate(Y(Tool1), X(Tool2), Fit Orthogonal(1), where(select_grp)/*, Fit Special(Intercept(0),Slope(1))*/))
+		);
+		::Matching = Expr(
+			V List Box(Matched Pairs(Y(Tool1, Tool2), Plot Dif By Row(1), Plot Dif By Mean(0), Reference Frame(0), where(select_grp)))
+		);
+
+		Current Data Table(db);
+		::nc2 = N Items(L_grp);
+         
+		For(i = nc2, i >= 1, i--,
+			::Grp_iBox = Outline Box(L_grp[i]);
+			output << Prepend(Grp_iBox);
+			::xmin = Minimum(Column(db1, "Min1")[i], Column(db1, "Min2")[i]);
+			::xmax = Maximum(Column(db1, "Max1")[i], Column(db1, "Max2")[i]);
+			::bivplot = Eval(
+				Substitute(Name Expr(Correlation), Expr(Tool1), Eval(Tool1), Expr(Tool2), Eval(Tool2), Expr(select_grp), Parse(L_grp[i]))
+			);  
+
+			::diffplot = Eval(
+				Substitute(Name Expr(Matching), Expr(Tool1), Eval(Tool1), Expr(Tool2), Eval(Tool2), Expr(select_grp), Parse(L_grp[i]))
+			);
+			bivplot[Text Box(1)] << delete;
+			diffplot[Text Box(1)] << delete;
+			Plot_Settings;
+			cobx << Fit Special(Intercept(0), Slope(1));
+			bivplot["Linear Fit"] << delete;
+			If(
+				Column(db1, "Std1")[i] == 0 | Column(db1, "Std2")[i] == 0 | Is Missing(Column(db1, "Std1")[i]) |
+				Is Missing(Column(db1, "Std2")[i]),
+				allz = 1
+			);
+
+			If(allz == 0,
+				bivplot[1][pictureBox(2)][Text Box(2)] << Set Text("1:1");
+				Result_Summary;
+				Insert Into(Rsq_grp, R2, 1);
+				Insert Into(Meandiff_grp, D, 1);
+				Insert Into(Sig_grp, P, 1);
+				Insert Into(slope_grp, S, 1);
+				Insert Into(LCL_grp, LCL, 1);
+				Insert Into(UCL_grp, UCL, 1);
+				Insert Into(corr_grp, text1, 1);
+				Insert Into(testbias_grp, text3, 1);
+				Insert Into(testslope_grp, text2, 1);
+			,
+				tb_box = Text Box("One or both columns contains no variation. Correlation analysis cannot be performed");
+				dummy = .;
+				Insert Into(Rsq_grp, dummy, 1);
+				Insert Into(Meandiff_grp, dummy, 1);
+				Insert Into(Sig_grp, dummy, 1);
+				Insert Into(slope_grp, dummy, 1);
+				Insert Into(LCL_grp, dummy, 1);
+				Insert Into(UCL_grp, dummy, 1);
+				Insert Into(corr_grp, "  No analysis  ", 1);
+				Insert Into(testbias_grp, "  No analysis  ", 1);
+				Insert Into(testslope_grp, "  No analysis  ", 1);
+			);
+			::output_box = V List Box(H List Box(bivplot, diffplot), Outline Box("Summary Report", tb_box));
+			//::output_box = V List Box(H List Box(bivplot, diffplot), outline_box); 
+			allz = 0;
+			Grp_iBox << Prepend(output_box);
+		);
+
+/* Overall Summary Report */
+		::tb_box2 = Table Box(
+			String Col Box("Group", L_grp),
+			Number Col Box("R-squared", Rsq_grp),
+			Number Col Box("Mean Difference", Meandiff_grp),
+			Number Col Box("Significance", Sig_grp),
+			Number Col Box("Slope", slope_grp),
+			Number Col Box("95% LCL Slope", LCL_grp),
+			Number Col Box("95% UCL Slope", UCL_grp),
+			String Col Box("  Correlation  ", corr_grp),
+			String Col Box("  Test for Bias  ", testbias_grp),
+			String Col Box("  Test for Slope  ", testslope_grp)
+		);
+		tb_box2[2] << Set Format(7, 4);
+		tb_box2[4] << Set Format(7, 4);
+		tb_box2[5] << Set Format(7, 2);
+		tb_box2[6] << Set Format(7, 2);
+		tb_box2[7] << Set Format(7, 2);
+		tb_box2 << Table Style("Bordered");
+		output << prepend(Outline Box("Overall Summary Report", tb_box2));
+		output << Append(FooterBox);
+		Close(db1, NoSave);
+	);
+);
+
+
+
+
+
+exception_handling = Function({},
+	
+	/* Error Testing */
+	td_bias = (td_bias << get  );
+	td_bias = abs(td_bias);
+	print(td_bias);
+	
+	lsl = (lsl << get  );
+	print(lsl);
+	
+	usl = (usl << get  );
+	print(usl);
+		
+	if(IsMissing(td_bias)  , 
+		Dialog(Title("Error"),"Please enter Technical Delta values",button("OK"))
+	,
+		print("Technical Delta values exist");
+		if(!IsMissing(usl) & !IsMissing(lsl) & (usl<lsl) , 
+			Dialog(Title("Error"),"LSL should be lower than USL",button("OK"))
+		,
+			print("Spec limits exist and (USL > LSL)");
+			button = -1;
+			TE_Results();
+		);
+	);
+	
+);
+
+
+TE_Results = Expr(
+	print("inside function TE_Results");
+	//button = -1;
+	//exception_handling();
+	
+	//TE_Window << close Window();
+	
+	/*
+	intercept = (intercept << get  );
+	print(intercept);
+	
+	slope = (slope << get  );
+	print(slope);
+	*/
+	//get data from correlation and Matching script
+	mean_difference = D;
+	intercept = intercept_dt;
+	slope = S;
+	UCL_Matching = UCL2;
+	LCL_Matching = LCL2;
+	
+	//get data from user promt
+	//td_bias = (td_bias << get  );
+	td_bias = abs(td_bias);
+	td_slope = td_bias;
+	print(td_bias);
+	td_neg = -1*td_bias;
+	td_pos = 1*td_bias;
+		
+	//td_slope = (td_slope << get  );
+	//print(td_slope);
+	
+	//lsl = (lsl << get  );
+	print(lsl);
+	
+	//usl = (usl << get  );
+	print(usl);
+	
+	result_slope = "";
+	result_bias = "";
+	warning = "";
+	
+	//check if TD is greater than 10% of spec range
+	warning_delta_value = "";
+	if(td_slope > .1*(usl-lsl),
+		warning_delta_value = "Technical Delta value can not be greater than 10% of spec range";
+	,
+		warning_delta_value = "";
+	);
+	
+	
+	//compare 95% CI of difference with TD
+	if(!IsMissing(td_bias),
+		/*if(abs(intercept) < td_bias,
+			result_bias = "TE";
+		,
+			result_bias = "Non-TE"
+		);*/
+		//compare 95% CI of difference with TD
+		if( (LCL_Matching > td_neg) & (UCL_Matching < td_pos) ,
+			
+			result_bias = "TE";
+		,
+			result_bias = "Not TE";
+			
+		);
+		
+	,
+		result_bias = "Not Assesed"
+	);
+	
+	//calculate y_lsl and delta to lsl
+	y_lsl = intercept + (slope * lsl);
+	a = lsl - y_lsl;
+	print(a);
+	//calculate y_usl and delta to usl
+	y_usl = intercept + (slope * usl);
+	b = usl - y_usl;
+	print(b);
+	
+		
+    TE_Window1 = New Window( "Correlation and Matching TE Analysis",
+
+		tb_warning_delta = Text Box(warning_delta_value),
+		tb_warning_delta << Font color("red") << background color("yellow"),
+		//none of spec limit is missing
+		if(!IsMissing(a) & !IsMissing(b),
+			if( (abs(a) < td_slope) &  (abs(b) < td_slope),
+		
+				vlistbox(
+					//Text Box( "---------------Results---------------"),
+					//tb = Text Box( "Result: TE"),
+					//tb << Font color("green");
+					result_slope = "TE";
+					warning = "";
+					//Text Box( "Absolute Difference at LSL: " || char(Round(a, 5)) || " and at USL: " || char(Round(b, 5))),
+				)
+				
+			,
+				vlistbox(
+					//Text Box( "---------------Results---------------"),
+					//tb = Text Box( "Result: non-TE"),
+					//tb << Font color("red");
+					result_slope = "Not TE";
+					warning = "";
+					//Text Box( "Absolute Difference at LSL: " || char(Round(a, 5)) || " and at USL: " || char(Round(b, 5))),
+				)
+				
+			);
+		,
+			//LSL is not missing
+			if(!IsMissing(a) ,
+				if( (abs(a) < td_slope) ,
+			
+					vlistbox(
+						//Text Box( "---------------Results---------------"),
+						//tb = Text Box( "Result: TE"),
+						//tb << Font color("green");
+						result_slope = "TE";
+						warning = "Warning: One sided Spec provided";
+						//Text Box( "Absolute Difference at LSL: " || char(Round(a, 5)) ),
+					)
+					
+				,
+					vlistbox(
+						//Text Box( "---------------Results---------------"),
+						//tb = Text Box( "Result: non-TE"),
+						//tb << Font color("red");
+						result_slope = "Not TE";
+						warning = "Warning: One sided Spec provided";
+						//Text Box( "Absolute Difference at LSL: " || char(Round(a, 5)) ),
+					)
+					
+				);
+			,
+				//USL is not missing
+				if( (abs(b) < td_slope) ,
+			
+					vlistbox(
+						//Text Box( "---------------Results---------------"),
+						//tb = Text Box( "Result: TE"),
+						//tb << Font color("green");
+						result_slope = "TE";
+						warning = "Warning: One sided Spec provided";
+						//Text Box( "Absolute Difference at USL: " || char(Round(b, 5))),
+					)
+					
+				,
+					vlistbox(
+						//Text Box( "---------------Results---------------"),
+						//tb = Text Box( "Result: non-TE"),
+						//tb << Font color("red");
+						result_slope = "Not TE";
+						//warning = "Warning: Spec limits not provided";
+						warning = "Warning: One sided Spec provided";
+						//Text Box( "Absolute Difference at USL: " || char(Round(b, 5))),
+					)
+					
+				);
+				
+			);
+			
+		);
+		
+		
+		
+		
+		
+		
+	);//close window block
+	
+	tb_box = Table Box(
+		Number Col Box("Mean Difference", {mean_difference}),
+		Number Col Box("Technical Delta for Bias", {td_bias}),
+		Number Col Box("95% LCL", {LCL2}),
+		Number Col Box("95% UCL", {UCL2}),
+		String Col Box("Result for Bias", {result_bias}),
+		spacerbox(Size(50,80)),
+	);
+		
+	tb_box << Table Style("Bordered");
+	tb_box << get as report;
+	//ob_bias = Outline Box("Overall Summary Bias", tb_box);
+	//ob_bias << Set Menu Script( {"Technical Equivalence", Eval( user_prompt )} );
+	//TE_Window1 << Append(ob_bias);
+	TE_Window1 << Append(Outline Box("Overall Summary Bias", tb_box));
+	
+	
+	
+	tb_box_slope = Table Box(
+		Number Col Box("Intercept", {intercept}),
+		Number Col Box("Slope", {slope}),
+		Number Col Box("Technical Delta for Slope", {td_slope}),
+		Number Col Box("Lower Spec Limit", {lsl}),
+		Number Col Box("Upper Spec Limit", {usl}),
+		Number Col Box("Difference at Lower Spec Limit", {a}),
+		Number Col Box("Difference at Upper Spec Limit", {b}),
+		String Col Box("Result for Slope", {result_slope}),
+		warning_box = String Col Box("Warning", {warning} ),
+		warning_box << Font Color("red"),
+	);
+		
+	tb_box_slope << Table Style("Bordered");
+	tb_box_slope << get as report;
+	
+	TE_Window1 << Append(Outline Box("Overall Summary Slope", tb_box_slope));
+	
+);
+
+button = 1;
+td_bias = .;
+lsl = .;
+usl = .;
+
+prompt = Function({},
+button = 1;
+While( button==1,
+	
+	TE_Window = New Window( "Correlation and Matching TE Analysis",
+		<<modal,
+		<<Return Result,
+		hlistbox(
+			filterpb=panelbox("Technical Delta:",
+				spacerbox(Size(5,10)),
+				hlistbox(
+							Text Box( "Enter Technical Delta Value." ),
+							tb = Text Box( "(Required)"),
+							tb << Font Color("red") ;	
+				),
+				td_bias = Number Edit Box( td_bias  ),
+				spacerbox(Size(5,10)),
+			),
+			spacerbox(Size(5,10)),
+		),
+		
+		
+		spacerbox(Size(5,30)),
+		hlistbox(
+			filterpb=panelbox("Spec Limits(Only required for TE analysis of slope):",
+				spacerbox(Size(5,10)),
+				/*hlistbox(
+							Text Box( "Enter Technical Delta Value for Slope." ),
+							tb = Text Box( "(Only required for TE Analysis of Slope)"),
+							tb << Font Color("red") ;	
+				),
+				td_slope = Number Edit Box( ., 10  ),
+				*/
+				tb =Text Box( "Enter at-least one of LSL or USL(Only required for TE Analysis of Slope)" ),
+				tb << Font Color("red") ;
+							
+				
+				Text Box( "Enter Lower Spec Limit(LSL)." ),
+				lsl = Number Edit Box( lsl ),
+				Text Box( "Enter Uper Spec Limit(USL)." ),
+				usl = Number Edit Box( usl ),
+				spacerbox(Size(5,10)),
+			),
+			spacerbox(Size(5,10)),
+			
+		),
+		
+		
+		spacerbox(Size(5,30)),
+		//tbNothing = Text Box(""),
+		//tbNothing << Font Color("red") << Background Color("yellow");
+		//bb = Button Box( "Provide TE Results", exception_handling ),
+		//bb = Button Box( "Provide TE Results", TE_Results ),
+		hlistbox(spacerbox(Size(150, 5)), Button Box("OK"), Button Box("Cancel"))
+		
+
+	);
+	
+	
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=TE_Window["Button"];
+	td_bias=TE_Window["td_bias"]; 
+	lsl=TE_Window["lsl"];
+	usl=TE_Window["usl"];
+	print("#################################################################################################");
+	print(td_bias);
+	print(usl);
+	print(lsl);
+	print(button);
+
+
+
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("Ending Script, Cancel chosen.");
+		Stop();
+		Wait( 0.1 );
+	);
+
+
+
+
+	/* Error Testing */
+	/*
+	td_bias = (td_bias << get  );
+	td_bias = abs(td_bias);
+	print(td_bias);
+	
+	lsl = (lsl << get  );
+	print(lsl);
+	
+	usl = (usl << get  );
+	print(usl);
+	*/	
+	if(IsMissing(td_bias)  , 
+		//Dialog(Title("Error"),"Please enter Technical Delta value",button("OK"))
+		New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Please enter Technical Delta value"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+	,
+		print("Technical Delta values exist");
+		if(!IsMissing(usl) & !IsMissing(lsl) & (usl<lsl) , 
+			//Dialog(Title("Error"),"LSL should be lower than USL",button("OK"))
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("LSL should be lower than USL"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+		,
+			print("Spec limits exist and (USL > LSL)");
+			//button = -1;
+			TE_Results();
+			button = -1;
+		);
+	);
+	//TE_Results();
+
+
+
+
+	
+);//while
+
+
+
+);//prompt end
+
+
+

@@ -1,0 +1,97 @@
+/*******************************************************************************************
+SOS Audit AddinLoad Auto Update Checker
+
+Description: 
+	If user has a production version, will only check for more recent production version (ignoring any new betas)
+	If user has beta version, will check for more recent beta or production version.
+
+Revision History (Descending Order, Newest at the top):
+Rev 4 - Jeff Baumann - 202029
+	- Adjust URL path to file path for About SOS file as URL was opening auto-cached file.
+Rev 3 - Jeff Baumann - 201943
+	- Adjust to get latest version file via path format not URL.  
+	- URL leads to checking auto-cached file rather than stored file and then users don't get the auto-update notices. 
+Rev 2 - Derek Blythe - 201926
+	- Added scan of temporary files to remove any version_info.xml files that may be cached preventing update detection
+Rev 1.2 - Derek Blythe - 2018
+	- Change default to check latest version file in path format not URL
+Rev 1 - Paul Wenz/Derek Blythe
+	- Added separate check for beta
+Rev 0 - Paul Wenz/Derek Blythe - 2014
+	- Initial Creation
+
+********************************************************************************************/
+//Log Line
+	Print("SOS_Audit_AddinLoad_Auto_Update_Checker starting.");
+
+//Get user version info from user's locally installed SOS files
+//ADDIN_HOME is a JMP Default Path Variable which has a stored path based on users operating system.
+//ADDIN_HOME automatically drives to the path where the SOS Addin was downloaded
+	User_version_xml=Loadtextfile("$ADDIN_HOME(com.intel.SOS)\version_info.xml");
+
+//Parse the User's local verison XML File to get the Verion Number and Version Type
+	Parse XML(
+		User_version_xml,
+		On Element("Version", Start Tag(),
+			End Tag(
+				User_version = xmlAttr("version_number");
+				User_version_type = xmlAttr("version_type")
+			)
+		)
+	);
+
+//Get latest version info of latest released SOS from the web space
+//Need to use the path format ("//atdfile3.ch.intel.com/atd-web/Statistics/WebSOS/") not the URL ("http://jmpsos.ch.intel.com/")
+//When using the URL the first time the correct file is accessed.
+//Then many users computers caches the version file from the website.
+//Each time after this load is only loading the cached file. 
+//Thus, users computers are not seeing the updated version file from the website and getting the SOS auto-update prompt.
+//Using the path format avoids the cached file and directly access the path
+//This path has the "Authenticated Users" as a Permissions Group with Read access, which is everyone at Intel.
+//So all should be able to Read this file as part of the AddInLoad as long as they are connected to the Intel Network.
+//Use the Try() command to prevent errors, in case user is using JMP offline or a supplier who can't connect to Intel Network.
+	Try(Latest_version_xml = Loadtextfile("//atdfile3.ch.intel.com/atd-web/Statistics/WebSOS/version_info.xml"));
+
+//Parse the latest version XML File to get the latest SOS release Verion Number and Version Type
+	If(
+		//if (not missing the Latest_version_xml)
+		!Is Missing(Latest_version_xml),
+		//then (parse the file)
+		Parse XML(
+			Latest_version_xml,
+			On Element("Version", Start Tag(),
+				End Tag(
+					Latest_version = xmlAttr("version_number");
+					Latest_version_type = xmlAttr("version_type")
+				)
+			)
+		),
+		//else (set both values to "Unknown")
+		Latest_version="Unknown"; 
+		Latest_version_type="Unknown";
+	);
+
+//Compare versions and check for updates.
+	If(
+		//if (Latest_version is Unknown or Empty)
+		Latest_version=="Unknown" | Is Missing(Latest_version),
+		//then (Log Line)
+		Print("SOS_Audit_AddinLoad_Auto_Update_Checker: Unable to check for SOS Addin updates."),
+		//else (compare the latest verion to user version and open the About SOS files if needed)
+		If(
+			//if (versions don't match and release is "production")
+			Latest_version!=User_version & lowercase(Latest_version_type)=="production",
+			//then (Open About SOS journal file.  Must use path format not URL to avoid opening auto-cached file.)
+			Open("//atdfile3.ch.intel.com/atd-web/Statistics/WebSOS/About SOS.jrn"),
+			//if (versions don't match and release is "beta")
+			Latest_version!=User_version & lowercase(User_version_type)=="beta",
+			//then (Open About SOS Beta journal file)
+			Open("//atdfile3.ch.intel.com/atd-web/Statistics/WebSOS/About SOS Beta.jrn"),
+			//else (Log Line)
+			message = "SOS Addin Version "||User_version||" is the latest version.";
+			Print("SOS_Audit_AddinLoad_Auto_Update_Checker: SOS Addin Version "||User_version||" is the latest version.");
+		);
+	);
+
+//Log Line
+	Print("SOS_Audit_AddinLoad_Auto_Update_Checker completed.");

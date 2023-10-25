@@ -1,0 +1,2719 @@
+﻿/*******************************************************************************************
+  
+  k Sample Comparison for IQ:
+  Author: Xin Guan
+  Revision: Revised based on regular K sample comparison in continuous methods
+  Date: 1/29/2019
+  Purpose: Script for TD to HVM TCB Matching, 1 POR bonder vs multiple new bonders
+  JMP Version: 9.0.3 and beyond (Validated and worked in JMP14)
+
+SOS Revision History
+	Rev 2: Changed variable initialization to global variables. Fixed bug in blocked analysis with by variable.
+	Rev 3: 1. Add lot structure, separate Run-to-run and Within-run analysis and output in individual pages and summary page
+		   2. Add match to target functionality (add dialogue box to gather user input, add reference line for target in graphs and use confidence interval to determinie significance for each group)
+		   3. Add pairwise comparison for variance if equal of variance test is significant. Manually create data table (Xij - Median i) and did Brown-Forth test with Dunnett control group. 
+		   4. Modify summary page to show mean result and std result, and SE, SB, SW decision for each group.
+		   5. Modify TE analysis for Run-to-run, within-run and add target in available. 
+Limitation (may be improved if needed):
+		   1. Remove block variable and by variable. 
+		   2. Have to have lot structure.
+		   3. Have to have a POR group for matching.
+	Rev 4: 1. Add noise factor and color coded by noise factor
+		   2. Add variability plot of raw data (unit level data) at the top of each page
+		   3. Close ANOVA table and delete Anova summary table for each page
+		   4. Can work with unit level or summarized data without run-to-run/within-run structure
+	Rev 5: Update with K sample comparison for JMP16, see notes in k sample comparison
+*******************************************************************************************/
+
+
+/************************SCRIPT INITIALIZATION*********************************/
+////////////////////////////////////////////////////////////////////////////////
+// 1. Clear all global variables
+// 2. Call sosglbls and sosfunc Function Libraries.
+//////////////////////////////////////////////////////////////////////////////////
+
+Clear Globals();
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl" );
+Include( "$ADDIN_HOME(com.intel.sos)\libraries\sosfunc.jsl" );
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+/*****************DIALOG EXPRESSIONS***************/
+
+/////////////////////////////////////////////////////////////////////////////////////////
+//Name: input_expr1
+//Type: Dialog Expression
+//Description:
+// 1. This expression produces pieces that will be combined into a modal new window
+// 2. Inputs consist of columns, control group identification, and alpha level (optional)
+/////////////////////////////////////////////////////////////////////////////////////////
+::input_expr1 = Expr(
+	RID = {};
+	FID = {};
+	//BID = {};
+	RunID = {};
+	NFID = {};
+	//ByID = {};
+
+	Border Box( Left( 3 ), Top( 2 ),
+		V List Box(
+			H List Box(
+				Panel Box( "Select Columns", colList = Col List Box( All, width( cbwidth ), nLines( Min( N Col( kdt ), 10 ) ) ) ),
+				H List Box(
+					Panel Box( "",
+						Lineup Box( N Col( 2 ), Spacing( 3 ),
+							Button Box( "Response", colListR << Append( colList << GetSelected ) ),
+							colListR = Col List Box( width( cbwidth ), nLines( 3 ), minitems( 1 ), numeric ),
+							Button Box( "Factor", colListF << Append( colList << GetSelected ) ),
+							colListF = Col List Box( width( cbwidth ), maxselected( 1 ), nLines( 1 ), maxitems( 1 ), minitems( 1 ) ), 
+							
+							//Button Box( "Block", colListB << Append( colList << GetSelected ) ),
+							//colListB = Col List Box( width( cbwidth ), maxselected( 1 ), nLines( 1 ), maxitems( 1 ) ), 
+							
+							Button Box( "Lot or Run ID", colListRun << Append( colList << GetSelected ) ),
+							colListRun = Col List Box( width( cbwidth ), maxselected( 1 ), nLines( 1 ), minitems( 1 ),maxitems( 1 ) ), 
+							
+							Button Box( "Noise Factor", colListNF << Append( colList << GetSelected ) ),
+							colListNF = Col List Box( width( cbwidth ),  nLines( 2 ), minitems( 0 ),maxitems( 2 ) ), 
+							/*If( N Rows( Loc( column_names2, "RUN" ) ) == 1,
+								colListRun << Append( column_names[Loc( column_names2, "RUN" )] )
+							);*/
+							//Button Box( "By", colListBy << Append( colList << GetSelected ) ),
+							//colListBy = Col List Box( width( cbwidth ), maxselected( 1 ), nLines( 1 ), maxitems( 1 ) ), 
+							/*If( N Rows( Loc( column_names2, "PARAMETERID" ) ) == 1,
+								colListBy << Append( column_names[Loc( column_names2, "PARAMETERID" )] )
+							)*/
+						)
+					)
+				)
+			),
+			H List Box(
+				//Panel Box( "Control Group", ctcheck = Check Box( "One of the groups is a control.", << set(1, 1 ) ) ), //changed by Xin the default to be checked
+				Panel Box( "Alpha level", alpha_level = Number Edit Box( alpha ) )
+			)
+		)
+	);
+);
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: input_expr2
+//Type: Dialog Expression
+//Description:
+// 1. This expression produces the modal new window for user to define inputs
+// 2. Will evaluate input_expr1 to obtain user information
+////////////////////////////////////////////////////////////////////////////////
+::input_expr2 = Expr(
+
+	New Window( "k Sample Comparison",
+		<<Modal,
+		cbwidth = 150;
+		
+		H List Box(
+			H List Box( Eval( input_expr1 ) ),
+			Panel Box( "",
+				Lineup Box( N Col( 1 ),
+					Button Box( "OK",
+						Insert Into( RID, (colListR << GetItems) );
+						Insert Into( FID, (colListF << GetItems) );
+						//Insert Into( BID, (colListB << GetItems) );
+						Insert Into( RunID, (colListRun << GetItems) );
+						Insert Into( NFID, (colListNF << GetItems) );  //noise factor
+						//Insert Into( ByID, (colListBy << GetItems) );
+						//control_flag = ctcheck << Get;
+						alpha = alpha_level << Get;
+						If( N Items( RID ) == 0 | N Items( FID ) == 0,
+							closedb = 2,
+							closedb = 0
+						);
+					),
+					Button Box( "Cancel",
+						closedb = 0;
+						If( !Is Empty( kdt ),
+							Close( kdt, nosave )
+						);
+						Throw();
+					),
+					Text Box( " " ),
+					Button Box( "Remove",
+						colListR << RemoveSelected;
+						colListF << RemoveSelected;
+						//ColListB << RemoveSelected;
+						ColListRun << RemoveSelected;
+						ColListNF << RemoveSelected;
+						//ColListBy << RemoveSelected;
+					)
+				)
+			)
+		);
+	)
+);
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: control_dialog
+//Type: Dialog Expression
+//depreciated by Xin, replaced by IQ_Choose_POR_Expr
+//Description:
+// 1. This expression identifies the control group
+// 2. input_expr2 must be run first
+////////////////////////////////////////////////////////////////////////////////
+/*::control_dialog = Expr(
+	Summarize( groups = By( fctr ) );
+
+	control_result = Dialog(
+		title( "Determine Control Group" ),
+		Lineup( 2, "Control Group", Control Group = Combo Box( groups ) ),
+		" ",
+		HList( Button( "OK" ), Button( "Cancel" ) )
+	);
+	
+	ctrl = groups[control_result["Control Group"]];
+);
+*/
+
+////////////////////////////////////////////////////////////////////////////////
+//added by Xin a dialog box to choose match to POR or target
+//Name: IQ_Choose_POR_Expr, replaced it by expression IQ_Select_Match_Values
+//Type: Dialog Expression
+//Substitutables: NONE
+//
+//Description:
+// 1. This expression produces an Dialog box for user to select matching criteria
+// 2. Variables:
+//	groups				: List of Factor levels obtained from fctr.
+//	ctrl	: index of user's selection for POR factor . 
+//	match_methodQ		: index of user's selection for matching method.
+//
+/*
+
+::IQ_Choose_POR_Expr = Expr(
+	Summarize( groups = By( fctr ) );
+
+	::IQPORDiag = Dialog(
+		Title( "POR Factor Level" ),
+		"Choose POR Factor Level",
+		" ",		
+		Lineup( 2, "Control Group", Control Group = Combo Box( groups ) ),
+		" ",
+		/*HList(
+			match_methodQ = RadioButtons(
+				"Match all to POR mean.",
+				"Match all to a single target.",
+				"Match each response to unique target/POR mean."
+			)
+		),*/
+		HList Box( Lineup Box( N Col( 1 ), Button Box( "OK" ), Button Box( "Cancel", 
+								closedb = 0;
+						If( !Is Empty( kdt ),
+							Close( kdt, nosave )
+						);
+						Throw(); ) ))
+		/*HList( Button Box( "OK", //need changes!!!!Xin
+
+					Eval(IQ_MainProc_Expr);
+			),
+				Button Box( "Cancel",
+						closedb = 0;
+						If( !Is Empty( kdt ),
+							Close( kdt, nosave )
+						);
+						Throw();
+					) )*/
+	);
+	Remove From( IQPORDiag );
+	Eval List( IQPORDiag );
+
+	ctrl = groups[IQPORDiag["Control Group"]];  //choose POR group
+	
+); //EndExpr
+*////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+//Dialogue box to gather user input for target value if available, add by Xin
+//Name: IQ_Select_Match_Values
+//Type: Dialog Expression
+//Description:
+// 1. This expression produces an Dialog box for user to define values for matching
+// 2. This expression added the function of Choose_POR_Expr
+
+
+
+::IQ_Select_Match_Values = Expr(
+    Summarize( groups = By( fctr ) );
+	number_of_rows = N Items( RID );
+	rTemp = J( number_of_rows, 1, "" );
+
+
+//MODAL WINDOW TO READ IN TARGETS!
+	valNW = New Window( "POR Factor Level and targeted parameter",
+		<<Modal,
+		cbwidth = 200;
+		
+		H List Box(
+			V List Box( 
+		Text Box("Choose POR Factor Level."),
+		" ",	
+		Line up box( Ncol(2), "Control Group", Control Group = Combo Box( groups ) ),
+		" ",
+		" ",
+		Text Box( "If appropriate, enter target value. Leave blank if no target." ),
+		h11 = Table Box( a = String Col Box( "Parameter", RID ), d11 = Number Col Edit Box( "Target ", rTemp ) )
+	),
+
+		Panel Box( "",
+					Lineup Box( N Col( 1 ),
+			Button Box( "OK",
+				targetList = d11 << Get As Matrix();  //get target values
+				ctrl = Control Group << GetSelected();  //choose POR group
+							),
+			Button Box( "Cancel",
+				closedb = 0;
+				If( !Is Empty( kdt ),
+					Close( kdt, nosave )
+				);
+				Throw();
+			)
+		))
+		)
+)
+);//End Expression
+
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: IQ_MainProc_Expr, added and edited by Xin
+//Type: Expression, need to run expression IQ_Select_Match_Values first
+//Description:
+/*For each RESPONSE (i = (1::m))
+	 * 1) User selects matching method (See: IQ_Select_Match_Values)
+	 * 2) Populate individual data lists:
+	 * 		a) All_Targets 			= 	{Target_Val,.}
+	 * 		b) All_POR_Means 		= 	{Mean(Mean Col), Mean(StdDev Col)}[POR rows]
+	 * 		c) All_POR_StdDevs 	=  	{StdDev(Mean Col), Stdev(StdDev Col)}[POR rows]
+	 * 		d) All_NEW_Means		=		{Mean(Mean Col), Mean(StdDev Col)}[NEW rows]
+	 * 		e) All_NEW_StdDevs 	=  	{StdDev(Mean Col), Stdev(StdDev Col)}[NEW rows]
+	 * 		f) All_StdDev_Means_Delta = {All_POR_StdDevs[1]-All_POR_StdDevs[1]}
+	 * 		g) All_StdDev_StdDev_Delta = {All_POR_StdDevs[2]-All_POR_StdDevs[2]}
+	 */			
+////////////////////////////////////////////////////////////////////////////////
+
+
+::IQ_MainProc_Expr = Expr(
+		Eval( Expr( IQ_Select_Match_Values ));  //enter target value if available, return as targetList
+		wait(0);	
+/*Select rows defined as POR by user and append "(POR)" to the text of the fctr column*/
+		kdt << SelectWhere( Trim( fctr[] ) == ctrl );
+		For Each Row(
+			If( Selected(),
+				fctr[] = Char( fctr[] || " (POR)" );
+				Column( kdt, "Order" )[] = 1;
+			,
+				Column( kdt, "Order" )[] = 2
+			)
+		);
+/*Create summary table grouping colums (RUNID and fctr) Mean(RESPONSE), StdDev(RESPONSE)*/
+	sumtable = kdt << Summary(
+			Group( Run_ID_Col, fctr, :Order ),
+			Mean( eval(RID) ),
+			Std Dev( eval(RID) ),
+			Freq( "None" ),
+			Weight( "None" ),
+		);
+		
+	ctrl = ctrl || " (POR)"; //change ctrl group to concatnate POR
+	sumtable << ClearSelect;
+
+
+
+); //EndExpr
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+/************************FUNCTION DEFINITIONS**********************************/
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateIQVarChart(x_,y_,z_,target_,mean_,cm_,cswitch)
+//Type: Function
+//Description:
+// 1. Generates Variability Chart
+// 2. Arguments:
+//	x_ 			: x-axis data (col)
+//	y_ 			: y-axis data (col)
+//	z_ 			: by-variable (col)
+//	target_		: Display target as ref line (const)
+//	mean_		: Display mean as a ref line (const)
+//	cm_			: Color/marker (col)
+//	cswitch : Connect means (bool)
+////////////////////////////////////////////////////////////////////////////////
+
+::GenerateIQVarChart = Function( {x_, y_, z_, target_, mean_, cm_, cswitch},
+	{_ref_val_},
+	_ref_val_ = If( !Is Missing( target_ ),
+		target_,
+		mean_
+	);
+	Var_Chart_Box = Variability Chart(
+		Y( Eval( y_ ) ),
+		X( Eval List( x_ ) ),
+		Connect Cell Means( Eval( cswitch ) ),
+		Show Group Means( 1 ),
+		Show Grand Mean( 0 ),
+		Std Dev Chart( 0 ),
+		Points Jittered( 1 ),
+		By( Eval( z_ ) ),
+		SendToReport(
+			Dispatch( {}, "Variability Chart", FrameBox, Frame Size( 810, 200 ) ),
+			Dispatch( {}, "", NomAxisBox, Rotated Tick Labels( 1 ) ), 
+			//Dispatch( {}, "", AxisBox, ShowMajorGrid )
+			Dispatch( {}, "2", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+		)
+	);
+	If(
+		N Items( cm_ ) == 1, Report( Var_Chart_Box )[FrameBox( 1 )] << RowLegend( Eval( cm_[1] ), color( 1 ), Marker( 1 ) ),
+		N Items( cm_ ) == 2,
+			Report( Var_Chart_Box )[FrameBox( 1 )] << RowLegend( Eval( cm_[1] ), color( 0 ), Marker( 1 ) );
+			Report( Var_Chart_Box )[FrameBox( 1 )] << RowLegend( Eval( cm_[2] ), color( 1 ), Marker( 0 ) );
+	);
+	Report( Var_Chart_Box )[AxisBox( 1 )] << AddRefLine( _ref_val_, "Dashed", "Blue" );
+); //EndFunction
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateKOverlay(x_,y_,z_,by_,j_, target_)
+//Type: Function
+//Description:
+// 1. Generates overlay plot
+// 2. Arguments:
+//	x_ 				: optional x-axis data (col)
+//	y_ 				: y-axis data (col)
+//  z_				: grouping data (col)
+//  by_				: by variable (col), disabled, set to 1 always
+//  j_				: current index of by variable (num)
+//  target_			: add a reference line of target, Xin
+////////////////////////////////////////////////////////////////////////////////
+::GenerateKOverlay = Function( {x_, y_, z_, by_, j_, target_}, 
+
+	If( N Items( x_ ) > 0,
+		If( by_flag,
+			xaxis = Column( x_[1] );
+			Overlay_Box = Overlay Plot(
+				X( Eval( xaxis ) ),
+				Y( Eval( y_ ) ),
+				Where( As Column( by_ ) == by_names[j_] ),
+				Grouping( Eval( z_ ) ),
+				Overlay Groups,
+				Sort X( 1 ),
+				Ungroup Plots( 1 ),
+				Separate Axes( 1 ),
+				Connect Thru Missing( 1 ),
+				Connect Points( 1 ),
+				SendToReport(
+					Dispatch( {}, "Overlay Plot", FrameBox( 4 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "Overlay Plot", FrameBox( 5 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "101", ScaleBox, {Show Major Grid( 1 ), Show Minor Grid( 1 )} ),
+					Dispatch( {}, "106", ScaleBox, {Add Ref Line( target_, "Solid", "Black", "Target", 2 )} ) //add a target line, Xin
+				)				
+			);
+			Report( Overlay_Box )[LegendBox( 1 )] <<  Orientation( "vertical" );  //change the orientation of legend
+		,
+			xaxis = Column( x_[1] );
+			Overlay_Box = Overlay Plot(
+				X( Eval( xaxis ) ),
+				Y( Eval( y_ ) ),
+				Grouping( Eval( z_ ) ),
+				Overlay Groups,
+				Sort X( 1 ),
+				Ungroup Plots( 1 ),
+				Separate Axes( 1 ),
+				Connect Thru Missing( 1 ),
+				Connect Points( 1 ),
+				SendToReport(
+					Dispatch( {}, "Overlay Plot", FrameBox( 4 ), {Frame Size( 650, 200 )} ),
+					//Dispatch( {}, "Overlay Plot", FrameBox( 5 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "101", ScaleBox, {Show Major Grid( 1 ), Show Minor Grid( 1 )} ),
+					Dispatch( {}, "106", ScaleBox, {Add Ref Line( target_, "Solid", "Black", "Target", 2 )})
+				)				
+			);
+			Report( Overlay_Box )[LegendBox( 1 )] <<  Orientation( "vertical" );  //change the orientation of legend
+		)
+	,
+		If( by_flag,
+			Overlay_Box = Overlay Plot(
+				Y( Eval( y_ ) ),
+				Where( As Column( by_ ) == by_names[j_] ),
+				Grouping( Eval( z_ ) ),
+				Overlay Groups,
+				Sort X( 1 ),
+				Ungroup Plots( 1 ),
+				Separate Axes( 1 ),
+				Connect Thru Missing( 1 ),
+				Connect Points( 1 ),
+				SendToReport(
+					Dispatch( {}, "Overlay Plot", FrameBox( 4 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "Overlay Plot", FrameBox( 5 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "101", ScaleBox, {Show Major Grid( 1 ), Show Minor Grid( 1 )} ),
+					Dispatch( {}, "106", ScaleBox, {Add Ref Line( target_, "Solid", "Black", "Target", 2 )} )
+				)				
+			);
+			Report( Overlay_Box )[LegendBox( 1 )] <<  Orientation( "vertical" );  //change the orientation of legend
+			,
+			Overlay_Box = Overlay Plot(
+				Y( Eval( y_ ) ),
+				Grouping( Eval( z_ ) ),
+				Overlay Groups,
+				Sort X( 1 ),
+				Ungroup Plots( 1 ),
+				Separate Axes( 1 ),
+				Connect Thru Missing( 1 ),
+				Connect Points( 1 ),
+				SendToReport(
+					Dispatch( {}, "Overlay Plot", FrameBox( 4 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "Overlay Plot", FrameBox( 5 ), {Frame Size( 650, 200 )} ),
+					Dispatch( {}, "101", ScaleBox, {Show Major Grid( 1 ), Show Minor Grid( 1 )} ),
+					Dispatch( {}, "106", ScaleBox, {Add Ref Line( target_, "Solid", "Black", "Target", 2 )} )
+				)
+			);
+			Report( Overlay_Box )[LegendBox( 1 )] <<  Orientation( "vertical" );  //change the orientation of legend
+		)
+	)
+);	
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateANOVA
+//Type: change to a function by Xin to generate results for run-to-run and within-run, require OutputControl first
+//Description:
+// 1. Generates Oneway ANOVA
+//resp_: mean or standard deviation
+//run_: run-to-run or within-run
+//target_: compare to target when available
+////////////////////////////////////////////////////////////////////////////////
+::GenerateANOVA = Function( {resp_, run_, target_}, 
+	
+	If( jmpv > 10, 
+	// New JMP version //
+		If( by_flag,
+			oneres = Oneway(
+				Y( Eval( resp_ ) ),
+				x( Eval( fctr ) ),
+				Where( As Column( bycol ) == by_names[j] ),
+				AllPairs(
+					Eval( tswitch ),
+					Difference Matrix( 0 ),
+					Confid Quantile( 0 ),
+					LSD Threshold Matrix( 0 ),
+					Connecting Letters Report( 1 ),
+					Ordered Differences Report( 1 )
+				),
+				With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+				Set α Level( alpha ),
+				Name( "Means/Anova" )(1),
+				Means and Std Dev( 1 ),
+				Unequal Variances( 1 ),
+				Box Plots( 1 ),
+				Mean Lines( 1 ),
+				Mean Diamonds( 1 ),
+				Std Dev Lines( 1 ),
+				Comparison Circles( 1 ),
+				SendToReport( Dispatch( {}, "1", ScaleBox, {Add Ref Line( target_, "Solid", "Red", "Target", 2 ),
+				ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+			),
+			oneres = Oneway(
+				Y( Eval( resp_ ) ),
+				x( Eval( fctr ) ),
+				AllPairs(
+					Eval( tswitch ),
+					Difference Matrix( 0 ),
+					Confid Quantile( 0 ),
+					LSD Threshold Matrix( 0 ),
+					Connecting Letters Report( 1 ),
+					Ordered Differences Report( 1 )
+				),
+				With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+				Set α Level( alpha ),
+				Name( "Means/Anova" )(1),
+				Means and Std Dev( 1 ),
+				Unequal Variances( 1 ),
+				Box Plots( 1 ),
+				Mean Lines( 1 ),
+				Mean Diamonds( 1 ),
+				Std Dev Lines( 1 ),
+				Comparison Circles( 1 ),
+				SendToReport( Dispatch( {}, "1", ScaleBox, {Add Ref Line( target_, "Solid", "Red", "Target", 2 ),
+				ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+			)
+		)
+	, 
+	// Old JMP version //
+		If( by_flag,
+			oneres = Oneway(
+				Y( Eval( resp ) ),
+				x( Eval( fctr ) ),
+				Where( As Column( bycol ) == by_names[j] ),
+				AllPairs(
+					Eval( tswitch ),
+					Difference Matrix( 0 ),
+					Confid Quantile( 0 ),
+					LSD Threshold Matrix( 0 ),
+					Connecting Letters Report( 1 ),
+					Ordered Differences Report( 1 )
+				),
+				With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+				Set α Level( alpha ),
+				Means( 1 ),
+				Means and Std Dev( 1 ),
+				Unequal Variances( 1 ),
+				Box Plots( 1 ),
+				Mean Lines( 1 ),
+				Mean Diamonds( 1 ),
+				Std Dev Lines( 1 ),
+				Comparison Circles( 1 ),
+				SendToReport( Dispatch( {}, "1", ScaleBox, {Add Ref Line( target_, "Solid", "Red", "Target", 2 ),
+				ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+			),
+			oneres = Oneway(
+				Y( Eval( resp_ ) ),
+				x( Eval( fctr ) ),
+				AllPairs(
+					Eval( tswitch ),
+					Difference Matrix( 0 ),
+					Confid Quantile( 0 ),
+					LSD Threshold Matrix( 0 ),
+					Connecting Letters Report( 1 ),
+					Ordered Differences Report( 1 )
+				),
+				With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+				Set α Level( alpha ),
+				Means( 1 ),
+				Means and Std Dev( 1 ),
+				Unequal Variances( 1 ),
+				Box Plots( 1 ),
+				Mean Lines( 1 ),
+				Mean Diamonds( 1 ),
+				Std Dev Lines( 1 ),
+				Comparison Circles( 1 ),
+				SendToReport( Dispatch( {}, "1", ScaleBox, {Add Ref Line( target_, "Solid", "Red", "Target", 2 ),
+				ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+
+			)
+		)
+	);
+	
+	Insert Into( uev[i], Report( oneres )[Outline Box( "Tests that the Variances are Equal" )][Number Col Box( 8 )] << Get( 2 ) );
+	Report( oneres )[Outline Box( "Summary of Fit" )] << Close( 1 );
+	Report( oneres )[Outline Box( "Means for Oneway A?" )] << Close( 1 );
+	If( alpha != 0.05,
+		If( tswitch,
+			oneres << All Pairs( 0 );
+			oneres << All Pairs( 1, Confidence Quantile( 0 ), LSD Threshold( 0 ) );
+		)
+	);
+	
+	
+	
+	Eval( OutputControl(resp_, run_, target_) );
+	oneway_box = H List Box( oneres );
+);
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+//Name: OutputControl, edit by Xin
+//Type: change to a function by Xin to generate results for run-to-run and within-run
+//require expression Equal_var_Dunnett or Unequal_var_Tukey or Unequal_var_Dunnett 
+//Description:
+// 1. Decides which output to provide and which p-values to include in summary tables.
+// Choice of Tukey multiple comparisons or Dunnett multiple comparisons 
+//run_: Run-to-Run or Within-Run output
+//resp_: which variable is evaluated. Mainly used for creating Dunnett test for standard deviation pairwise comparison
+//target_: compare to target when available
+//////////////////////////////////////////////////////////////////////////////////////
+::OutputControl = Function( {resp_, run_, target_},
+	
+	// Identify the correct location to store results in summary tab //
+	If( raw, //if use raw data, do unit level
+		table_loc = diff_table[Outline Box( RID[i] )],
+		//otherwise, do lot level
+		table_loc = diff_table[Outline Box( RID[i] || run_)]
+		
+	);
+	
+	
+	// Difference analyses depending on results of tests and whether or not a control group is included. //
+	If( uev[i][N Items( uev[i] )] > alpha | Is Missing( uev[i][N Items( uev[i] )] ), //use is p value of equal of variance test
+	
+	// Equal Variance case //
+		Insert Into( anova[i], Report( oneres )[Outline Box( "Analysis of Variance" )][Number Col Box( 5 )] << Get( 1 ) );
+		Report( oneres )[Outline Box( "Welch's Test" )] << Close( 1 );
+		
+		
+		If( !control_flag, 
+		// Changed by Xin, if no control group selected, use Tukey multiple comparisons //
+			If( jmpv > 9,
+				table_loc << Append(
+					V List Box( Report( oneres )[Outline Box( "Means Comparisons" )][Outline Box( "?Differences?" )][Table Box( 1 )] )
+				),
+				table_loc << Append( V List Box( Report( oneres )[Outline Box( "Means Comparisons" )][Outline Box( "?Tukey?" )][Table Box( 2 )] ) )
+			);
+			table_loc[Plot Col Box( 1 )] << Delete;
+			table_loc[String Col Box( "Lower CL" )] << Set Heading( "Lower " || Char( 100 * (1 - alpha) ) || "%" );
+			table_loc[String Col Box( "Upper CL" )] << Set Heading( "Upper " || Char( 100 * (1 - alpha) ) || "%" );
+			table_loc[Number Col Box( "p-Value" )] << Set Heading( "Prob>|t|" );
+		, 
+		// Dunnett multiple comparisons for control group //
+			ses = Report( oneres )[Outline Box( "Means and Std Deviations" )][Table Box( 1 )] << Make Data Table; //generate a temp data table
+			If( jmpv > 9,
+				dmatrix = Report( oneres )[Outline Box( "Difference Matrix" )][Matrix Box( 1 )] << Get,
+				dmatrix = Report( oneres )[Outline Box( "?Dunnett?" )][Matrix Box( 1 )] << Get
+			);
+
+			Eval( Equal_var_Dunnett(target_, run_) );
+			Report( oneres )[Outline Box( "Means and Std Deviations" )] << Sib Append( dunnett_box, Vertical );
+			table_loc << Append( dunnett_box[Outline Box( "?Differences?" )][Table Box( 1 )] );
+		);
+		
+		
+		If( anova[i][N Items( anova[i] )] > alpha, 
+		// Equal Means case //
+			Report( oneres )[Outline Box( "Means Comparisons" )] << Close( 1 );
+			If( !tswitch,
+				Report( oneres )[Outline Box( "Means Comparisons with Equal Variances" )] << Close( 1 )
+			);
+		);
+		
+	, 
+	
+	
+	// Unequal Variance case //
+		Insert Into( anova[i], Report( oneres )[Outline Box( "Welch's Test" )][Number Col Box( 4 )] << Get( 1 ) );
+		oneres << Means( 0 );
+		
+		
+		ses = Report( oneres )[Outline Box( "Means and Std Deviations" )][Table Box( 1 )] << Make Data Table;
+		If( !control_flag, 
+		// Changed by Xin, if no control group selected, use Tukey multiple comparisons  //
+			If( jmpv > 9,
+				dmatrix = Report( oneres )[Outline Box( "Ordered Differences Report" )][Table Box( 1 )] << Make Data Table,
+				dmatrix = Report( oneres )[Outline Box( "?Tukey?" )][Table Box( 2 )] << Make Data Table
+			);
+			oneres << All Pairs( 0 );
+			Eval( Unequal_var_Tukey );
+			Report( oneres )[Outline Box( "Means and Std Deviations" )] << Sib Append( tukey_box, Vertical );
+			table_loc << Append( tukey_box[Outline Box( "?Differences?" )][Table Box( 1 )] );
+		, 
+		// Dunnett multiple comparisons for control group //
+			If( jmpv > 9,
+				dmatrix = Report( oneres )[Outline Box( "Difference Matrix" )][Matrix Box( 1 )] << Get,
+				dmatrix = Report( oneres )[Outline Box( "?Dunnett?" )][Matrix Box( 1 )] << Get
+			);
+			oneres << With Control( 0 );
+			Eval( Unequal_var_Dunnett(resp_, target_, run_) );
+			Report( oneres )[Outline Box( "Means and Std Deviations" )] << Sib Append( dunnett_box, Vertical );
+
+			table_loc << Append( dunnett_box[Outline Box( "?Differences?" )][Table Box( 1 )] );
+		);
+		
+		
+		If( anova[i][N Items( anova[i] )] > alpha, 
+		
+		// Equal Means case //
+			oneres << All Pairs( 0 );
+			oneres << With Control( 0 );
+			Report( oneres )[Outline Box( "Means Comparisons with Unequal Variances" )] << Close( 1 );
+		);
+		
+	);
+	
+	
+	// Identify Table Box for TE calculation, used diff_table index to select correct table to update TE, Xin
+	//Eval( Parse( "tb_label" || Char( i ) || Char( j ) || " = table_loc[Table Box( 1 )]" ) );
+	if(raw, //if use raw data, do not separate by run-to-run and within-run
+		Eval( Parse( "tb_label_m" || Char( i ) || Char( j ) || " = diff_table[Outline Box( RID[i] )][Table Box(1)]" ) );
+	,
+		if(run_ ==" (Run-to-Run)", 
+			Eval( Parse( "tb_label_m" || Char( i ) || Char( j ) || " = diff_table[Outline Box( RID[i] || run_ )][Table Box(1)]" ) ), 
+				Eval( Parse( "tb_label_sd" || Char( i ) || Char( j ) || " = diff_table[Outline Box( RID[i] || run_ )][Table Box(1)]" ) ) ); 
+	)
+
+);
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateBlkPlots
+//Type: Expression
+//Description:
+// 1. Generates oneway analysis plots of both raw and centered data with a block
+/*
+::GenerateBlkPlots = Expr(
+	If( jmpv > 9, 
+		
+	// New JMP version //
+		
+		If( by_flag, 
+			
+		// Including By variable //
+			If( j == 1,
+				by_blk_col = kdt << New Column( "ByBlock",
+					character,
+					Formula( Concat( As Column( bycol ), Char( As Column( blk ) ) ) ),
+					Eval Formula
+				);
+				tmpow = Oneway( Y( resp ), X( by_blk_col ), Save Centered, Invisible );
+				tmpow << Close Window;
+				centered_rsp = Column( kdt, N Col( kdt ) );
+				adj_resp = kdt << New Column( "Block Centered " || RID[i],
+					numeric,
+					continuous,
+					Formula( As Column( centered_rsp ) + Col Mean( As Column( resp ), As Column( bycol ) ) ),
+					Eval Formula
+				);
+			);
+			
+			OVL = H List Box(
+				Oneway(
+					Y( Eval( resp ) ),
+					X( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Save Centered,
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[FrameBox( 1 )] << Frame Size( 350, 150 ) << RowLegend( Eval( fctr << Get Name ), color( 1 ), Marker( 1 ) );
+			OVL[Text Box( 1 )] << Delete;
+			OVL[Outline Box( 1 )] << Set Title( Char( resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+			
+			
+			OVL = H List Box(
+				Oneway(
+					Y( Eval( adj_resp ) ),
+					X( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[Frame Box( 1 )] << Frame Size( 350, 150 ) << RowLegend( Eval( fctr << Get Name ), color( 1 ), Marker( 1 ) );
+			OVL[Text Box( 1 )] << Delete;
+			OVL[Outline Box( 1 )] << Set Title( Char( adj_resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+		, 
+			
+		// Without By variable //
+			OVL = H List Box(
+				Oneway(
+					Y( resp ),
+					X( blk ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Save Centered,
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[FrameBox( 1 )] << Frame Size( 350, 150 ) << RowLegend( fctr, color( 1 ), Marker( 1 ) );
+			OVL[Outline Box( 1 )] << Set Title( Char( resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+			
+			centered_rsp = Column( kdt, N Col( kdt ) );
+			adj_resp = kdt << New Column( "Block Centered " || RID[i],
+				numeric,
+				continuous,
+				Formula( As Column( centered_rsp ) + Col Mean( As Column( resp ) ) ),
+				Eval Formula
+			);
+			
+			
+			OVL = H List Box(
+				Oneway(
+					Y( adj_resp ),
+					X( blk ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[Frame Box( 1 )] << Frame Size( 350, 150 ) << RowLegend( fctr, color( 1 ), Marker( 1 ) );
+			OVL[Outline Box( 1 )] << Set Title( Char( adj_resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+		);
+		
+	, 
+		
+		// Old JMP version //
+		
+		If( by_flag, 
+			
+		// Including By variable //
+			If( j == 1,
+				by_blk_col = kdt << New Column( "ByBlock",
+					character,
+					Formula( Concat( As Column( bycol ), Char( As Column( blk ) ) ) ),
+					Eval Formula
+				);
+				tmpow = Oneway( Y( resp ), X( by_blk_col ), Save Centered, Invisible );
+				tmpow << Close Window;
+				centered_rsp = Column( kdt, N Col( kdt ) );
+				adj_resp = kdt << New Column( "Block Centered " || RID[i],
+					numeric,
+					continuous,
+					Formula( As Column( centered_rsp ) + Col Mean( As Column( resp ), As Column( bycol ) ) ),
+					Eval Formula
+				);
+			);
+			
+			OVL = H List Box(
+				Oneway(
+					Y( Eval( resp ) ),
+					X( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					Means( 0 ),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Save Centered,
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[FrameBox( 1 )] << Frame Size( 350, 150 ) << RowLegend( Eval( fctr << Get Name ), color( 1 ), Marker( 1 ) );
+			OVL[Text Box( 1 )] << Delete;
+			OVL[Outline Box( 1 )] << Set Title( Char( resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+			
+			
+			OVL = H List Box(
+				Oneway(
+					Y( Eval( adj_resp ) ),
+					X( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					Means( 0 ),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[Frame Box( 1 )] << Frame Size( 350, 150 ) << RowLegend( Eval( fctr << Get Name ), color( 1 ), Marker( 1 ) );
+			OVL[Text Box( 1 )] << Delete;
+			OVL[Outline Box( 1 )] << Set Title( Char( adj_resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+		, 
+			
+		// Without By variable //
+			OVL = H List Box(
+				Oneway(
+					Y( resp ),
+					X( blk ),
+					Means( 0 ),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Save Centered,
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+				)
+			);
+			OVL[FrameBox( 1 )] << Frame Size( 350, 150 ) << RowLegend( fctr, color( 1 ), Marker( 1 ) );
+			OVL[Outline Box( 1 )] << Set Title( Char( resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+			
+			
+			centered_rsp = Column( kdt, N Col( kdt ) );
+			adj_resp = kdt << New Column( "Block Centered " || RID[i],
+				numeric,
+				continuous,
+				Formula( As Column( centered_rsp ) + Col Mean( As Column( resp ) ) ),
+				Eval Formula
+			);
+			
+			
+			OVL = H List Box(
+				Oneway(
+					Y( adj_resp ),
+					X( blk ),
+					Means( 0 ),
+					Means and Std Dev( 0 ),
+					UnEqual Variances( 0 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 0 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Mean Error Bars( 0 ),
+					Std Dev Lines( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 0 ),
+					SendToReport( Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} ) )
+					//SendToReport( Dispatch( {}, "", AxisBox, ShowMajorGrid ) )
+				)
+			);
+			OVL[Frame Box( 1 )] << Frame Size( 350, 150 ) << RowLegend( fctr, color( 1 ), Marker( 1 ) );
+			OVL[Outline Box( 1 )] << Set Title( Char( adj_resp << Get Name ) || " vs. " || Char( blk << Get Name ) );
+			chart << Append( OVL );
+		)
+	)
+);
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateBlk
+//Type: Expression
+//Description:
+// 1. Generates Oneway ANOVA with a block
+////////////////////////////////////////////////////////////////////////////////
+::GenerateBlk = Expr(
+
+	// Obtain test results //
+	
+	If( jmpv > 10, 
+	// New JMP version //
+		If( by_flag,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( resp ) ),
+					x( Eval( fctr ) ),
+					Block( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					AllPairs(
+						Eval( tswitch ),
+						Difference Matrix( 0 ),
+						Confid Quantile( 0 ),
+						LSD Threshold Matrix( 0 ),
+						Connecting Letters Report( 1 ),
+						Ordered Differences Report( 1 )
+					),
+					With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+					Set α Level( alpha ),
+					Name( "Means/Anova" )(1),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 1 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			);
+			block_chart_box[Text Box( 1 )] << Delete;
+		,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( resp ) ),
+					x( Eval( fctr ) ),
+					Block( Eval( blk ) ),
+					AllPairs(
+						Eval( tswitch ),
+						Difference Matrix( 0 ),
+						Confid Quantile( 0 ),
+						LSD Threshold Matrix( 0 ),
+						Connecting Letters Report( 1 ),
+						Ordered Differences Report( 1 )
+					),
+					With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+					Set α Level( alpha ),
+					Name( "Means/Anova" )(1),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 1 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			)
+		)
+	, 
+	// Old JMP version //
+		If( by_flag,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( resp ) ),
+					x( Eval( fctr ) ),
+					Block( Eval( blk ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					AllPairs(
+						Eval( tswitch ),
+						Difference Matrix( 0 ),
+						Confid Quantile( 0 ),
+						LSD Threshold Matrix( 0 ),
+						Connecting Letters Report( 1 ),
+						Ordered Differences Report( 1 )
+					),
+					With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+					Set α Level( alpha ),
+					Means( 1 ),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 1 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			);
+			block_chart_box[Text Box( 1 )] << Delete;
+		,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( resp ) ),
+					x( Eval( fctr ) ),
+					Block( Eval( blk ) ),
+					AllPairs(
+						Eval( tswitch ),
+						Difference Matrix( 0 ),
+						Confid Quantile( 0 ),
+						LSD Threshold Matrix( 0 ),
+						Connecting Letters Report( 1 ),
+						Ordered Differences Report( 1 )
+					),
+					With Control( Eval( !tswitch ), {ctrl}, Difference Matrix( 1 ), Confidence Quantile( 0 ), LSD Threshold Matrix( 1 ) ),
+					Set α Level( alpha ),
+					Means( 1 ),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 1 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			)
+		)
+	);
+	
+	block_chart_box[FrameBox( 1 )] << RowLegend( Eval( fctr ), color( 1 ), Marker( 1 ) );
+	block_chart_box[Outline Box( "Summary of Fit" )] << Close( 1 );
+	block_chart_box[Outline Box( "Means for Oneway ANOVA" )] << Close( 1 );
+	block_chart_box[Outline Box( "Block Means" )] << Close( 1 );
+	
+	
+	Insert Into( uev[i], block_chart_box[Outline Box( "Tests that the Variances are Equal" )][Number Col Box( 8 )] << Get( 2 ) );
+	Eval( OutputControl );
+	
+	cpr << Append( block_chart_box );
+);
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: GenerateIBD
+//Type: Expression
+//Description:
+// 1. Generates Oneway ANOVA with an imbalanced block design
+////////////////////////////////////////////////////////////////////////////////
+::GenerateIBD = Expr(
+
+	// Functions to obtain results //
+	If( by_flag,
+		run_model = Substitute(
+				Expr(
+					H List Box(
+						Fit Model(
+							Y( a_ ),
+							Effects( b_, c_ ),
+							Personality( Standard Least Squares ),
+							Set Alpha Level( alpha ),
+							Emphasis( Minimal Report ),
+							Run Model(
+								Profiler( 0 ),
+								Plot Actual by Predicted( 0 ),
+								Plot Residual by Predicted( 0 ),
+								Plot Residual by Row( 0 ),
+								a_ << {Summary of Fit( 0 ), Parameter Estimates( 0 ), Effect Details( 0 ), Lack of Fit( 0 ), Sorted Estimates( 0 ),
+								Normal Plot( 0 ), Pareto Plot( 0 ), Plot Regression( 0 ), Scaled Estimates( 0 ), Plot Effect Leverage( 0 ),
+								Interaction Plots( 0 ), Multiple Comparisons(
+									Effect( b_ ),
+									Comparisons with Control(
+										Eval( !tswitch ),
+										Control Level( Char( fctr << Get Name ) || ":" || ctrl ),
+										Name( "Calculate Adjusted P-Values" )(1),
+										Comparisons with Control Decision Chart( 0 )
+									),
+									Tukey HSD( Eval( tswitch ), All Pairwise Comparisons Scatterplot( 0 ) )
+								)}
+							),
+							Where( As Column( bycol ) == by_names[j] ),
+							Invisible
+						)
+					)
+				),
+			Expr( a_ ), resp,
+			Expr( b_ ), fctr,
+			Expr( c_ ), blk
+		)
+	,
+		run_model = Substitute(
+				Expr(
+					H List Box(
+						Fit Model(
+							Y( a_ ),
+							Effects( b_, c_ ),
+							Personality( Standard Least Squares ),
+							Set Alpha Level( alpha ),
+							Emphasis( Minimal Report ),
+							Run Model(
+								Profiler( 0 ),
+								Plot Actual by Predicted( 0 ),
+								Plot Residual by Predicted( 0 ),
+								Plot Residual by Row( 0 ),
+								a_ << {Summary of Fit( 0 ), Parameter Estimates( 0 ), Effect Details( 0 ), Lack of Fit( 0 ), Sorted Estimates( 0 ),
+								Normal Plot( 0 ), Pareto Plot( 0 ), Plot Regression( 0 ), Scaled Estimates( 0 ), Plot Effect Leverage( 0 ),
+								Interaction Plots( 0 ), Multiple Comparisons(
+									Effect( b_ ),
+									Comparisons with Control(
+										Eval( !tswitch ),
+										Control Level( Char( fctr << Get Name ) || ":" || ctrl ),
+										Name( "Calculate Adjusted P-Values" )(1),
+										Comparisons with Control Decision Chart( 0 )
+									),
+									Tukey HSD( Eval( tswitch ), All Pairwise Comparisons Scatterplot( 0 ) )
+								)}
+							),
+							Invisible
+						)
+					)
+				),
+			Expr( a_ ), resp,
+			Expr( b_ ), fctr,
+			Expr( c_ ), blk
+		)
+	);
+
+
+
+
+	// Obtain test results //
+	
+	If( jmpv > 10, 
+	// New JMP version //
+		If( by_flag,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( adj_resp ) ),
+					x( Eval( fctr ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					AllPairs( 0 ),
+					With Control( 0 ),
+					Set α Level( alpha ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 0 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			);
+			block_chart_box[Text Box( 1 )] << Delete;
+		,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( adj_resp ) ),
+					x( Eval( fctr ) ),
+					AllPairs( 0 ),
+					With Control( 0 ),
+					Set α Level( alpha ),
+					Name( "Means/Anova" )(0),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 0 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			)
+		)
+	, 
+	// Old JMP version //
+		If( by_flag,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( adj_resp ) ),
+					x( Eval( fctr ) ),
+					Where( As Column( bycol ) == by_names[j] ),
+					AllPairs( 0 ),
+					With Control( 0 ),
+					Set α Level( alpha ),
+					Means( 0 ),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 0 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			);
+			block_chart_box[Text Box( 1 )] << Delete;
+		,
+			block_chart_box = H List Box(
+				oneres = Oneway(
+					Y( Eval( adj_resp ) ),
+					x( Eval( fctr ) ),
+					AllPairs( 0 ),
+					With Control( 0 ),
+					Set α Level( alpha ),
+					Means( 0 ),
+					Means and Std Dev( 1 ),
+					Unequal Variances( 1 ),
+					Plot Actual by Quantile( 0 ),
+					Box Plots( 1 ),
+					Mean Lines( 0 ),
+					Mean Diamonds( 0 ),
+					Std Dev Lines( 0 ),
+					Mean Error Bars( 0 ),
+					X Axis proportional( 0 ),
+					Points Jittered( 1 ),
+					Comparison Circles( 0 ),
+					SendToReport(
+						Dispatch( {}, "Oneway Plot", FrameBox, Marker Size( 2 ) ),
+						Dispatch( {}, "1", ScaleBox, {ShowMajorGrid( 1 ), ShowMinorGrid( 1 )} )
+					)
+				)
+			)
+		)
+	);
+	
+	block_chart_box[FrameBox( 1 )] << RowLegend( Eval( fctr ), color( 1 ), Marker( 1 ) );
+	
+	
+	Insert Into( uev[i], block_chart_box[Outline Box( "Tests that the Variances are Equal" )][Number Col Box( 8 )] << Get( 2 ) );
+	
+	cpr << Append( block_chart_box );
+	tmp_rm = Eval( run_model );
+	tmp_rm[Text Box( 1 )] << Delete;
+	cpr << Append( tmp_rm );
+	Eval( OutputControlIBD );
+);
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+//Name: OutputControlIBD
+//Type: Expression
+//Description:
+// 1. Decides which output to provide and which p-values to include in summary tables.
+::OutputControlIBD = Expr(
+	
+	block_chart_box[Outline Box( "Welch's Test" )] << Close( 1 );
+	Insert Into( anova[i], cpr[Outline Box( "Effect Tests" )][Number Col Box( 6 )] << Get( 1 ) );
+		
+	
+	// Add pairwise comparisons to summary tab and format //
+	If( by_flag,
+		table_loc = diff_table[Outline Box( RID[i] )][Outline Box( Char( bycol << Get Name ) || " - " || by_names[j] )],
+		table_loc = diff_table[Outline Box( RID[i] )]
+	);
+	
+	
+	
+	If( jmpv > 9,
+		table_loc << Append( V List Box( cpr[Outline Box( "?Differences?" )][Table Box( 1 )] ) );
+	
+	
+		table_loc[String Col Box( 1 )] << Set Heading( "Level" );
+		table_loc[String Col Box( 2 )] << Set Heading( "- Level" );
+		If( tswitch,
+			table_loc[Number Col Box( 3 )] << Delete;
+			table_loc[Table Box( 1 )] << Reorder Columns( 5, 8 );
+		,
+			table_loc[Number Col Box( 5 )] << Delete
+		);
+		table_loc[Number Col Box( "?Lower?" )] << Set Heading( "Lower " || Char( 100 * (1 - alpha) ) || "%" );
+		table_loc[Number Col Box( "?Upper?" )] << Set Heading( "Upper " || Char( 100 * (1 - alpha) ) || "%" );
+		table_loc[Number Col Box( "?Prob?" )] << Set Heading( "Prob>|t|" );
+		table_loc[String Col Box( 3 )] << Delete;
+	
+	
+	// Identify Table Box for TE calculation //
+		Eval( Parse( "tb_label" || Char( i ) || Char( j ) || " = table_loc[Table Box( 1 )]" ) );
+	
+	
+	// Equal Means case //
+		If( anova[i][N Items( anova[i] )] > alpha,
+			cpr[Outline Box( "Multiple Comparisons" )] << Close( 1 )
+		);
+	
+	
+	,
+		table_loc << Append( Text Box( "Only available in JMP 11 or newer." ) )
+	);
+);
+
+
+*/////////////////////////////////////////////////////////////////////////////////
+//Name: Unequal_var_Tukey
+//Type: Expression
+//Description:
+// 1. Calculates the Tukey pairwise means comparisons when variances are unequal.
+/////////////////////////////////////////////////////////////////////////////////
+::Unequal_var_Tukey = Expr(
+	dmatrix << Delete Columns( "Std Err Dif", "Lower CL", "Upper CL", "p-Value" );
+	
+	
+	// Join the Means, Standard Deviations, and differences into a single table //
+	uvt1 = dmatrix << Join(
+		With( ses ),
+		Merge Same Name Columns,
+		By Matching Columns( :Level = :Level ),
+		Drop multiples( 0, 0 ),
+		Name( "Include non-matches" )(0, 0),
+		Preserve main table order( 1 )
+	);
+	Column( ses, "Level" ) << Set Name( "- Level" );
+	Column( ses, "Std Dev" ) << Set Name( "- Std Dev" );
+	Column( ses, "Number" ) << Set Name( "- Number" );
+	uvt = uvt1 << Join(
+		With( ses ),
+		Merge Same Name Columns,
+		By Matching Columns( :Name( "- Level" ) = :Name( "- Level" ) ),
+		Drop multiples( 0, 0 ),
+		Name( "Include non-matches" )(0, 0),
+		Preserve main table order( 1 )
+	);
+	
+	
+	// Compute Standard Errors, Satterthwaite dfs, Confidence intervals, and p-values //
+	uvt << New Column( "Std Err Dif",
+		numeric,
+		continuous,
+		formula( Sqrt( :Std Dev ^ 2 / :Number + :Name( "- Std Dev" ) ^ 2 / :Name( "- Number" ) ) ),
+		EvalFormula
+	);
+	uvt << New Column( "Satterthwaite",
+		numeric,
+		continuous,
+		formula(
+			(:Std Dev ^ 2 / :Number + :Name( "- Std Dev" ) ^ 2 / :Name( "- Number" )) ^ 2 / ((:Std Dev ^ 2 / :Number) ^ 2 / (:Number - 1) + (
+			:Name( "- Std Dev" ) ^ 2 / :Name( "- Number" )) ^ 2 / (:Name( "- Number" ) - 1))
+		),
+		EvalFormula
+	);
+
+
+	uvt << New Column( "Lower CL",
+		numeric,
+		continuous,
+		formula( :Difference - :Std Err Dif * Tukey HSD Quantile( 1 - alpha, nlevels, :Satterthwaite ) ),
+		EvalFormula
+	);
+	uvt << New Column( "Upper CL",
+		numeric,
+		continuous,
+		formula( :Difference + :Std Err Dif * Tukey HSD Quantile( 1 - alpha, nlevels, :Satterthwaite ) ),
+		EvalFormula
+	);
+	uvt << New Column( "Prob>|t|",
+		numeric,
+		continuous,
+		formula( Tukey HSD P value( :Difference / :Std Err Dif, nlevels, :Satterthwaite ) ),
+		EvalFormula,
+		Format( PValue, 6 )
+	);
+
+
+	// Create output summary table //
+	tukey_box = Outline Box( "Means Comparisons with Unequal Variances",
+		Outline Box( "Ordered Differences Report using Tukey-Kramer HSD",
+			Table Box(
+				String Col Box( "Level", Column( uvt, "Level" )[1 :: N Row( uvt )] ),
+				String Col Box( "- Level", Column( uvt, "- Level" )[1 :: N Row( uvt )] ),
+				Number Col Box( "Difference", Column( uvt, "Difference" )[1 :: N Row( uvt )], <<SetFormat( 6, 10 ) ),
+				Number Col Box( "Std Err Dif", Column( uvt, "Std Err Dif" )[1 :: N Row( uvt )], <<SetFormat( 6, 10 ) ),
+				Number Col Box( "Lower " || Char( 100 * (1 - alpha) ) || "%", Column( uvt, "Lower CL" )[1 :: N Row( uvt )], <<SetFormat( 6, 10 ) ),
+				Number Col Box( "Upper " || Char( 100 * (1 - alpha) ) || "%", Column( uvt, "Upper CL" )[1 :: N Row( uvt )], <<SetFormat( 6, 10 ) ),
+				Number Col Box( "Prob>|t|",
+					Column( uvt, "Prob>|t|" )[1 :: N Row( uvt )],
+					<<Set Conditional Format( "PValue" ),
+					<<SetFormat( "PValue", 6 )
+				),
+				<<TableStyle( "Heading Separator" )
+			)
+		)
+	);
+
+	
+	
+	// Clean up leftover tables //
+	Close( dmatrix, nosave );
+	Close( ses, nosave );
+	Close( uvt1, nosave );
+	Close( uvt, nosave );
+	
+);
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+//Name: std_Dunnett
+//Type: When variance of equal test significant, need to determine which level is significantly different from others. Use Dunnett to do compare means of standard deviation (calculated as absolute difference to group median). Add by Xin.
+//Description:
+// 1. Calculates the Dunnett pairwise means comparisons for standard deviation when variances are unequal.
+// 2. Called in expression Unequal_var_Dunnett
+/////////////////////////////////////////////////////////////////////////////////
+::std_Dunnett = Function({resp_, run_},
+
+	temp= sumtable <<   //calculate group median to create data table for dunnett test
+	Summary(
+		Group( Eval( fctr ) ),
+		Median( Eval( resp_ ) ),
+		Freq( "None" ),
+		Weight( "None" )
+	);
+	
+	sumtable <<
+	Update(
+		With( temp ),
+		Match Columns( Eval( fctr ) = Eval( fctr ) ),
+		Add Columns from Update table(Column(temp, 3))  //the third column is the median
+	);
+	
+	name= Column(temp, 3) << get name; 
+
+	sumtable << New Column( "Std_"||RID[i]||run_,   //adsolute difference of variable to group median
+	numeric,
+	continuous,
+	formula( Abs(As Column(Eval(resp_)) - As column(name))),
+	EvalFormula
+	);
+
+	sdanova =Oneway(   //ANOVA on standard deviation
+		Y( Eval("Std_"||RID[i]||run_) ),
+		X( Eval( fctr ) ),
+		With Control( 1, {ctrl} ),
+		Means( 1 ),
+		Means and Std Dev( 1 )
+	);
+
+	p = Report( sdanova )[Outline Box( "LSD Threshold Matrix" )][Table Box( 1 )] << Make Data Table;  //contain p value for each group
+	
+	Close( temp, nosave );
+	
+	
+
+);
+
+/////////////////////////////////////////////////////////////////////////////////
+//Name: Unequal_var_Dunnett
+//Type: Change to function by Xin to make SW/SB decision based on std_Dunnett result. Need to call std_Dunnett first
+//Description:
+// 1. Calculates the Dunnett pairwise means comparisons when variances are unequal.
+/////////////////////////////////////////////////////////////////////////////////
+::Unequal_var_Dunnett = Function({resp_, target_, run_}, 
+
+	// Set columns for the control group //
+	ses << New Column( "- Level", character, nominal, set each value( ctrl ) );
+	ses << New Column( "Number Ctrl",
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Number" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	ses << New Column( "Mean Ctrl",
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Mean" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	ses << New Column( "Std Dev Ctrl",
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Std Dev" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	
+	ses << New Column( "Target", numeric, continuous, .);
+	:Target << Set Each Value(target_); //get value of target if available, Xin	
+	
+	
+	// Compute difference, standard errors, and the Satterthwaite dfs //
+	ses << New Column( "Difference", numeric, continuous, 
+	formula( If( isMissing(target_), :Mean - :Mean Ctrl, :Mean - :Target)), 
+	 EvalFormula );//if target is avaible, difference is to target, otherwise to por mean
+	ses << New Column( "Std Err Dif",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., Sqrt( :Std Dev ^ 2 / :Number + :Std Dev Ctrl ^ 2 / :Number Ctrl ) ) ),
+		EvalFormula
+	);
+	ses << New Column( "Satterthwaite",
+		numeric,
+		continuous,
+		formula(
+			If( :Level == ctrl,
+				.,
+				(:Std Dev ^ 2 / :Number + :Std Dev Ctrl ^ 2 / :Number Ctrl) ^ 2 / ((:Std Dev ^ 2 / :Number) ^ 2 / (:Number - 1) + (:Std Dev Ctrl ^ 2
+				 / :Number Ctrl) ^ 2 / (:Number Ctrl - 1))
+			)
+		),
+		EvalFormula
+	);
+	
+	
+	// Obtain lambda vector to account for unequal sample sizes //
+	lvcol = ses << New Column( "LambdaVec",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., 1 / Sqrt( 1 + :Number Ctrl / :Number ) ) ),
+		EvalFormula
+	);
+	lamvec = lvcol << Get Values;
+	lamvec = lamvec[Loc( !Is Missing( lamvec ) )];
+	
+	
+	// Compute confidence intervals and p-values //
+	if (jmpv >15,  //bug fix for JMP16: nrow(ses) for varying nlevel, eval function to create confidence interval
+	ses << New Column( "Lower CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference - :Std Err Dif * Dunnett Quantile( 1 - alpha, nrow(ses), eval(:Satterthwaite), lamvec  ) , Name("Lower 95%")-:Target )), //if target is avaible, return confidence interval of new mean, otherwise, return confidence interval of difference of mean and POR. 
+		EvalFormula
+	);
+	ses << New Column( "Upper CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference + :Std Err Dif * Dunnett Quantile( 1 - alpha, nrow(ses), eval(:Satterthwaite), lamvec ), Name("Upper 95%")-:Target ) ),
+		EvalFormula
+	);
+	ses << New Column( "Prob>|t|", //this is p value for pairwise on mean
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., Dunnett P value( Abs( :Difference ) / :Std Err Dif, nrow(ses), eval(:Satterthwaite), lamvec ) ) ),
+		EvalFormula,
+		Format( PValue, 6 )
+	),
+	//older version
+		ses << New Column( "Lower CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference - :Std Err Dif * Dunnett Quantile( 1 - alpha, nlevels - 1, :Satterthwaite, lamvec  ) , Name("Lower 95%")-:Target )), //if target is avaible, return confidence interval of new mean, otherwise, return confidence interval of difference of mean and POR. 
+		EvalFormula
+	);
+	ses << New Column( "Upper CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference + :Std Err Dif * Dunnett Quantile( 1 - alpha, nlevels - 1, :Satterthwaite, lamvec ), Name("Upper 95%")-:Target ) ),
+		EvalFormula
+	);
+	ses << New Column( "Prob>|t|", //this is p value for pairwise on mean
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., Dunnett P value( Abs( :Difference ) / :Std Err Dif, nlevels - 1, :Satterthwaite, lamvec ) ) ),
+		EvalFormula,
+		Format( PValue, 6 )
+	);
+	); //end if
+	
+	
+	ses << New Column( "Mean Result", character, nominal, 
+		formula( If( isMissing(target_), //if no target, use p value to determine SE or SD
+		If(Name("Prob>|t|") >alpha, "SE",
+			If(run_ == " (Run-to-Run)" , "SD",
+				If(:Difference < 0, "SB", "SW")
+			)
+		),
+			If(Name("Upper CL")<0 | Name("Lower CL")>0, "SW", "SE") //if target, use confidence interval to determine SE or SW
+		)),
+		EvalFormula
+	);   //Add mean result of significance, Xin
+	
+	Eval(std_Dunnett(resp_, run_)); //use function std_Dunnett to do pairwise comparison on standard deviation, Xin
+	ses << Update(
+		With( p),
+		Match Columns( :Level = :Level ),
+		Add Columns from Update table( :Name( "p-Value" ) )  //this is p-value for pairwise on variance
+	);
+	
+	ses << New Column( "Std Result", character, nominal, 
+	formula( If( :Name("p-Value") > alpha, "SE", 
+		If(:Std Dev < Std Dev Ctrl, "SB", "SW"))),
+		EvalFormula
+	);   //Add standard deviation result of significance, for unequal variance,  Xin
+
+
+
+	
+	Close( p, nosave );
+	
+	// Remove row containing control group //
+	ses << Select Where( :Level == ctrl );
+	ses << Delete Rows;
+	
+	
+	// Create output summary table //
+	dunnett_box = Outline Box( "Means Comparisons with Unequal Variances",
+		V List Box(
+			Text Box( "Control Group = " || ctrl ),
+			Outline Box( "Differences Report using Dunnett's Method",
+				Table Box(
+					String Col Box( "Level", Column( ses, "Level" )[1 :: N Row( ses )] ),
+					String Col Box( "- Level", Column( ses, "- Level" )[1 :: N Row( ses )] ),
+					Number Col Box( "Target", Column( ses, "Target" )[1 :: N Row( ses )] ),//placeholder for target, need to work, Xin
+					Number Col Box( "New Mean", Column( ses, "Mean" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ), //Add four columns to match 2 sample comparison, Xin
+					Number Col Box( "New Std Dev", Column( ses, "Std Dev" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "POR Mean", Column( ses, "Mean Ctrl" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "POR Std Dev", Column( ses, "Std Dev Ctrl" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "Difference", Column( ses, "Difference" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					//Number Col Box( "Std Err Dif", Column( ses, "Std Err Dif" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "Lower " || Char( 100 * (1 - alpha) ) || "%",
+						Column( ses, "Lower CL" )[1 :: N Row( ses )],
+						<<SetFormat( 6, 10 )
+					),
+					Number Col Box( "Upper " || Char( 100 * (1 - alpha) ) || "%",
+						Column( ses, "Upper CL" )[1 :: N Row( ses )],
+						<<SetFormat( 6, 10 )
+					),
+					/*Number Col Box( "Prob>|t|",
+						Column( ses, "Prob>|t|" )[1 :: N Row( ses )],
+						<<Set Conditional Format( "PValue" ),
+						<<SetFormat( "PValue", 6 )
+					), */
+					String Col Box( "Mean Result", Column( ses, "Mean Result" )[1 :: N Row( ses )] ),
+					String Col Box( "Std Result", Column( ses, "Std Result" )[1 :: N Row( ses )] ),
+					<<TableStyle( "Heading Separator" )
+				)
+			)
+		)
+	);
+	
+	// Clean up leftover tables //
+	Close( ses, nosave );
+	
+);
+
+
+
+/////////////////////////////////////////////////////////////////////////////////
+//Name: Equal_var_Dunnett
+//Add a column of SE in summary tab
+//run_ : run-to-run or within-run
+//Description:
+// 1. Calculates the Dunnett pairwise means comparisons when variances are equal.
+/////////////////////////////////////////////////////////////////////////////////
+::Equal_var_Dunnett = Function({target_, run_}, 
+
+	// Obtain RMSE and corresponding df from output, ses is temp table generated by function OutputControl  //
+	ses << New Table Variable( "RMSE", Report( oneres )[Outline Box( "Summary of Fit" )][Number Col Box( 1 )] << Get( 3 ) );  //root MSE from summary of fit
+	dfs = Report( oneres )[Outline Box( "Analysis of Variance" )][Number Col Box( 1 )] << Get;
+	//degree of freedom from anova table
+	ses << New Table Variable( "dfe", dfs[N Items( dfs ) - 1] );
+
+
+	// Set columns for the control group and then compute difference and standard errors //
+	ses << New Column( "- Level", character, nominal, set each value( ctrl ) );
+	ses << New Column( "Number Ctrl",
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Number" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	
+	ses << New Column( "Target", numeric, continuous, .);
+	:Target << Set Each Value(target_); //get value of target if available, Xin
+	
+	ses << New Column( "POR Mean", //adding POR mean and sd instead of calculating difference, Xin
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Mean" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	ses << New Column( "POR Std Dev",
+		numeric,
+		continuous,
+		set each value( (Column( ses, "Std Dev" ) << Get Values)[Contains( Column( ses, "Level" ) << Get Values, ctrl )] )
+	);
+	ses << New Column( "Difference",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_), :Mean-:POR Mean, :Mean-:Target ) ),
+		EvalFormula);
+	ses << New Column( "Std Err Dif",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., :RMSE * Sqrt( 1 / :Number + 1 / :Number Ctrl ) ) ),
+		EvalFormula); ///use it for calculting confidence interval
+	
+	
+	// Obtain lambda vector to account for unequal sample sizes //
+	lvcol = ses << New Column( "LambdaVec",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., 1 / Sqrt( 1 + :Number Ctrl / :Number ) ) ),
+		EvalFormula
+	);
+	lamvec = lvcol << Get Values;
+	lamvec = lamvec[Loc( !Is Missing( lamvec ) )];
+	
+	
+	// Compute confidence intervals and p-values //
+	if(jmpv>15, 
+	ses << New Column( "Lower CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference - :Std Err Dif * Dunnett Quantile( 1 - alpha,  nrow(ses), eval(:dfe), lamvec  ) , Name("Lower 95%")- :Target )), //if target is available, return confidence interval of new mean, otherwise, return confidence interval of difference of mean and POR. 
+		EvalFormula
+	);
+	ses << New Column( "Upper CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference + :Std Err Dif * Dunnett Quantile( 1 - alpha,  nrow(ses), eval(:dfe), lamvec ), Name("Upper 95%") - :Target) ),
+		EvalFormula
+	);
+	ses << New Column( "Prob>|t|",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., Dunnett P value( Abs( :Difference ) / :Std Err Dif,  nrow(ses), eval(:dfe), lamvec ) ) ),
+		EvalFormula,
+		Format( PValue, 6 )
+	),
+	//older version
+		ses << New Column( "Lower CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference - :Std Err Dif * Dunnett Quantile( 1 - alpha, nlevels - 1, :dfe, lamvec  ) , Name("Lower 95%")- :Target )), //if target is available, return confidence interval of new mean, otherwise, return confidence interval of difference of mean and POR. 
+		EvalFormula
+	);
+	ses << New Column( "Upper CL",
+		numeric,
+		continuous,
+		formula( If( isMissing(target_),  :Difference + :Std Err Dif * Dunnett Quantile( 1 - alpha, nlevels - 1, :dfe, lamvec ), Name("Upper 95%") - :Target) ),
+		EvalFormula
+	);
+	ses << New Column( "Prob>|t|",
+		numeric,
+		continuous,
+		formula( If( :Level == ctrl, ., Dunnett P value( Abs( :Difference ) / :Std Err Dif, nlevels - 1, :dfe, lamvec ) ) ),
+		EvalFormula,
+		Format( PValue, 6 )
+	);
+	); //end if
+	
+	
+	
+	
+	ses << New Column( "Mean Result", character, nominal, 
+		formula( If( isMissing(target_), //if no target, use p value to determine SE or SD
+		If(Name("Prob>|t|") >alpha, "SE",
+			If(run_ == " (Run-to-Run)" , "SD",
+				If(:Difference < 0, "SB", "SW")
+			)
+		),
+			If(Name("Upper CL")<0 | Name("Lower CL")>0, "SW", "SE") //if target, use confidence interval to determine SE or SW
+		)),
+		EvalFormula
+	);   //Add mean result of significance, Xin
+	ses << New Column( "Std Result", character, nominal, 
+	formula( If( :Level == ctrl, ., 
+		"SE")),
+		EvalFormula
+	);   //Add standard deviation result of significance, for equal variance, ALL SE
+
+	
+	// Remove row containing control group //
+	ses << Select Where( :Level == ctrl );
+	ses << Delete Rows;
+	
+	
+	// Create output summary table //
+	dunnett_box = Outline Box( "Means Comparisons with Equal Variances",
+		V List Box(
+			Text Box( "Control Group = " || ctrl ),
+			Outline Box( "Differences Report using Dunnett's Method",
+				Table Box(
+					String Col Box( "Level", Column( ses, "Level" )[1 :: N Row( ses )] ),
+					String Col Box( "- Level", Column( ses, "- Level" )[1 :: N Row( ses )] ),
+					
+					/*Number Col Box( "Std Err Dif", Column( ses, "Std Err Dif" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),*/
+					Number Col Box( "Target", Column( ses, "Target" )[1 :: N Row( ses )] ),//placeholder for target, need to work, Xin
+					Number Col Box( "New Mean", Column( ses, "Mean" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ), //Add four columns to match 2 sample comparison, Xin
+					Number Col Box( "New Std Dev", Column( ses, "Std Dev" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "POR Mean", Column( ses, "POR Mean" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "POR Std Dev", Column( ses, "POR Std Dev" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "Difference", Column( ses, "Difference" )[1 :: N Row( ses )], <<SetFormat( 6, 10 ) ),
+					Number Col Box( "Lower " || Char( 100 * (1 - alpha) ) || "%",
+						Column( ses, "Lower CL" )[1 :: N Row( ses )],
+						<<SetFormat( 6, 10 )
+					),
+					Number Col Box( "Upper " || Char( 100 * (1 - alpha) ) || "%",
+						Column( ses, "Upper CL" )[1 :: N Row( ses )],
+						<<SetFormat( 6, 10 )
+					),
+					/*Number Col Box( "Prob>|t|",
+						Column( ses, "Prob>|t|" )[1 :: N Row( ses )],
+						<<SetConditionalFormat( "PValue" ),
+						<<SetFormat( "PValue", 6 )
+					),*/
+					String Col Box( "Mean Result", Column( ses, "Mean Result" )[1 :: N Row( ses )] ),
+					String Col Box( "Std Result", Column( ses, "Std Result" )[1 :: N Row( ses )] ),
+					<<TableStyle( "Heading Separator" )
+				)
+			)
+		)
+	);
+	
+	
+	// Clean up leftover tables //
+	Close( ses, nosave );
+	
+);
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: CheckBalance
+//Type: Expr
+//Description:
+// 1. Checks if the design is balanced.
+/*
+CheckBalance = Expr(
+	//Eval( Substitute( Expr( kdt << select where( Is Missing( xxx[] ) ) ), Expr( xxx ), Eval( resp ) ) );
+	If( by_flag,
+		kdt << Select Where( Is Missing( As Column( resp ) ) & As Column( bycol ) == by_names[j] ),
+		kdt << Select Where( Is Missing( As Column( resp ) ) )
+	);
+	Missing = N Row( kdt << GetSelectedRows ) == 0;
+	kdt << ClearSelect;
+	
+	Summarize( check1 = By( fctr ), n_per_group = Count );
+	fctr_balanced = N Items( Design( n_per_group, <<Levels )[2] ) == 1;
+	Summarize( check2 = By( blk ), n_per_blk = Count );
+	blk_balanced = N Items( Design( n_per_blk, <<Levels )[2] ) == 1;
+	Isbalanced = fctr_balanced * blk_balanced * Missing;
+);
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: SummaryInd
+//Type: Expression
+//Description:
+// 1. Generates a summary table over a single response
+////////////////////////////////////////////////////////////////////////////////
+::SummaryInd = Expr(
+	mres = As List( Matrix( anova[i] ) > alpha );
+	Substitute Into( mres, 0, "SD", 1, "SE", ., "NA" );
+	vres = As List( Matrix( uev[i] ) > alpha );
+	Substitute Into( vres, 0, "SD", 1, "SE", ., "NA" );
+	
+	
+	Summary_Ind_Box = Outline Box( "Summary - " || RID[i],
+		Table Box(
+			String Col Box( "Parameter", resp_names[i] ),
+			If( by_flag,
+				String Col Box( bycol << Get Name, by_names )
+			),
+			Number Col Box( "Mean p-value", anova[i], <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 6 ) ),
+			Number Col Box( "Variance p-value", uev[i], <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 6 ) ),
+			String Col Box( "Mean result", mres ),
+			String Col Box( "Variance result", vres ),
+			<<TableStyle( "Bordered" )
+		)
+	);
+);
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: SummaryTable
+//Type: Expression
+//Description:
+// 1. Generates a summary table over all responses
+////////////////////////////////////////////////////////////////////////////////
+::SummaryTable = Expr(
+	flat_anova = Flatten2DList( anova );
+	flat_uev = Flatten2DList( uev );
+	mres = As List( Matrix( flat_anova ) > alpha );
+	Substitute Into( mres, 0, "SD", 1, "SE", ., "NA" );
+	vres = As List( Matrix( flat_uev ) > alpha );
+	Substitute Into( vres, 0, "SD", 1, "SE", ., "NA" );
+	
+	If( by_flag,
+		byname_box = {};
+		For( k = 1, k <= m, k++,
+			Insert Into( byname_box, by_names )
+		);
+	);
+	
+	Summary_Box = Outline Box( "ANOVA Summary",
+		Table Box(
+			String Col Box( "Parameter", Flatten2DList( resp_names ) ),
+			If( by_flag,
+				String Col Box( bycol << Get Name, byname_box )
+			),
+			Number Col Box( "Mean p-value", flat_anova, <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 6 ) ),
+			Number Col Box( "Variance p-value", flat_uev, <<SetConditionalFormat( "PValue" ), <<SetFormat( "PValue", 6 ) ),
+			String Col Box( "Mean result", mres ),
+			String Col Box( "Variance result", vres ),
+			<<TableStyle( "Bordered" )
+		)
+	);
+);
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: add_te_k
+//Type: Expression, requires expression update_table_k
+//edit by Xin to separate control limit for mean and std
+//Description:
+// 1. This expression adds the TE calculation to the Summary tab.
+////////////////////////////////////////////////////////////////////////////////
+::add_te_k = Expr(
+	lclk = J( m, 1, . );
+	clk = J( m, 1, . );
+	uclk = J( m, 1, . );
+	ADk = J( m, 1, . );
+	warnm = Repeat( {""}, m );
+	
+	lclk2 = J( m, 1, . );
+	clk2 = J( m, 1, . );
+	uclk2 = J( m, 1, . );
+	ADk2 = J( m, 1, . );
+	warnsd = Repeat( {""}, m );
+
+	diff_table << Prepend(
+	if(raw, //if use raw data, do TE analysis on mean only
+			t_sum_k = Table Box(
+			String Col Box( "Parameter", RID ) ,
+			lcl_boxm = Number Col Edit Box( "LCL", lclk ),
+			cl_boxm = Number Col Edit Box( "CL", clk ),
+			ucl_boxm = Number Col Edit Box( "UCL", uclk ),
+			gap_boxm = String Col Box( "", {} ),
+			ad_boxm = Number Col Edit Box( "AD", ADk ),
+			warn_boxm = String Col Box( "Warning", warnm )
+
+		);
+		,
+			t_sum_k = Table Box(
+				//String Col Box( "Parameter", RID ) ,
+				String Col Box( "Mean(Parameter)", RID),
+				lcl_boxm = Number Col Edit Box( "LCL", lclk ),
+				cl_boxm = Number Col Edit Box( "CL", clk ),
+				ucl_boxm = Number Col Edit Box( "UCL", uclk ),
+				gap_boxm = String Col Box( "", {} ),
+				ad_boxm = Number Col Edit Box( "AD", ADk ),
+				warn_boxm = String Col Box( "Warning", warnm ),
+				
+				
+				String Col Box( "Std Dev(Parameter)", RID ),
+				lcl_boxsd = Number Col Edit Box( "LCL", lclk2 ),
+				cl_boxsd = Number Col Edit Box( "CL", clk2 ),
+				ucl_boxsd = Number Col Edit Box( "UCL", uclk2 ),
+				gap_boxsd = String Col Box( "", {} ),
+				ad_boxsd = Number Col Edit Box( "AD", ADk2 ),
+				warn_boxsd = String Col Box( "Warning", warnsd )
+
+			)
+		);
+	);
+	diff_table << Set Menu Item State( 1, -1 );
+	
+	
+	// Set tables to automatically update //
+	t_sum_k << Set Cell Changed Function( update_table_k );
+	For( i = 1, i <= m, i++,
+		For( j = 1, j <= n, j++,
+			Eval( Parse( "tb_label_m" || Char( i ) || Char( j ) || "[String Col Box( 4 )]" ) ) << Sib Append( String Col Box( "TE", {} ), Horizontal );
+			Eval( Parse( "tb_label_m" || Char( i ) || Char( j ) ) ) << Set Cell Changed Function( update_table_k );
+			
+			If (raw==0, //update TE for sigma separately for lot structure, Xin
+			Eval( Parse( "tb_label_sd" || Char( i ) || Char( j ) || "[String Col Box( 4 )]" ) ) << Sib Append( String Col Box( "TE", {} ), Horizontal );			
+			Eval( Parse( "tb_label_sd" || Char( i ) || Char( j ) ) ) << Set Cell Changed Function( update_table_k );
+			);
+		)
+	);
+); //EndExpr
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: update_table_k
+//Type: Expression
+//change by Xin to get user input for mean chart and sigma chart
+//Description:
+// 1. This expression updates Accept Delta (AD) and checks for erros.
+////////////////////////////////////////////////////////////////////////////////
+::update_table_k = Expr(
+
+	// Get user inputs mean chart//
+	lclm = lcl_boxm << get as matrix;
+	clm = cl_boxm << get as matrix;
+	uclm = ucl_boxm << get as matrix;
+	ADm = ad_boxm << get as matrix;
+	
+	// Compute AD based on MEAN limits //
+	ad_tmpm = Round( (clm - lclm) / 2 || (uclm - clm) / 2 || (uclm - lclm) / 4, 14 );
+	ADm_calc = Transpose( V Min( Transpose( ad_tmpm ) ) );
+	nonlim_locm = Loc( Is Missing( ADm_calc ) );
+	For( k = 1, k <= N Rows( nonlim_locm ), k++,
+		ADm_calc[nonlim_locm[k]] = ADm[nonlim_locm[k]]  //if AD is entered directly, use user defined number
+	);
+	ad_boxm << Set Values( ADm_calc );
+	
+	// Add warning comments for mean limit//
+	For( k = 1, k <= m, k++,  //m is number of parameters
+		If(
+			ADm_calc[k] < 0, warnm[k] = "Negative AD",
+			!Is Missing( lclm[k] ) & !Is Missing( clm[k] ) & !Is Missing( uclm[k] ) & Round( clm[k] - lclm[k], 14 ) != Round( uclm[k] - clm[k], 14 ),
+				warnm[k] = "Non-symmetric limits",
+			warnm[k] = ""
+		)
+	);
+	warn_boxm << Set Values( warnm );
+	
+	if(raw==0,
+		// Get user inputs sigma chart//
+		lclsd = lcl_boxsd << get as matrix;
+		clsd = cl_boxsd << get as matrix;
+		uclsd = ucl_boxsd << get as matrix;
+		ADsd = ad_boxsd << get as matrix;
+	
+		// Compute AD based on sigma limits //
+		ad_tmpsd = Round( (clsd - lclsd) / 2 || (uclsd - clsd) / 2 || (uclsd - lclsd) / 4, 14 );
+		ADsd_calc = Transpose( V Min( Transpose( ad_tmpsd ) ) );
+		nonlim_locsd = Loc( Is Missing( ADsd_calc ) );
+		For( k = 1, k <= N Rows( nonlim_locsd ), k++,
+			ADsd_calc[nonlim_locsd[k]] = ADsd[nonlim_locsd[k]]  //if AD is entered directly, use user defined number
+		);
+		ad_boxsd << Set Values( ADsd_calc );
+		
+		// Add warning comments for sigma limit//
+		For( k = 1, k <= m, k++,  //m is number of parameters
+			If(
+				ADsd_calc[k] < 0, warnsd[k] = "Negative AD",
+				!Is Missing( lclsd[k] ) & !Is Missing( clsd[k] ) & !Is Missing( uclsd[k] ) & Round( clsd[k] - lclsd[k], 14 ) != Round( uclsd[k] - clsd[k], 14 ),
+					warnsd[k] = "Non-symmetric limits",
+						clsd[k] <0 | uclsd[k] < 0, warnsd[k] = "Negative sigma limits", //warning for invalid sigma limit
+				warnsd[k] = ""
+			)
+		);
+		warn_boxsd << Set Values( warnsd );
+	);
+	
+	
+
+	// Update TE column boxes //
+	For( i = 1, i <= m, i++,
+		For( j = 1, j <= n, j++,
+			if(raw, 
+			tmpstr = Eval Insert( update_te_k, "@" ), //unit level
+			tmpstr = Eval Insert( update_te_k_sd, "@" )  //lot level
+			);
+			Eval( Parse( tmpstr ) );
+		)
+	);
+	
+); //EndExpr
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: update_te_k_sd, update both mean and sigma charts, Xin
+//Type: String
+//Description:
+// 1. This string updates each table after AD has been provided.
+////////////////////////////////////////////////////////////////////////////////
+update_te_k_sd =
+"
+	
+	ADm = ad_boxm << get as matrix;
+	
+	lcim@i@@j@ = tb_label_m@i@@j@[Number Col Box(\!"?Lower?\!")] << get as matrix;
+	ucim@i@@j@ = tb_label_m@i@@j@[Number Col Box(\!"?Upper?\!")] << get as matrix;
+	
+	TEm@i@@j@ = As List( lcim@i@@j@ > -ADm[@i@] & ucim@i@@j@ < ADm[@i@] );
+	Substitute Into( TEm@i@@j@, ., \!"\!", 0, \!"not TE\!", 1, \!"TE\!" );
+	tb_label_m@i@@j@[String Col Box( 5 )] << Set Values( TEm@i@@j@ );
+	
+	ADsd = ad_boxsd << get as matrix;
+	
+	lcisd@i@@j@ = tb_label_sd@i@@j@[Number Col Box(\!"?Lower?\!")] << get as matrix;
+	ucisd@i@@j@ = tb_label_sd@i@@j@[Number Col Box(\!"?Upper?\!")] << get as matrix;
+	
+	TEsd@i@@j@ = As List( lcisd@i@@j@ > -ADsd[@i@] & ucisd@i@@j@ < ADsd[@i@] );
+	Substitute Into( TEsd@i@@j@, ., \!"\!", 0, \!"not TE\!", 1, \!"TE\!" );
+	tb_label_sd@i@@j@[String Col Box( 5 )] << Set Values( TEsd@i@@j@ );
+
+";
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+//Name: update_te_k, mean chart only, Xin
+//Type: String
+//Description:
+// 1. This string updates each table after AD has been provided.
+////////////////////////////////////////////////////////////////////////////////
+update_te_k =
+"
+	
+	ADm = ad_boxm << get as matrix;
+	
+	lcim@i@@j@ = tb_label_m@i@@j@[Number Col Box(\!"?Lower?\!")] << get as matrix;
+	ucim@i@@j@ = tb_label_m@i@@j@[Number Col Box(\!"?Upper?\!")] << get as matrix;
+	
+	TEm@i@@j@ = As List( lcim@i@@j@ > -ADm[@i@] & ucim@i@@j@ < ADm[@i@] );
+	Substitute Into( TEm@i@@j@, ., \!"\!", 0, \!"not TE\!", 1, \!"TE\!" );
+	tb_label_m@i@@j@[String Col Box( 5 )] << Set Values( TEm@i@@j@ );
+	
+
+";
+////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////
+//Name: close_kdt
+//Type: Expression
+//Description:
+// 1. This expression closes all remaining tables upon closure of the output window  
+///////////////////////////////////////////////////////////////////////////////////
+::close_kdt = Expr( Try( Close( kdt, nosave ) ) );
+//////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/***********************************PERFORM ANALYSIS**********************************/
+
+// Initialize variables //
+::alpha = 0.05;
+::control_flag = 1; //control flag is forced to be 1. Has to have a control group selected
+::tswitch = 1;
+::plotswitch = 1;
+::jmpv = Num( Word( 1, JMP Version(), "." ) );
+::closedb = 1;
+::resp_names = {};
+::by_names = {};
+::longest_name = {};
+::Isbalanced = 1;
+::uev = {};
+::anova = {};
+::n=1; //remove by variable, number of by always set to 1
+::bycol = .;  //remove by variable, always set to missing
+::blk_flag = 0; //remove block variable, always set flag to 0
+::by_flag = 0; //remove by variable, always set flag to 0
+::raw = 0; //by default, do lot level analysis
+
+
+
+
+
+
+// Set current data table or request that a table be open //
+If( N Table() == 0,
+	kdt = Open(),
+	kdt = Current Data Table()
+);
+
+
+// Create copy of data table and obtain column names //
+dt_name = kdt << GetName;
+kdt << ClearColumnSelection;
+kdt = kdt << Subset( Rows( kdt << GetRowsWhere( !Excluded() ) ), AllColumns );
+kdt << SetName( dt_name || "_" || "Copy" );
+Current Data Table( kdt );
+column_names = kdt << get column names( string );
+column_names2 = column_names;
+cformulas = {};
+For( i = 1, i <= N Items( column_names ), i++,
+	column_names2[i] = Uppercase( column_names2[i] ); 
+	Column( kdt, column_names2[i] ) << Lock( 0 ); //Remove any locked columns, add by Xin
+	cformulas[i] = Char( Column( kdt, column_names2[i] ) << Get Formula );
+	If( cformulas[i] != "Empty()",
+		Column( kdt, column_names2[i] ) << Delete Formula //Remove any locked formulas, add by Xin
+		);
+);
+
+
+
+
+//////////////////////////////////////////////////////
+// Initial dialog box where columns are categorized //
+
+While( closedb,
+	If( closedb == 2,
+		New Window( "Warning!", <<Modal, Text Box( "Insufficient parameters selected" ) )
+	);
+	Eval( input_expr2 );  //dialog box to enter response, factor and lot
+);
+
+// Error Check alpha rate //
+If( alpha <= 0 | alpha >= 1,
+	Dialog( "Alpha probability not in range 0 to 1.", HList( Button( "OK" ) ) );
+	Eval( close_kdt );
+	Throw();
+);
+
+
+
+
+// Constants and Pointers //
+m = N Items( RID );
+fctr = Column( FID[1] );
+fctr << data type( character );
+fctr << set modeling type( nominal );
+Summarize( flevels = By( fctr ) );
+nlevels = N Items( flevels );
+npairs = nlevels * (nlevels - 1) / 2;
+Lot_level_flag = N Items( RunID );
+If( Lot_Level_flag,
+			Run_ID_Col = Column( kdt, RunID[1] ), 
+			// else make new column with row numbers
+			Run_ID_Col = kdt << New Column( "Row ID", numeric, continous, values( 1 :: N Rows() ) )
+			);
+// If lot is specified, check to see one row per lot so that unit level analysis can be done. Add by Xin
+lotnfac = kdt << New Column( "Lot and Factor",
+	character,
+	nominal,
+	formula( Char( As Column( Run_ID_Col ) ) || Char( As Column( fctr) ) ),
+	EvalFormula
+);
+Summarize( proc_grps = by( fctr ), proc_cnt = Count ); //factor level and freq
+Summarize( run_grps = by( lotnfac, fctr ), run_cnt = Count );  //factor and lot combination level and freq
+kdt << New Column( "Order" );  //Add an empty column to order POR and new, add by Xin
+Order_Col = Column( kdt, "Order" );
+
+
+// Check for faulty data entry. Add by Xin
+/*Trap error when less than 2 levels in process variable are found*/
+If( N Row( proc_cnt ) < 2,
+	Dialog(
+		Title( "ERROR" ),
+		HList( "Less than 2 levels found in "||char(Eval(fctr)) ), 
+		HList( Button( "OK" ) )
+	);
+	
+	Close( kdt, nosave );
+	Break();
+); //EndIf
+
+
+/*Check if there is lot structure. When only one row is found per lot/run, do unit level analysis*/
+If( Contains(run_cnt, 1),
+	Dialog(
+		Title( "Warning" ),
+		HList( "Less than 2 run found in at least one lot/Run!" ),
+		HList( "Unit level analysis is performed!" ), 
+		HList( Button( "OK" ) )
+	);
+	raw=1;  //do unit level analysis if raw is 1
+	//Close( kdt, nosave );
+	//Break();
+); //EndIf
+
+// remove optional Block and By variable //
+/*
+blk_flag = N Items( BID );
+If( blk_flag,
+	blk = Column( BID[1] );
+	blk << set modeling type( nominal );
+);
+by_flag = N Items( ByID );
+If( by_flag,
+	bycol = Column( ByID[1] );
+	bycol << data type( character );
+	Summarize( by_names = By( bycol ) );
+,
+	bycol = {}
+);
+n = Max( 1, N Items( by_names ) );*/
+
+
+// Determine compare to POR or target. 
+//If POR is selected, Tukey's or Dunnett multiple comparisons will be performed //
+If( control_flag,
+	Eval(IQ_MainProc_Expr);   //return control group, ctrl, and target list Xin
+	tswitch = 0;
+);
+
+//return target values for all parameters, targetlist, Xin
+
+Wait( 0 );
+
+// Create blank output window //
+nw = New Window( "k Sample Comparison", <<OnClose( Eval( close_kdt ) ), output = Tab Box() );
+diff_table = Outline Box( "Pairwise Comparisons" );  //pairwise comparison in summary tab
+
+
+If( !blk_flag, 
+
+// Oneway ANOVA if no block variable//
+	For( i = 1, i <= m, i++,
+		Current Data Table(kdt);  
+		//Genereate Var Chart of raw data vs {RunID within Factor_col}
+		Q_Var_Chart_Box = H List Box(
+					GenerateIQVarChart( {fctr, RunID}, RID[i], "", targetlist[i], Col Mean(Eval(RID[i])), NFID,  1 )
+				);
+		
+		if(raw,  //if raw=1, do unit level
+			Current Data Table(kdt);
+			resp = Column( RID[i] ); 
+			resp << set modeling type( continuous );	
+			resp_names[i] = {};
+			uev[i] = {};
+			anova[i] = {};
+			diff_table << Append( Outline Box( RID[i] ));
+			target = targetlist[i];
+			out_total1 = V List Box();
+			For( j = 1, j <= n, j++, //j groups
+				If( by_flag,
+					out1 = Outline Box( "Analysis " || Char( bycol << Get Name ) || " - " || by_names[j] );
+					//diff_table[Outline Box( RID[i])] << Append( Outline Box( Char( bycol << Get Name ) || " - " || by_names[j] ) );
+				,
+					out1 = Outline Box( "Analysis " )
+				);
+				
+				Insert Into( resp_names[i], resp << Get Name );
+				out2 = V List Box( GenerateKOverlay( RunID, resp, fctr, bycol, j, target ), Eval( GenerateANOVA(resp, " (Run-to-Run)", target)) ); //GenerateANOVA function add ANOVA results to individual tab and also put pairwise comparison results in summary tab 
+				If( by_flag,
+					out2[Text Box( 2 )] << Delete;
+					out2[Text Box( 1 )] << Delete;
+				);
+				out1 << Append( out2 );
+				out_total1 << Append( out1 );
+				
+				
+				output << Add( RID[i], V List Box( Q_Var_Chart_Box, out_total1 ) ); 
+				Insert Into( longest_name, Length( RID[i] ) );
+			);
+		,  
+		//otherwise, do lot level analysis			
+			Current Data Table(sumtable);		
+			resp_mean = Column( char("Mean(") || RID[i] || char(")") ); //add by Xin, separate mean and std
+			resp_mean << set modeling type( continuous );
+			resp_sd = Column( char("Std Dev(") || RID[i] || char(")") ); //add by Xin, separate mean and std
+			resp_sd << set modeling type( continuous );
+			resp_names[i] = {};
+			uev[i] = {};
+			anova[i] = {};
+			diff_table << Append( Outline Box( RID[i] || " (Run-to-Run)" ));
+			target = targetlist[i];
+			
+			out_total1 = V List Box();
+			For( j = 1, j <= n, j++, //j groups
+				If( by_flag,
+					out1 = Outline Box( "Analysis (Run-to-Run): " || Char( bycol << Get Name ) || " - " || by_names[j] );
+					//diff_table[Outline Box( RID[i])] << Append( Outline Box( Char( bycol << Get Name ) || " - " || by_names[j] ) );
+				,
+					out1 = Outline Box( "Analysis (Run-to-Run)" )
+				);
+				
+				Insert Into( resp_names[i], resp_mean << Get Name );
+				out2 = V List Box( GenerateKOverlay( RunID, resp_mean, fctr, bycol, j, target ), Eval( GenerateANOVA(resp_mean, " (Run-to-Run)", target)) ); //GenerateANOVA function add ANOVA results to individual tab and also put pairwise comparison results in summary tab 
+				If( by_flag,
+					out2[Text Box( 2 )] << Delete;
+					out2[Text Box( 1 )] << Delete;
+				);
+				out1 << Append( out2 );
+				out_total1 << Append( out1 );
+			);
+			
+			diff_table << Append( Outline Box( RID[i] || " (Within-Run)" ));
+			out_total2 = V List Box();  //add by Xin, comparison in std
+			Current Data Table(sumtable);
+			For( j = 1, j <= n, j++,
+				If( by_flag,
+					out3 = Outline Box( "Analysis (Within-Run): " || Char( bycol << Get Name ) || " - " || by_names[j] );
+					//diff_table[Outline Box( RID[i] )] << Append( Outline Box( Char( bycol << Get Name ) || " - " || by_names[j] ) );
+				,
+					out3 = Outline Box( "Analysis (Within-Run)" )
+				);
+				
+				Insert Into( resp_names[i], resp_sd << Get Name );
+				out4 = V List Box( GenerateKOverlay( RunID, resp_sd, fctr, bycol, j, . ), Eval( GenerateANOVA(resp_sd, " (Within-Run)", .)) );  //no target for within-run
+				If( by_flag,
+					out4[Text Box( 2 )] << Delete;
+					out4[Text Box( 1 )] << Delete;
+				);
+				out3 << Append( out4 );
+				out_total2 << Append( out3 );
+			);
+			
+				// Create individual summary table boxes //
+			Eval( SummaryInd ); //summary table in individual response variable tab
+			output << Add( RID[i], V List Box( Q_Var_Chart_Box, H List Box(out_total1, out_total2) ) ); //separate by run-to-run and within-run
+			Insert Into( longest_name, Length( RID[i] ) );
+		);
+	);
+	
+
+
+, 
+
+/*
+// Blocked Analysis //
+	For( i = 1, i <= m, i++,
+		resp = Column( RID[i] );
+		resp << set modeling type( continuous );
+		resp_names[i] = {};
+		uev[i] = {};
+		anova[i] = {};
+		diff_table << Append( Outline Box( RID[i] ) );
+		
+		
+		out_total = V List Box();
+		For( j = 1, j <= n, j++,
+			If( by_flag,
+				out1 = Outline Box( "Analysis: " || Char( bycol << Get Name ) || " - " || by_names[j] );
+				diff_table[Outline Box( RID[i] )] << Append( Outline Box( Char( bycol << Get Name ) || " - " || by_names[j] ) );
+			,
+				out1 = Outline Box( "Analysis" )
+			);
+			Insert Into( resp_names[i], resp << Get Name );
+			
+		// Create blocked analysis plots //
+			Eval( CheckBalance );
+			chart = H List Box();
+			cpr = V List Box();
+			Eval( GenerateBlkPlots );
+			
+		// Create blocked analysis //
+			If( IsBalanced, 
+			// Balanced data analysis //
+				Eval( GenerateBlk )
+			, 
+			// Unbalanced data analysis //
+				Eval( GenerateIBD )
+			);
+			
+			
+			out1 << Append( V List Box( chart, cpr ) );
+			out_total << Append( out1 );
+		);
+*/		
+		
+	// Create individual summary table boxes //
+		Eval( SummaryInd );
+		output << Add( RID[i], V List Box( Summary_Ind_Box, out_total ) );
+		Insert Into( longest_name, Length( RID[i] ) );
+
+	
+	
+
+	
+);
+
+
+
+// Create final summary table box //
+Eval( SummaryTable );  //all response summary tab
+output << Add( 1, "Summary", V List Box( Summary_Box, diff_table ) );  //Summary_Box: ANOVA summary, diff_table: pairwise comparison
+Summary_Box << Close; 
+If( m > 1,
+	If( V Sum( Matrix( longest_name ) )[1] > 150,  //use combox box instead of tab
+		output << Set Style( combo )
+	), 
+	//output << Set Style( outline )
+);
+//output[1][Outline Box( "Pairwise Comparisons" )] << Close( 1 ); default to open
+nw << Append( FooterBox );
+
+
+
+// Add TE calculations //
+
+If( jmpv >= 11,
+	diff_table << Set Menu Script( {"Technical Equivalence", Eval( add_te_k )} )
+);

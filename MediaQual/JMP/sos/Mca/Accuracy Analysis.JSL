@@ -1,0 +1,303 @@
+/*******************************************************************************************
+	
+	MCA Accuracy Analysis: Single variable
+	Originator: Ana Solis Guevara and Criselda Ramos
+	Editor: Damien Chee
+	Rev: Version 1.3.9
+	Date: 7/1/2010
+	JMP Version: 5.1.1 to 8
+		Starting Condition: 
+		Users inputs Response, Standard Value and Technical Delta. 
+		
+	Output:
+		Distribution of meassurements and Test mean regards standard value
+		Trend chart (overlay plot)
+		Accuracy Analysis: Parameter, Mean, Bias, Lower and Upper 95% for Mean, Statistical and Technical evaluations.
+		Guidelines to evaluate P/T
+			
+	SOS Revision History
+	v1.5
+		2/8/2022
+		Changed Stat and Tech. evaluation to be in terms of SE/TE. 
+	v1.4
+		9/19/2012
+		Added code to delete missing data prior to processing data (Todd Jordan)
+	v1.3.9: 
+		Fixed min/max scaling for by variables. Made empty footbox if run outside of SOS.
+	v1.3.8:
+		Changed min max scaling. Formatted script. Moved overall summary report to top. Removed fixed decimal formatting on axis.
+	v1.3.7:
+		Fixed compatability with JMP8
+	v1.3.6:
+		10/24/2007
+		Forced by handler to be character data type
+ 	v1.3.5: (edited by Damien Chee)
+		Changes:
+		8/7/2007
+		Fix bugs when any column names are the same as variable names
+ 	v1.3: (edited by Damien Chee)
+		Changes:
+		3/23/2007
+		Enable input of >1 response (require input of standard values for each response)
+		Enable analysis using by button (do not require input of standard values for each response)
+		Added summary table
+		Fix bug when there are all missing values for certain by and multiple response conditions
+	v1.2:
+		Changes:
+		2/12/2007 
+		Forced y column to be numeric  
+ 		Changed bias formula. bias=m-standard, not standard - m.	
+
+	v1.1:
+		Changes:
+		6/15/2006 
+		Add reference line in histogram and overlay plot
+		X axis modification to include standard value
+		Global footer box added
+		 
+*******************************************************************************************/
+Clear Globals();
+
+::db = "";
+::Ycol = "";
+::Standard = "";
+::delta = "";
+::byitms = "";
+::byvar = "";
+::Ycol = "";
+::rl = "";
+::dtxt = "";
+::T1 = "";
+::TB = "";
+::a = .;
+::dlg2 = "";
+::dlgwin = "";
+::dsumtemp = "";
+::byvar = "";
+::axis_min = .;
+::axis_max = .;
+::bl = .;
+::SE = "";
+::TE = "";
+::TLL = .;
+::TUL = .;
+::tbbox = "";
+::output = "";
+::tbx = "";
+::sumbox = "";
+
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"), ::FooterBox=VListBox(textbox(" ")));
+
+//Note to Overlay plot;
+::t1 = Text Box("Note: The blue line represents the standard value");
+If(Is Empty(Current Data Table()), da = Open(), da = Current Data Table());
+::daname = da<<GetName;
+da<<ClearSelect;
+da<<ClearColumnSelection;
+::db = da<<Subset( Rows( da<<GetRowsWhere(!Excluded()) ), AllColumns);
+db<<SetName( Char(daname)||"_"||"Copy");
+CurrentDataTable(db);
+db<<BringWindowToFront;	
+db<<ClearSelect;
+db<<ClearColumnSelection;
+wait(0);
+
+/* User Input */
+::ok_button = 2;
+While(ok_button == 2, 
+	::dlg1 = "";
+	dlg1 = Column Dialog(title("Accuracy Analysis"), T1 = ColList("Y", Mincol(1), DataType(Numeric)), TB = ColList("By", Maxcol(1)));
+	ok_button = dlg1["button"];
+	Ycol = dlg1["T1"];
+	Standard = {};
+	delta = {};
+	byvar = dlg1["TB"];
+
+	If(ok_button == 1,
+		For(a = 1, a <= N Items(Ycol), a++,
+			s_button = 2;
+			While(s_button == 2,
+				dtxt = "Enter values for " || Char(Ycol[a]);
+				dlg2 = Dialog(
+					title(dtxt),
+					HList("Standard Value", standard = editnumber(), "  ", "Technical Delta", delta = editnumber()),
+					HList(Button("OK"), Button("Cancel"))
+				);
+				s_button = dlg2["button"];
+				If(Is Missing(dlg2["standard"]) & s_button == 1,
+					dlgwin = Dialog("Missing value for standard!", Button("Ok"));
+					s_button = 2;
+				);
+			);
+			If(s_button == -1,
+				a = N Items(YCol) + 1;
+				ok_button = -1;
+			);
+			Insert Into(standard, dlg2["standard"]);
+			Insert Into(delta, dlg2["delta"]);
+		)
+	);
+);  // end while for user input
+
+
+/* Calculations & Display */
+If(ok_button == 1, 
+	::pnamesum = {};
+	::stdsum = {};
+	::meansum = {};
+	::biassum = {};
+	::deltasum = {};
+	::lclsum = {};
+	::uclsum = {};
+	::sesum = {};
+	::tesum = {};
+	::winexist = 0;
+	::bylist = {};
+	db<<select where (ismissing(eval(YCol[1])))<<delete rows;
+	If(N Items(byvar) == 0,
+		byitms = 1,
+		Column(byvar) << Data Type(Character);
+		byvar = Char(byvar[1]);
+		dsumtemp = db << Summary(Group(Column(byvar)));
+		For(a = 1, a <= N Row(dsumtemp), a++,
+			Insert Into(bylist, Column(dsumtemp, 1)[a])
+		);
+		Close(dsumtemp, no save);
+		byitms = N Items(bylist);
+	);
+
+/* Start loop for responses */
+	For(rl = 1, rl <= N Items(YCol), rl++,
+		YCol[rl] = Column(Char(YCol[rl]));
+		axis_min = Eval Expr(Col Min(Eval(Ycol[rl])));
+		axis_max = Eval Expr(Col Max(Eval(Ycol[rl])));
+		axis_range = axis_max - axis_min;
+		If(standard[rl] < axis_min, axis_min = standard[rl] - 0.1 * (axis_range));
+		If(standard[rl] > axis_max, axis_max = standard[rl] + 0.1 * (axis_range));
+		
+
+		For(bl = 1, bl <= byitms, bl++, 
+			If(N Items(bylist) == 0,
+				::dist = V List Box(
+					Distribution(
+						Stack(1),
+						Continuous Distribution(
+							Column(Eval(Ycol[rl])),
+							Quantiles(0),
+							Axis Settings(
+								Scale(Linear),
+								Min(axis_min),
+								Max(axis_max),  
+								Add Ref Line(standard[rl], Solid, BlueCyan)
+							),
+							Test Mean(standard[rl]),
+							Horizontal Layout(1)
+						)
+					)
+				);
+				::trend = V List Box(Overlay Plot(Y(Ycol[rl]), Separate Axes(1), Connect Thru Missing(1)));
+			,  // else by list
+				::wcol = Column(db, byvar);
+				::wcond = bylist[bl];
+				a_min = Eval(axis_min); a_max = Eval(axis_max);
+				::distcmd = "::dist=VlistBox(Distribution(Stack(1), Continuous Distribution(Column(eval(Ycol[rl])), Quantiles(0), 
+					Axis Settings(Scale(Linear), Min(a_min), Max(a_max), Add Ref Line(standard[rl], Solid, BlueCyan)),
+                    Test Mean(standard[rl]), Horizontal Layout(1)), Where(:"|| byvar || " == \!"" || wcond || "\!")))";
+				Eval(Parse(distcmd));
+				dist[Text Box(1)] << delete;
+				::tcmd = "::trend=VListBox(Overlay Plot(Y(Ycol[rl]), Separate Axes(1), Where(:" || byvar || " == \!"" || wcond || "\!"), Connect Thru Missing(1)))";
+				Eval(Parse(tcmd));
+				trend[Text Box(1)] << delete;
+			);
+
+			//Dist<<append (T1);
+			Try(
+				trend[framebox(1)] << framesize(200, 200);
+				trend[axisbox(1)] << Add Ref Line(standard[rl], 0, 5);
+				dist[axisbox(1)] << Add Ref Line(standard[rl], 0, 5);
+				trend << append(T1);
+				trend[axisbox(1)] << Show Major Ticks(1) << Show Major Grid(1);
+				trend[axisbox(2)] << Show Major Ticks(1) << Show Major Grid(1);
+
+				::m = dist["Moments"][columnbox(2)][1];
+				::UCL = dist["Moments"][columnbox(2)][4];
+				::LCL = dist["Moments"][columnbox(2)][5];
+				::bias = m - standard[rl];
+
+				SE = If(LCL <= standard[rl] <= UCL,
+					"Bias SE to 0",
+					"Bias not SE to 0"
+				);
+				If(Is Missing(delta[rl]) == 1,
+					TE = "",
+					TLL = standard[rl] - delta[rl];
+					TUL = standard[rl] + delta[rl];
+					TE = If(TLL <= LCL <= UCL <= TUL,
+						"Bias TE to 0",
+						"Bias not TE to 0"
+					);
+				);
+
+				::param = Head Name(Ycol[rl]);
+				::Collist = {};
+				Insert Into(Collist, param);
+				tbbox = Table Box(
+					String Col Box("Parameter", {collist[1]}),
+					Number Col Box("Standard", {standard[rl]}),
+					Number Col Box("Mean", {m}),
+					Number Col Box("Bias", {bias}),
+					Number Col Box("Technical Delta", {delta[rl]}),
+					Number Col Box("Lower 95% Mean", {LCL}),
+					Number Col Box("Upper 95% Mean", {UCL}),
+					String Col Box("Stat Evaluation", {SE}),
+					String Col Box("Technical Evaluation", {TE})
+				);
+				tbbox << Table Style(Bordered);
+	
+				::cname = YCol[rl] << Get Name();
+				If(N Items(bylist) > 0,
+					cname = cname || " (" || bylist[bl] || ")"
+				);
+
+				Insert Into(pnamesum, cname);
+				Insert Into(stdsum, standard[rl]);
+				Insert Into(meansum, m);
+				Insert Into(biassum, bias);
+				Insert Into(deltasum, delta[rl]);
+				Insert Into(lclsum, LCL);
+				Insert Into(uclsum, UCL);
+				Insert Into(sesum, SE);
+				Insert Into(tesum, TE);
+
+				If(winexist == 0,
+					output = New Window("Accuracy Evaluation",
+						tbx = Outline Box(cname, H List Box(dist, trend), Outline Box("Summary Report", tbbox), Text Box(" "))
+					);
+					winexist = 1;
+				,
+					output << Append(
+						tbx = Outline Box(cname, H List Box(dist, trend), Outline Box("Summary Report", tbbox), Text Box(" "))
+					)
+				);
+				tbx << close;
+			);
+		);
+	);
+
+/* Summary Report */
+	If(N Items(pnamesum) == 1, tbx << open all like this);
+	sumbox = Table Box(
+		String Col Box("Parameter", pnamesum),
+		Number Col Box("Standard", stdsum),
+		Number Col Box("Mean", meansum),
+		Number Col Box("Bias", biassum),
+		Number Col Box("Technical Delta", deltasum),
+		Number Col Box("Lower 95% Mean", lclsum),
+		Number Col Box("Upper 95% Mean", uclsum),
+		String Col Box("Stat Evaluation", sesum),
+		String Col Box("Technical Evaluation", tesum)
+	);
+	sumbox << Table Style(Bordered);
+	output << Prepend(Outline Box("Overall Accuracy Evaluation Summary Table", sumbox), Text Box(" "));
+	output << Append(FooterBox);
+);

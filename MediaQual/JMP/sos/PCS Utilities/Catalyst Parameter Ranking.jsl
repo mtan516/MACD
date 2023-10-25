@@ -1,0 +1,1167 @@
+﻿/******************************************************
+Filename: Catalyst Parameter Ranking.jsl
+Purpose: Script to read Catalyst Raw Stats file from PCS Health and create ranked indicators.
+	- Be sure to select all filtering options and choose All tick box to export filters as columns.
+	- Suggest making as favorite for use with this script.
+
+Author: Joyce Weiner and Dawn Campbell and Jeff Baumann
+Revision: 17
+Date: 2022WW08
+
+Revision History (Descending Order, Newest at the top): 
+Rev 17 - Jeff Baumann
+	- Bug fixes to work with JMP16.
+Rev 16 - Jeff Baumann
+	- Updated formatting and comments throughout script. Updated fonts and styles on output windows. Add log lines to help on future debugging.
+	- Reordered and reformatted entire script for new functionality (see rev15 script for more historical revision history).
+	- Combined first two user info windows.
+	- Added error checking for required columns in Raw Stats file.
+	- Changed the output filter to enable handling of pooled indicator results.
+	- Add functionality for pooled indicator results to show up on facility rows.
+	- Corrected the rollup indicator sums to remove duplicate counts.
+	- Updated SPC Favorite funcationality to create smaller favorite files.
+Rev 15: D. Campbell
+	- Made module name first column of tabulate output. Removes some commented out content to clean up the code.
+
+*****************************************************/
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script starting.");
+
+/*************************************************************
+Divider - 
+	- Create relevant close expressions and close any open windows and data tables from previous run
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create relevant close expressions and buttons starting.");
+
+//Create expression to close any open windows and data tables from previous runs
+	CloseExpression=Expr(
+		Try(FinalReport<<Close Window);
+		Try(spcfavdonewindow<<Close Window);
+		Try(Close(catfavsumdt, no save));
+		Try(spcfavnamewindow<<Close Window);
+		Try(Close(tabdt, no save));
+		Try(Close(sumanalysisdt, no save));
+		Try(Close(sumnodupdt, no save));
+		Try(Close(subdt, no save));
+		Try(Close(flatdt, no save));
+		Try(Close(sumpooldt, no save));
+		Try(Close(subVFdt, no save));
+		Try(Close(copydt, no save));
+		Try(EndScriptWindow<<Close Window);
+		Try(Caption_Window<<Close Window);
+		Try(selectfilewindow<<Close Window);
+		Try(dt<<Clear Row States<<Clear Column Selection(););
+	);
+
+//Execute the CloseExpression expression
+	CloseExpression;
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create relevant close expressions and buttons completed.");
+
+/*************************************************************
+Divider - 
+	- Determine already opened data tables.
+	- Create initial explanation window and allow user to select an opened table to use or to open a new data table.
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Allow user to select or open data table starting.");
+
+//Create list to store list of data tables with a starting default value of "Open New File"
+	opentables={"Open New File"};
+	
+//Default variable to 1
+	dtuserchoice=1;
+	
+//Loop through any open tables and insert the table name into the empty list
+	For(tableloop=1, tableloop<=NTable(), tableloop++,
+		//Insert the name of each already open data table into list
+		Insert Into(opentables, Data Table( tableloop ) << Get Name());
+	);
+
+//Create window to explain to user what script will do and instructions for the script
+	selectfilewindow=New Window("PCS Health Chart Ranking",
+		<< modal,
+		vlistbox(
+			textbox("PCS Health Chart Ranking:  Uses 'Raw Stats' export from Catalyst PCS Health Review to create a report of ranked indicators for SPC++ Modules.",
+				<<Set Wrap(2000),
+				<<Set Font("Intel Clear"),
+				<<Font Color("Blue"),
+				<<Set Font Size(14),
+			),
+			spacerbox(Size(5,10)),
+			textbox("* In Catalyst PCS Health Review ensure all filter options have a selection (red x) so that the column exists in the exported raw stats file. 
+				These columns must be present for the script to run.",
+				<<Set Wrap(2000),
+				<<Set Font("Intel Clear"),
+				<<Set Font Size(11)
+			),
+			spacerbox(Size(5,10)),
+			textbox("* It is suggested to make a Catalyst favorite for use with this script.",
+				<<Set Wrap(2000),
+				<<Set Font("Intel Clear"),
+				<<Set Font Size(11)
+			),
+			spacerbox(Size(5,10)),
+			textbox("Select Catalyst HealthReview L0 Raw Stats file to Analyze",
+				<<Set Wrap(1000),
+				<<Set Font("Intel Clear"),
+				<<Font Color("Blue"),
+				<<Set Font Size(14),
+			),
+			spacerbox(Size(5,10)),
+			rbselection=radiobox(opentables,
+				dtuserchoice=rbselection<<Get;
+			),
+			spacerbox(Size(5,10)),
+			hlistbox(
+				buttonbox("OK"),
+				buttonbox("Cancel"),
+			)
+		);
+	);
+
+//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		selectfilewindow=={Button( -1 )}, 
+		//then end script and show a log line
+		Print("Catalyst_Parameter_Ranking_Script: Ending Script, Cancel chosen.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+//Set tablename variable to the name of the data table based on the user choice
+	tablename=opentables[dtuserchoice];
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  User data table choice is: "||tablename);
+
+//If "Open New File" was selected, allow user to pick file, get time stamp of when file was saved and set data table variable.
+//If a data table was selected, get current time stamp and set data table variable.
+	If( 
+		//if (User choice was "Open New File")
+		tablename=="Open New File",
+		//then (Let user pick file, get the saved time stamp, and set data table variable)
+			//Let user pick file and set the file path to the variable path
+			path=Pick File(
+				"Select Catalyst HealthReview L0 Raw Stats file to analyze",
+				"", //no default directory
+				{"CSV Files|csv", "All Files|*"},
+				1,
+				0,
+				"" //no default file
+			);
+			//Open file if file is chosen
+			If(
+				//if (No path is chosen)
+					path==""
+				,
+				//then (End Script)
+					Print("Catalyst_Parameter_Ranking_Script: Ending Script, No file chosen.");
+					Stop();
+					Wait( 0.1 );
+				,	
+				//else (Open file)
+					//Determine time stamp of file
+					timestamp=Text Box( "Data is current as of "||MDYHMS(Last Modification Date(path)));
+					//Create Caption Window to alert user file is opening as the file may be large and take some time
+					Caption_Window=New Window("Message", H List Box( Busy Light( <<automatic ), Text Box( "Processing your data...",<<Set Font Size(14)) ) );
+					//Add a 1 second wait
+					Wait( 1 );
+					//Set dt to the chosen data table and open it
+					dt=Open(path);
+					//Close the Caption Window after table is opened
+					Caption_Window<<Close Window;
+			);
+		, 
+		//else (get current time stamp and set data table variable)
+			//Determine current time stamp
+			timestamp = Text Box( "File was opened " || MDYHMS( Today() ) );
+			//Set dt to the already opened and chosen data table
+			dt=Data Table(tablename);					
+	);
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Allow user to select or open data table completed.");
+
+/*************************************************************
+Divider - 
+	- Verify key columns exist to ensure correct exported table is used.
+	- Create error explanation window if exported table is incorrect.
+	
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Validate columns in the chosen exported raw stats table starting.");
+
+//Set list of minimum required column names expected to exist in the chosen exported RawStats data table
+//If any one of these columns are missing the script will error when processing
+	rawstatscollist={"Parameter", "MarketCodeName", "DieCodeName", "ModuleName", "FunctionalArea", "Facility", "Equipment", "MonitorSetName", "MeasurementSetName", "SpcChartSubset", "ChartType", "ControlLimitType", "RunN", "Matching_Flag", "OCI_Flag", "P_Ooc_Flag", "ControlLimitValidity_Flag", "Cpk_Flag", "Cpk_Status", "MinSampleSize"};
+	
+//Create list of column names
+	col_name_list=dt<<Get Column Names(string);
+ 
+ //Verify each column name is in the expected column name list to ensure the chosen exported raw stats table has all the necessary columns
+	For(colcheckloop=1, colcheckloop<=NItems(rawstatscollist), colcheckloop++,
+		If(
+			//if the data table does not contain the required column name
+			!Contains(col_name_list, rawstatscollist[colcheckloop]),
+			//then give error window and throw script
+			Print("Catalyst_Parameter_Ranking_Script:  Table does not contain all the necessary columns for script to run. Script displaying error message and aborting.");
+			Print("Catalyst_Parameter_Ranking_Script:  Validate columns in the chosen exported raw stats table completed.");
+			Print("Catalyst_Parameter_Ranking_Script completed.");
+			EndScriptWindow=New Window("Chosen Table Does Not Contain All Required Columns",
+				vlistbox(
+					textbox("Script is finished. The chosen table does not contain all the required columns for the exported Catalyst Raw Stats File.",
+						<<Set Wrap(1000),
+						<<Set Font("Intel Clear"),
+						<<Font Color("Blue"),
+						<<Set Font Size(14),
+					),
+					spacerbox(Size(5,10)),
+					textbox("In Catalyst PCS Health Review ensure all filter options have a selection (red x) so that the column exists in the exported raw stats file.",
+						<<Set Wrap(2000),
+						<<Set Font("Intel Clear"),
+						<<Font Color("Red"),
+						<<Set Font Size(14)
+					),
+					spacerbox(Size(5,10)),
+					textbox("Minimum Required Columns in Catalyst Raw Stats File:",
+							<<Set Wrap(1000),
+							<<Set Font("Intel Clear"),
+					),
+					textbox(rawstatscollist,
+						<<Set Wrap(1500),
+						<<Set Font("Intel Clear"),
+					),
+					spacerbox(Size(5,10)),
+					textbox("Please run script again and ensure the exported Catalyst Raw Stats File has the necessary columns.",
+						<<Set Wrap(1000),
+						<<Set Font("Intel Clear"),
+						<<Font Color("Blue"),
+						<<Set Font Size(14),
+					)
+				)
+			);
+			Stop();
+			Wait(0.1);
+		);
+	);			
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Validate columns in the chosen exported raw stats table completed.");
+
+/*************************************************************
+Divider - 
+	- Create copy of table to work upon
+	- Clean up data table
+	- Delete unnecessary columns to speed up processing
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Copy, clean up data table, and delete columns starting.");
+
+//Create copy of table to work upon
+	copydt=dt<<subset(
+		All rows, 
+		Selected columns only( 0 ),
+		invisible, 
+		output table name((dt<<Get Name)||"_Copy")
+	);
+	
+//Clean-up data by deleting ModuleName = QNR LAB, TESTING, WASTEBASKET  
+	//Clear any row states or Column Selection
+	copydt<<Clear Row States<<Clear Column Selection(); 
+	
+	//Create list of rows to delete
+	delete_list=copydt<<Get Rows Where(:ModuleName == "QNR LAB" | :ModuleName == "TESTING" | :ModuleName == "WASTEBASKET");
+	
+	//Delete rows if any exist in the list	
+		If( 
+			//if (rows exist in list)
+			NRows(delete_list)>0,
+			//then (Select Rows from the list and delete them)
+			copydt<<Clear Row States<<Clear Column Selection(); 
+			copydt<<Select Rows(delete_list)<<Delete Rows;
+		);
+	
+	//Clear any row states or Column Selection
+	copydt<<Clear Row States<<Clear Column Selection();
+
+//Create list of columns to keep
+	keepcollist={"Parameter", "MarketCodeName", "DieCodeName", "PackageTech", "FormFactor", "AreaGrouping", "ModuleName", "FunctionalArea", "Facility", "Equipment", "MonitorSetName", "MeasurementSetName", "SpcChartSubset", "ChartType", "ControlLimitType", "RunN", "Matching_Flag", "OCI_Flag", "P_Ooc_Flag","ControlLimitValidity_Flag", "Cpk_Flag", "Cpk_Status", "MinSampleSize"};
+
+//Create empty list to store columns to delete
+	delcollist={};
+	
+//Delete unnecessary columns to speed up processing
+	For(delcolloop=1, delcolloop<=NItems(col_name_list), delcolloop++,
+		If(
+			//if (Column is not in the list of columns to keep)
+			!Contains(keepcollist, col_name_list[delcolloop]),
+			//then (Insert column into delcollist)
+			Insert Into(delcollist, col_name_list[delcolloop])
+		);
+	);
+
+//Delete columns from delcollist
+	copydt<<Delete Column(delcollist);
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Copy, clean up data table, and delete columns completed.");
+
+/*************************************************************
+Divider - 
+	- Create necessary columns
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create necessary columns if they don't exist starting.");
+
+//All the columns created in this section will not exist even if user saved JMP created file 
+//Due to step above where we delete all columns from copydt except for the specific columns in keepcollist
+
+//Create MODULE column
+	copydt<<New Column("MODULE", 
+		Character,
+		"Nominal",
+		Formula(
+			If(
+				//if (ModuleName is DIEPREP)
+				:ModuleName=="DIEPREP", 
+				//then (Use FunctionalArea)
+				:FunctionalArea, 
+				//else (Use ModuleName)
+				:ModuleName
+			);
+		)
+	);
+	
+//Create CPK_FLAG_ADJ column
+	copydt<<New Column("CPK_FLAG_ADJ",
+		Numeric,
+		"Nominal",
+		Format( "Best", 10 ),
+		Formula(
+			If(
+				//if (MinSampleSize is met, Facility is VF, Equipment is All, Cpk_Status is not No spec limits provided, and Cpk_Flag is 1)
+				:RunN >= :MinSampleSize & :Facility == "VF" & :Equipment == "ALL" & :Cpk_Status != "No spec limits provided" & :Cpk_Flag == 1,
+				//then (Set to 1)
+				1,
+				//else (Set to Null)
+				.
+			)
+		)
+	);	
+	
+//Create OCI_FLAG_ADJ column
+	copydt<<New Column("OCI_FLAG_ADJ",
+		Numeric,
+		"Nominal",
+		Format( "Best", 10 ),
+		Formula(
+			If(
+				//if (MinSampleSize is met, Facility is VF, Equipment is All, and OCI_Flag is 1)
+				:RunN >= :MinSampleSize & :Facility == "VF" & :Equipment == "ALL" & :OCI_Flag == 1, 
+				//then (Set to 1)
+				1,
+				//else (Set to Null)
+				.
+			)
+		)
+	);
+	
+//Create MATCHING_FLAG_ADJ column
+	copydt<<New Column("MATCHING_FLAG_ADJ",
+		Numeric,
+		"Nominal",
+		Format( "Best", 10 ),
+		Formula(
+			If(
+				//if (MinSampleSize is met, Individual Facility, Individual Equipment, and Matching_Flag is 1)
+				:RunN >= :MinSampleSize & :Facility != "VF" & :Equipment != "ALL" & :Matching_Flag == 1, 
+				//then (Set to 1)
+				1,
+				//else (Set to Null)
+				.
+			)
+		)
+	);
+
+//Create CONTROL_LIMIT_VALIDITY_FLAG_ADJ column
+	copydt<<New Column("CONTROL_LIMIT_VALIDITY_FLAG_ADJ",
+		Numeric,
+		"Nominal",
+		Format( "Best", 10 ),
+		Formula(
+			If(
+				//if (MinSampleSize is met, Facility is VF, Equipment is All, ControlLimitValidity_Flag is 1, and ContolLimitType is not NONE)
+				:RunN >= :MinSampleSize & :Facility == "VF" & :Equipment == "ALL" & :ControlLimitValidity_Flag == 1 & :ControlLimitType != "NONE",
+				//then (Set to 1)
+				1,
+				//else (Set to Null)
+				.
+			)
+		)
+	);
+		
+//Create OOC_FLAG_ADJ column
+	copydt<<New Column("OOC_FLAG_ADJ",
+		Numeric,
+		"Nominal",
+		Format( "Best", 10 ),
+		Formula(
+			If(
+				//if (MinSampleSize is met, Individual Facility, Individual Equipment, and P_Ooc_Flag is 1)
+				:RunN >= :MinSampleSize & :Facility != "VF" & :Equipment != "ALL" & :P_Ooc_Flag == 1, 
+				//then (Set to 1)
+				1,
+				//else (Set to Null)
+				.
+			)
+		)
+	);	
+
+//Delete the formulas of each column
+	copydt:MODULE<<Delete Formula();
+	copydt:CPK_FLAG_ADJ<<Delete Formula();
+	copydt:OCI_FLAG_ADJ<<Delete Formula();
+	copydt:MATCHING_FLAG_ADJ<<Delete Formula();
+	copydt:CONTROL_LIMIT_VALIDITY_FLAG_ADJ<<Delete Formula();
+	copydt:OOC_FLAG_ADJ<<Delete Formula();
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create necessary columns if they don't exist completed.");
+
+/*************************************************************
+Divider - 
+	- Create Parameter Ranking Flat File for use in filtering
+		- Subset VF rows
+		- Summarize pooled indicators
+		- Join with copied table to create Flat File for use in filtering
+		- Format joined table
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create flat file for use in filtering starting.");
+
+//Clear any row states or column selection
+	copydt<<Clear Row States<<Clear Column Selection();
+
+//Subset VF rows
+	copydt<<Select Where(:Facility=="VF");
+	subVFdt=copydt<<subset(output table name("Subset of copydt with VF Rows only"), invisible);
+	copydt<<Clear Row States<<Clear Column Selection();
+
+//Create Summary Table with Pooled Indicators
+	sumpooldt=subVFdt<<Summary(
+		Group(
+			:Parameter,
+			:ModuleName,
+			:FunctionalArea,
+			:MODULE,
+			:MonitorSetName,
+			:MeasurementSetName,
+			:SpcChartSubset,
+			:ChartType,
+			:CPK_FLAG_ADJ,
+			:OCI_FLAG_ADJ,
+			:CONTROL_LIMIT_VALIDITY_FLAG_ADJ
+		),
+		Freq( "None" ),
+		Weight( "None" ),
+		Link to original data table( 0 ),
+		output table name("Summarized Table for Pooled Indicators"),
+		invisible
+	);
+
+//Delete Column
+	sumpooldt<<Delete Column(:N Rows);
+
+//Rename Columns
+	sumpooldt:CPK_FLAG_ADJ<<Set Name("Pooled_CPK_Flag");
+	sumpooldt:OCI_FLAG_ADJ<<Set Name("Pooled_OCI_Flag");
+	sumpooldt:CONTROL_LIMIT_VALIDITY_FLAG_ADJ<<Set Name("Pooled_ControlLimitValidity_Flag");
+
+//Join summary table back with copied table to create flat file
+	flatdt=copydt<<Join(With(sumpooldt),
+		Merge Same Name Columns,
+		Match Flag( 0 ),
+		By Matching Columns(
+			:Parameter = :Parameter,
+			:ModuleName = :ModuleName,
+			:FunctionalArea = :FunctionalArea,
+			:MODULE = :MODULE,
+			:MonitorSetName = :MonitorSetName,
+			:MeasurementSetName = :MeasurementSetName,
+			:SpcChartSubset = :SpcChartSubset,
+			:ChartType = :ChartType
+		),
+		Drop multiples( 0, 0 ),
+		Include Nonmatches( 1, 1 ),
+		Preserve main table order( 1 ),
+		output table name("Parameter Ranking Script Flat File"),
+		invisible
+	);
+
+//Delete unnecessary columns
+	flatdt<<Delete Column(
+		{
+		:ControlLimitType,
+		:RunN,
+		:Matching_Flag,
+		:OCI_Flag,
+		:P_Ooc_Flag,
+		:ControlLimitValidity_Flag,
+		:Cpk_Flag,
+		:Cpk_Status,
+		:MinSampleSize,
+		:CPK_FLAG_ADJ,
+		:OCI_FLAG_ADJ,
+		:CONTROL_LIMIT_VALIDITY_FLAG_ADJ
+		}
+	);
+
+//Delete VF rows and Equipment ALL rows to clean up filter
+	flatdt<<Clear Select<<Clear Column Selection();
+	flatdt<<Select Where(:Facility=="VF")<<Delete Rows()<<Clear Select;
+	flatdt<<Select Where(:Equipment=="ALL")<<Delete Rows()<<Clear Select;
+
+//Rename Indicator Columns
+	flatdt:MATCHING_FLAG_ADJ<<Set Name("Matching_Flag");
+	flatdt:OOC_FLAG_ADJ<<Set Name("OOC_Flag");
+	flatdt:Pooled_CPK_Flag<<Set Name("CPK_Flag");
+	flatdt:Pooled_OCI_Flag<<Set Name("OCI_Flag");
+	flatdt:Pooled_ControlLimitValidity_Flag<<Set Name("ControlLimitValidity_Flag");
+
+//Reorder Indicator Columns
+	flatdt<<Clear Column Selection()<<Clear Select;
+	flatdt<<Go To (:CPK_Flag);
+	flatdt<<Move Selected Columns (To last);
+	flatdt<<Clear Column Selection()<<Clear Select;
+	flatdt<<Go To (:OCI_Flag);
+	flatdt<<Move Selected Columns (To last);
+	flatdt<<Clear Column Selection()<<Clear Select;
+	flatdt<<Go To (:Matching_Flag);
+	flatdt<<Move Selected Columns (To last);
+	flatdt<<Clear Column Selection()<<Clear Select;
+	flatdt<<Go To (:ControlLimitValidity_Flag);
+	flatdt<<Move Selected Columns (To last);
+	flatdt<<Clear Column Selection()<<Clear Select;
+	flatdt<<Go To (:OOC_Flag);
+	flatdt<<Move Selected Columns (To last);
+	flatdt<<Clear Column Selection()<<Clear Select;
+
+//Close Unnecessary Tables
+	Try(Close(sumpooldt, no save));
+	Try(Close(subVFdt, no save));
+	Try(Close(copydt, no save));
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create flat file for use in filtering completed.");
+
+/*************************************************************
+Divider - 
+	- Setup User Interface
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Setup user interface starting.");
+
+//Create ReportWindow
+	FinalReport=New Window("PCS Health Ranking Report",
+		spacerbox(Size(5,10)),
+		controlpb=panelbox("Controls",
+			vlistbox(
+				hlistbox(
+					spacerbox(Size(5,10)),
+					closereportbox=buttonbox("Close Report", CloseExpression),
+					spacerbox(Size(5,10)),
+					closemaindtbox=buttonbox("Close Main Datatable", Try(Close(dt, nosave)); CloseExpression),
+					spacerbox(Size(5,10)),
+					catalystfavbox=buttonbox("Make Catalyst SPC++ Favorite", CatalystFavoriteFunction),
+					spacerbox(Size(5,10)),
+					togglerowsbox=buttonbox("Toggle All Rows / Rows with Flags", ToggleExHideFunction),
+					spacerbox(Size(5,10)),
+				),
+				spacerbox(Size(5,10)),
+				hlistbox(
+					spacerbox(Size(5,10)),
+					timestamp,
+					spacerbox(Size(5,10)),
+				),
+			),
+		), 
+		spacerbox(Size(5,10)),
+		hlistbox(
+			filterpb=panelbox("Filter",
+				spacerbox(Size(5,10)),
+				hlistbox(
+					filtervb=vlistbox(),
+					spacerbox(Size(5,10)),
+					genrespb=panelbox("Generate Results",
+						spacerbox(Size(5,10)),
+						buttonbox("Generate Results", GenerateResultsFunction),
+						spacerbox(Size(5,10)),
+					),
+					spacerbox(Size(5,10)),
+				),
+				spacerbox(Size(5,10)),
+			),
+			spacerbox(Size(5,10)),
+			resultspb=panelbox("Results",
+				spacerbox(Size(5,10)),
+				filtertext=textbox("User must click 'Generate Results' button.", <<Set Wrap(1500)),
+				spacerbox(Size(5,10)),
+				toggletext=textbox("", <<Set Wrap(1500)),
+				spacerbox(Size(5,10)),
+				resultstb=Tab Box(
+					"Table",
+					resulttablebox=vlistbox(
+						initialtabletext=textbox("User must click 'Generate Results' button.");
+					),
+					"Graph",
+					resultgraphbox=vlistbox(
+						initialgraphtext=textbox("User must click 'Generate Results' button.");
+					)
+				),
+			),
+			spacerbox(Size(5,10)),
+		),
+	);
+		
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Setup user interface completed.");
+
+/*************************************************************
+Divider - 
+	- Create data filter
+	- Append to FinalReport Window
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create data filter starting.");
+
+//Create Data Filter
+	filterbox=vlistbox(
+		filter=flatdt<<Data Filter(
+			Conditional,
+			Mode( Show( 1 ), Include( 1 ) ),
+			Add Filter(
+				columns(
+					:Facility,
+					:MODULE,
+					:FunctionalArea,
+					:MarketCodeName,
+					:DieCodeName,
+					:MonitorSetName,
+					:MeasurementSetName,
+					:Parameter,
+					:CPK_Flag,
+					:OCI_Flag,
+					:Matching_Flag,
+					:ControlLimitValidity_Flag,
+					:OOC_Flag
+				),
+				Display( :MODULE, List Display ),
+				Display( :FunctionalArea, List Display ),
+				Display( :MarketCodeName, List Display ),
+				Display( :DieCodeName, List Display ),
+				Display( :MonitorSetName, List Display ),
+				Display( :MeasurementSetName, List Display ),
+				Display( :Parameter, List Display )
+			)
+		);
+	);
+
+//Append data filter to Final Report Window
+	filtervb<<Append(filterbox);
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create data filter completed.");
+
+/*************************************************************
+Divider - 
+	- Create Generate Results Function
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create generate results function starting.");
+
+//Create GenerateResultsFunction to run anytime "Generate Results" button is pushed in FinalReport Window
+//Function requires no inputs
+	GenerateResultsFunction=Function({},
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction starting.");
+		
+		//Delete existing results boxes from results window
+		Try(initialtabletext<<Delete Box());
+		Try(initialgraphtext<<Delete Box());
+		Try(resultstabtable<<Delete Box());
+		Try(resultstabchart<<Delete Box());
+		
+		//Try and close any existing output tables from previous "Generate Results" button push
+		Try(Close(tabdt, no save));
+		Try(Close(sumanalysisdt, no save));
+		Try(Close(sumnodupdt, no save));
+		Try(Close(subdt, no save));
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction:  Create subset and summary tables starting.");
+		
+		//Create subset table of rows selected by the filter
+		subdt=flatdt<<subset(output table name("Subset of Filtered Rows"), invisible);
+		
+		//Create Summary table to remove the duplicate rows and get accurate indicator counts
+		sumnodupdt=subdt<<Summary(
+			Group(
+				:Parameter,
+				:MODULE,
+				:FunctionalArea,
+				:Facility,
+				:Equipment,
+				:MonitorSetName,
+				:MeasurementSetName,
+				:SpcChartSubset,
+				:ChartType,
+				:CPK_Flag,
+				:OCI_Flag,
+				:Matching_Flag,
+				:ControlLimitValidity_Flag,
+				:OOC_Flag
+			),
+			Freq( "None" ),
+			Weight( "None" ),
+			output table name("Parameter Ranking Summary Table of Filtered Rows Removing Duplicate Rows"),
+			invisible
+		);
+		
+		//Create Summary table for tabulating pooled and non-pooled indicators
+		sumanalysisdt=sumnodupdt<<Summary(
+			Group(
+				:Parameter,
+				:MODULE,
+				:FunctionalArea,
+				:MonitorSetName,
+				:MeasurementSetName,
+				:SpcChartSubset,
+				:ChartType,
+				:CPK_Flag,
+				:OCI_Flag,
+				:ControlLimitValidity_Flag
+			),
+			Sum( :Matching_Flag ),
+			Sum( :OOC_Flag ),
+			Freq( "None" ),
+			Weight( "None" ),
+			statistics column name format( "column" ),
+			Link to original data table( 0 ),
+			output table name("Parameter Ranking Summary Table For Tabulating Results"),
+			invisible
+		);
+		
+		//Delete Column
+		sumanalysisdt<<Delete Column(:N Rows);
+
+		//Create IndicatorTotal column
+		sumanalysisdt<<New Column("IndicatorTotal",
+			Numeric,
+			"Nominal",
+			Format( "Best", 10 ),
+			Formula(
+				Sum(
+					:CPK_Flag,
+					:OCI_Flag,
+					:Matching_Flag,
+					:ControlLimitValidity_Flag,
+					:OOC_Flag
+				)
+			)
+		);
+
+		//Delete the formulas of column
+		sumanalysisdt:IndicatorTotal<<Delete Formula();
+		
+		//Summarize table to force sorting on final tabulate table
+		tabdt=sumanalysisdt<<Summary(
+			Group( :MODULE, :Parameter ),
+			Sum( :IndicatorTotal ),
+			Sum( :CPK_Flag ),
+			Sum( :OCI_Flag ),
+			Sum( :Matching_Flag ),
+			Sum( :ControlLimitValidity_Flag ),
+			Sum( :OOC_Flag ),
+			Freq( "None" ),
+			Weight( "None" ),
+			statistics column name format( "column" ),
+			Link to original data table( 0 ),
+			output table name("Tabulate Results Tables Format Template"),
+			invisible
+		);
+	
+		//Sort table by MODULE, IndicatorTotal and Parameter
+		tabdt<<Sort(
+			Replace Table,
+			By( :MODULE, :IndicatorTotal, :Parameter ),
+			Order( Ascending, Descending, Ascending )
+		);
+		
+		//Add Row Order Levels Property to Module and Parameter based on sorted table by IndicatorTotal to ensure tabulate table is in order
+		tabdt:MODULE<<Set Property( "Row Order Levels", 1 );
+		tabdt:Parameter<<Set Property( "Row Order Levels", 1 );
+		
+		//Close Unnecessary Tables
+		Try(Close(sumanalysisdt, no save));
+		Try(Close(sumnodupdt, no save));
+		Try(Close(subdt, no save));
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction:  Create subset and summary tables completed.");
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction:  Create FinalReport elements starting.");
+		
+		//Update text in output window
+			//Default table to only showing rows with flags
+			tabdt<<Clear Row States<<Clear Column Selection();
+			tabdt<<Select Where(Is Missing(:IndicatorTotal))<<Hide(1)<<Exclude(1)<<Clear Select;
+			
+			//Set variable to track toggle value
+			exhidetogglevalue="HideExcludeOn";
+			
+			//Set text in FinalReport Window
+			toggletext<<Set Text("Toggle All Rows / Rows with Flags Status:  Including Only Rows with Flags.");
+			
+			//Get the latest selections from the data filter
+			filterselection=filter<<Get Where Clause;
+			
+			//If no filter selected then set new text in the FinalReport based on No filter, else set text based on selected filter
+			If(
+				//if (No filter selected)
+					filterselection=="",
+				//then (Set new text in FinalReport based on No Filter)
+					filtertext<<Set Text("Current Filters: None"),
+				//else (Set new text in FinalReport based on selected filter)
+					//Remove the "Select Where" from the statement
+					filterselection=Munger(filterselection, 1, "Select Where", "");
+					//Set the new text in the FinalReport
+					filtertext<<Set Text("Current Filters: "||filterselection);
+			);
+		
+		//Create tabulate table of results
+		resultstabtable=vlistbox(
+			tabdt<<Tabulate(
+				Show Control Panel( 0 ),
+				Add Table(
+					Column Table(
+						Analysis Columns(
+							:IndicatorTotal,
+							:CPK_Flag,
+							:OCI_Flag,
+							:Matching_Flag,
+							:ControlLimitValidity_Flag,
+							:OOC_Flag
+						),
+						Statistics( Sum )
+					),
+					Row Table( Grouping Columns( :MODULE, :Parameter ) )
+				)
+			);
+		);
+		
+		//Create tabulate chart of results
+		resultstabchart=vlistbox(
+			tabdt<<Tabulate(
+				Show Table( 0 ),
+				Show Chart( 1 ),
+				Show Control Panel( 0 ),
+				Add Table(
+					Column Table(
+						Analysis Columns(
+							:IndicatorTotal,
+							:CPK_Flag,
+							:OCI_Flag,
+							:Matching_Flag,
+							:ControlLimitValidity_Flag,
+							:OOC_Flag
+						),
+						Statistics( Sum )
+					),
+					Row Table( Grouping Columns( :MODULE, :Parameter ) )
+				)
+			);
+		);
+	
+		//Append the tabulated results to the results tab box
+		resulttablebox<<Append(resultstabtable);
+		resultgraphbox<<Append(resultstabchart);
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction:  Create FinalReport elements completed.");
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  GenerateResultsFunction completed.");
+		
+	); //End of GenerateResultsFunction
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create generate results function completed.");
+
+/*************************************************************
+Divider - 
+	- Create function for toggling the hidden and excluded rows based on flags
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create function for toggling hidden and excluded rows based on flags starting.");
+
+//Create ToggleExHideFunction to run anytime "Toggle All Rows / Rows with Flags" button is pushed in FinalReport Window
+//Function requires no inputs
+	ToggleExHideFunction=Function({}, 
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  ToggleExHideFunction starting.");
+		
+		//Determine rows in tabdt to see if it exists, else set the value to 0
+		//This function will just update text if the 'Generate Results' button has not been pushed
+		Try(
+			sumdtrows=NRows(tabdt), 
+			//else
+			sumdtrows=0
+		);
+		
+		//Toggle between Hide/Exclude and Unhide/Unexclude rows where IndicatorTotal is missing if the tabdt has been created from the GenerateResults Function
+		//Otherwise print error message to Final Report Window
+		If(
+			//if (tabdt exists)
+				sumdtrows>0,
+			//then (toggle and update FinalReport Window and log)
+				//Clear Row States and Column Selection
+				tabdt<<Clear Row States<<Clear Column Selection();
+				//Toggle the Hide and Exclude setting based on the exhidetogglevalue
+				If(
+					//if (HideExcludeOn setting)
+						exhidetogglevalue=="HideExcludeOn",
+					//then (Unhide/Unexclude, reset variable, reset text in FinalReport, and log line)
+						//Select Rows without Flags Unhide and Unexclude
+						tabdt<<Select Where(Is Missing(:IndicatorTotal))<<Hide(0)<<Exclude(0)<<Clear Select<<Clear Column Selection();
+						//Set Variable
+						exhidetogglevalue="HideExcludeOff";
+						//Reset text in FinalReport
+						toggletext<<Set Text("Toggle All Rows / Rows with Flags Status:  Including All Rows.");
+						//Log Line
+						Print("Catalyst_Parameter_Ranking_Script:  ToggleExHideFunction:  Unhiding and Unexcluding Rows.");
+					,
+					//else (Hide/Exclude, reset variable, reset text in FinalReport, and log line)
+						//Hide and Exclude
+						tabdt<<Select Where(Is Missing(:IndicatorTotal))<<Hide(1)<<Exclude(1)<<Clear Select<<Clear Column Selection();
+						//Set Variable
+						exhidetogglevalue="HideExcludeOn";
+						//Reset text in FinalReport
+						toggletext<<Set Text("Toggle All Rows / Rows with Flags Status:  Including Only Rows with Flags.");
+						//Log Line
+						Print("Catalyst_Parameter_Ranking_Script:  Toggle Hide/Exclude rows button:  Hiding and Excluding Rows.");
+				);	
+			,
+			//else (print error message to FinalReport Window)
+				toggletext<<Set Text("Must 'Generate Results' first before toggling included and excluded rows.");
+		);
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  ToggleExHideFunction completed.");
+
+	); //End of ToggleExHideFunction
+	
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create function for toggling hidden and excluded rows based on flags completed.");
+
+
+/*************************************************************
+Divider - 
+	- Create function for creating Catalyst Favorite File
+
+**************************************************************/
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create function for creating Catalyst Favorite File starting.");
+	
+//Create CatalystFavoriteFunction to run anytime "Make Catalyst SPC++ Favorite" button is pushed in FinalReport Window
+//Function requires no inputs
+	CatalystFavoriteFunction=Function({},
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction starting.");
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Determine user input for file name starting.");
+		
+		//Ask user what name to use when saving favorite file
+		//Will be saved to user Catalyst Favorites directory by using the $DOCUMENTS which point to the individual users' Documents folder
+		//By default, save as SPCRankFav.catalyst
+		//Must have .catalyst extension to work as a Favorite in Catalyst (script ensures this is the case)
+	
+		//Set default path base on individual users Documents folder
+		favoritepath=Convert File Path("$DOCUMENTS", windows)||"Intel\Catalyst\My Favorites\PROD\";
+		
+		//Set default file name
+		favoritefile="SPCRankFav.catalyst";
+		
+		//Create Window asking for user input on file name and prompting with the default file name
+		spcfavnamewindow=New Window("Name for SPC++ Catalyst Favorite",
+			<<modal, 
+			vlistbox(
+				hlistbox(
+					textbox("Enter name for Catalyst Favorite:    " ),
+					favname=texteditbox(favoritefile,
+						Set Script(favoritefile = favname << Get Text() )
+					)
+				),
+				spacerbox(Size(5,10)),
+				hlistbox(
+					buttonbox("OK"),
+					buttonbox("Cancel"),
+				)
+			);
+		);
+
+		//Exit Function if "Cancel" button is chosen in user window
+		If(
+			//if Cancel button is selected
+			spcfavnamewindow=={Button( -1 )}, 
+			//then end script and show a log line
+			Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Cancel chosen, exiting function.");
+			Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction completed.");
+			Return();
+			Wait( 0.1 );
+		);
+		
+		//If "OK" button is selected, continue rest of function
+		//Verify the file name ends in ".catalyst" and if not concatenate the ".catalyst" to the end of the file name
+		If(
+			//if (file name does not end in ".catalyst")
+			Right(favoritefile, 9) != ".catalyst", 
+			//then (concatenate ".catalyst" to end of file name)
+			favoritefile=favoritefile||".catalyst"
+		);
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Determine user input for file name completed.");
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Format list of monitor set and measurement sets starting.");
+		
+		//Close Previous Table if function was previously run
+		Try(Close(catfavsumdt, no save));
+		
+		//Default variables as text strings
+		catfavmonsettext="";
+		catfavmeassettext="";
+		
+		//Create summary table of Monitor Set Name's and Measurement Set Name's
+		catfavsumdt=flatdt<<Summary(
+			Group( :MonitorSetName, :MeasurementSetName ),
+			Freq( "None" ),
+			Weight( "None" ),
+			Link to original data table( 0 ),
+			output table name("Summarized Montior Sets and Measurement Sets for use in Catalyst Favorite"),
+			invisible
+		);
+		
+		//Delete Excluded Rows if any exist
+		excluderows=catfavsumdt<<Get Excluded Rows();
+		If(
+			//if (Any Excluded Rows exist)
+			NRows(excluderows)>0,
+			//then (Delete Rows)
+			catfavsumdt<<Clear Select<<Clear Column Selection()<<Select Excluded<<Delete Rows()<<Clear Select;
+		);
+		
+		//Get Associative Array Keys
+		catfavmonsetkeys=Associative Array(catfavsumdt:MonitorSetName<<Get Values)<<Get Keys;
+		catfavmeassetkeys=Associative Array(catfavsumdt:MeasurementSetName<<Get Values)<<Get Keys;
+		
+		//Loop through list of MonitorSetName keys and concatenate to text string separating by commmas
+		For(monsetloop=1, monsetloop<=NItems(catfavmonsetkeys), monsetloop++,
+			catfavmonsettext=catfavmonsettext||catfavmonsetkeys[monsetloop]||",";
+		);
+		
+		//Loop through list of MeasurementSetName keys and concatenate to text string separating by commmas
+		For(meassetloop=1, meassetloop<=NItems(catfavmeassetkeys ), meassetloop++,
+			catfavmeassettext=catfavmeassettext||catfavmeassetkeys[meassetloop]||",";
+		);
+		
+		//Close Unnecessary Table
+		Try(Close(catfavsumdt, no save));
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Format list of monitor set and measurement sets completed.");
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Create and save Catalyst text file starting.");
+		
+		//Write catalyst text file - JSL writes it just as it is seen, \! is the escape character
+		favoritetext ="<?xml version=\!"1.0\!" encoding=\!"utf-16\!"?>
+		<ViewState xmlns:xsd=\!"http://www.w3.org/2001/XMLSchema\!" xmlns:xsi=\!"http://www.w3.org/2001/XMLSchema-instance\!">
+		  <Module>YEA.Modules.PcsMod</Module>
+		  <ViewStateType>YEA.Modules.PcsMod.Models.ViewState</ViewStateType>
+		  <DefaultLoad>false</DefaultLoad>
+		  <GroupingColumns>Equipment,Facility</GroupingColumns>
+		  <ConditioningColumns>MonitorSetName,MeasurementSetName</ConditioningColumns>
+		  <PreFilterXML>
+			<Filter>
+			  <Group Operation=\!"And\!">
+			   <Filter Operation=\!"Equal\!" Column=\!"MonitorSetName\!" ValueType=\!"System.String\!">
+				  <Value>"||catfavmonsettext||"</Value>
+				</Filter>
+				<Filter Operation=\!"Equal\!" Column=\!"MeasurementSetName\!" ValueType=\!"System.Object\!">
+				  <Value>"||catfavmeassettext||"</Value>
+				</Filter>
+				<Filter Operation=\!"Equal\!" Column=\!"IntelWW\!" ValueType=\!"System.String\!">
+				  <Value>LastN = 1</Value>
+				</Filter>
+			  </Group>
+			</Filter>
+		  </PreFilterXML>
+		  <Tab>PcsPivotCharts</Tab>
+		  <DrillDownFilter>
+			<Filter>
+			</Filter>
+		  </DrillDownFilter>
+		</ViewState>";
+
+		//Save Catalyst favorite file
+		Save Text File(favoritepath||favoritefile, favoritetext);
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction:  Create and save Catalyst text file completed.");
+				
+		//Create Window alerting user to completion of saved favorite file
+		spcfavdonewindow=New Window( "SPC++ Catalyst Favorite Done",
+			<<modal, 
+			vlistbox(
+				textbox( "Catalyst Favorite: "|| favoritefile ||" has been saved to "|| favoritepath,
+					<<Set Wrap(1000),
+					<<Set Font("Intel Clear"),
+					<<Font Color("Blue"),
+					<<Set Font Size(12),	
+				),
+				spacerbox(Size(5,10)),
+				Text box ("You may need to REFRESH your favorite list in Catalyst to see the new entry.", 
+					<<Set Wrap(1000),
+					<<Set Font("Intel Clear"),
+					<<Set Font Size(11),
+				),
+			)
+		);
+		
+		//Log Line
+		Print("Catalyst_Parameter_Ranking_Script:  CatalystFavoriteFunction completed.");
+		
+	); //End of CatalystFavoriteFunction
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script:  Create function for creating Catalyst Favorite File completed.");
+
+//Log Line
+	Print("Catalyst_Parameter_Ranking_Script completed.");
+
+/*************************************************************
+Divider - 
+	- End of Script
+
+**************************************************************/

@@ -1,0 +1,542 @@
+/*******************************************************************************************
+X-Defects Sample Size Calculator Script (Using Binomial & Hypergeometric Distributions)
+
+This script calculates the sample size table up to "x" acceptable defects using the Binomial distribution to calculate the UCL
+
+Revision History (Descending Order, Newest at the top):
+Rev 2 - Jeff Baumann - 2020WW17
+	- Add commenting and logging throughout script for easier debug in future.
+	- Fix error messages for Confidence Level, Max Sample Size, Max Defects, and DPM.
+	- Update all Dialog boxes to instead be Windows as Dialog is being phased out by JMP.
+Rev 1 - Damien Chee - 2006
+	- Added hypergeometric distribution
+	- Changed binomial generation method (faster results)
+Rev 0 - Damien Chee - 2006
+	- Initial Creation
+
+********************************************************************************************/
+//Log Line
+	Print("X_Defects_Sample_Size_Script starting.");
+
+/*************************************************************
+Divider - Set Initial Values of Variables
+
+**************************************************************/
+//Log Line
+	Print("X_Defects_Sample_Size_Script: Set initial values of variables starting.");
+
+//Clear Globals
+	clear globals();
+
+//Include sos globals library script
+	Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"),
+		//else
+		::FooterBox=VListBox(textbox(" "))
+    );
+    
+//Set Initial Values of Variables
+	button=1;			//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+	scale="%";			//Default scale (scale can be % or DPM)
+	target_p0 = .;		//Default target defect rate
+	x=.;				//Default maximum number of defects
+	conf=95;			//Default confidence level value as a percentage (alpha = 1 - conf/100)
+	popn=.;				//Default population size
+	MxN=200000;			//Default maximum sample size
+	alpha=.05;			//Default alpha value
+	nflag=.;			//Default value of sample size flag
+	c=.;				//Default value for defects
+	n=.;				//Default value of sample size
+	K=.;				//Default value of defects in population
+
+//Log Line
+	Print("X_Defects_Sample_Size_Script: Set initial values of variables completed.");
+
+/*************************************************************
+Divider - Create user window and determine x-defects sample size results
+
+**************************************************************/
+//Log Line
+	Print("X_Defects_Sample_Size_Script: Create user window and determine x-defects sample size results starting.");
+
+//Dialog Box is active until the user clicks Cancel
+While(button==1,
+	
+	/*************************************************************
+	Divider - Create user window and determine user inputs
+
+	**************************************************************/
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Create user window and determine user inputs starting.");
+	
+	//ComboBox set-up, depending on whether the user chooses % or DPM
+	If(
+		//if (user chooses %)
+		scale=="%",
+		//then (a is % and b is DPM)
+		a="%";
+		b="DPM",
+		//if (user chooses DPM)
+		scale=="DPM",
+		//then (a is DPM and b is %)
+		a="DPM";
+		b="%"
+	);
+	
+	//User Window
+	result=New Window("x-Defects Sample Size Calculator",
+		<<modal,
+		<<Return Result,
+		vlistbox(
+			textbox("Enter values for target defect rate and the maximum number of defects:",<<Set Wrap(500)),
+			textbox(" "),
+			lineupbox(NCol(3),
+				textbox("Target Defect Rate"), target_p0=numbereditbox(target_p0), scale=combobox(Eval List({a, b})),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Maximum Number of Defects"), x=numbereditbox(x), spacerbox(),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Confidence Level"), conf=numbereditbox(conf), textbox("%"),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Population Size (Optional)"), popn=numbereditbox(popn), spacerbox(),
+				textbox(" "), textbox(" "), textbox(" "),
+				textbox("Maximum Sample Size"), MxN=numbereditbox(MxN), spacerbox()
+			),
+			textbox(" "),
+			hlistbox(spacerbox(Size(225, 5)), Button Box("OK"), Button Box("Cancel"))
+		)
+	);
+
+	//Retrieval of user inputs from User Window and redefining variable values
+	button=result["Button"];
+	target_p0=result["target_p0"];
+	tscale=result["scale"];
+	x=result["x"];
+	conf=result["conf"];
+	alpha=1-(conf/100); 
+	popn=result["popn"];
+	MxN=result["MxN"];
+	
+	//Set scale value based on user choise
+	If(
+		//if (tscale is first choice)
+		tscale==1,
+		//then (set scale to value of a)
+		scale=a,
+		//if (tscale is second choice)
+		tscale==2,
+		//then (set scale to value of b)
+		scale=b
+	);
+	
+	//Get largest integer less than or equal to Maximum Sample Size to correct for any decimal input
+	ntemp=floor(MxN);
+	//Determine nmod variable for the remainder of any possible decimal input
+	If(
+		//if (both variables are 0)
+		ntemp==0 & MxN==0, 
+		//then (set variable to 0)
+		nmod=0,
+		//if (ntemp is 0 and max sample size is greater than 0)
+		ntemp==0 & MxN>0, 
+		//then (set variable to 1)
+		nmod=1,
+		//if (ntemp is greater than or equal to 1)
+		ntemp>=1, 
+		//then (set variable to the remainder of dividing max sample size by ntemp)
+		nmod=modulo(MxN,ntemp)
+	); 
+	
+	//Get largest integer less than or equal to Maximum Defects to correct for any decimal input
+	xtemp=floor(x);
+	//Determine xmod variable for the remainder of any possible decimal input
+	If(
+		//if (both variables are 0)
+		xtemp==0 & x==0, 
+		//then (set variable to 0)
+		xmod=0,
+		//if (xtemp is 0 and max defects are greater than 0)
+		xtemp==0 & x>0, 
+		//then (set variable to 1)
+		xmod=1,
+		//if (xtemp is greater than or equal to 1)
+		xtemp>=1, 
+		//then (set variable to the remainder of dividing max defects by xtemp)
+		xmod=modulo(x,xtemp)
+	); 
+	
+	//Create empty lists and set default for nflag
+	nlist={};		//list of sample sizes
+	clist={};		//list of defects
+	nflag=0;		//flag for when sample size becomes greater than max sample size
+	
+	//End Script if "Cancel" button is chosen in user window
+	If(
+		//if Cancel button is selected
+		button==-1, 
+		//then end script and show a log line
+		Print("X_Defects_Sample_Size_Script: Ending Script, Cancel chosen.");
+		Print("X_Defects_Sample_Size_Script: Create user window and determine user inputs completed.");
+		Print("X_Defects_Sample_Size_Script: Create user window and determine x-defects sample size results completed.");
+		Print("X_Defects_Sample_Size_Script completed.");
+		Stop();
+		Wait( 0.1 );
+	);
+	
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Create user window and determine user inputs completed.");
+	
+	/*************************************************************
+	Divider - Error testing of alpha, max sample size, max defects, and target proportion
+
+	**************************************************************/
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Error testing of alpha, max sample size, max defects, and target proportion starting.");
+	
+	//Default additional variables for error testing
+	alphatest=.;		//ensure alpha value is acceptable
+	ntest=.;			//ensure max sample size value is acceptable
+	xtest=.;			//ensure max defects value is acceptable
+	potest=.;			//ensure target proportion value is acceptable
+	
+	//Alpha error testing
+	If(
+		//if (alpha is greater than 0.4 or less than or equal to 0 or missing)
+			alpha > 0.4 | alpha <= 0 | Is Missing(alpha), 
+		//then (show error window and set alphatest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a value for Confidence Level between 60% and 100%"),
+					textbox(""),
+					hlistbox(spacerbox(Size(250,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set alphatest variable
+			alphatest="out";
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Error with value of confidence."),
+		//else (set alphatest variable)
+			//Set alphatest variable
+			alphatest="OK"
+	);
+	//Max Sample Size error testing
+	If(
+		//if (max sample size is less than 1, is a decimal value, or is missing)
+			MxN < 1 | nmod > 0 | Is Missing(MxN), 
+		//then (show error window and set ntest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a positive integer for Max Sample Size >= 1."),
+					textbox(""),
+					hlistbox(spacerbox(Size(200,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set ntest variable
+			ntest="out";
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Error with value of max sample size."),
+		//else (set ntest variable)
+			ntest="OK"
+	);
+	//Max Defects error testing
+	If(
+		//if (max defects is less than 1, is a decimal value, or is missing)
+			x < 0 | xmod > 0 | Is Missing(x), 
+		//then (show error window and set xtest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Enter a positive integer for Max Defects >= 0."),
+					textbox(""),
+					hlistbox(spacerbox(Size(175,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set xtest variable
+			xtest="out";
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Error with value of max defects."),
+		//else (set xtest variable)
+			xtest="OK"
+	);
+	//Target Proportions error testing
+	If(
+		//if (scale is % and target proportion is not between 0 and 100, or is missing)
+			scale=="%" & (target_p0 <= 0 | target_p0 >= 100 | Is Missing(target_p0)), 
+		//then (show error window and set potest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Target Proportion must be 0% < p < 100%"),
+					textbox(""),
+					hlistbox(spacerbox(Size(150,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set potest variable
+			potest="out";
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Error with value of target proportion."),
+		//if (scale is DPM and target proportion is not between 0 and 1,000,000, or is missing)
+			scale=="DPM" & (target_p0 <= 0 | target_p0 >= 1000000 | Is Missing(target_p0)), 
+		//then (show error window and set potest variable and log line)
+			//Show error window
+			New Window("Error",
+				<<Modal,
+				vlistbox(
+					textbox(""),
+					textbox("Target Proportion must be 0 DPM < p < 1,000,000 DPM"),
+					textbox(""),
+					hlistbox(spacerbox(Size(225,5)), Button Box("OK")),
+					textbox("")
+				)
+			);
+			//Set potest variable
+			potest="out";
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Error with value of target proportion."),
+		//else (set potest variable)
+			potest="OK"
+	);
+
+	//Determine distribution to use
+	If(
+		//if (Population Size is not used)
+		Is Missing(popn),
+		//then (use binomial distribution)
+		dist="b",
+		//else (use hypergeometric disribution)
+		dist="h"
+	);
+
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Error testing of alpha, max sample size, max defects, and target proportion completed.");
+	
+	/*************************************************************
+	Divider - Binomial Distribution Calculations
+
+	**************************************************************/
+	//Binomial Distribution Calculations
+	If(
+		//if (binomial distribution)
+			dist=="b" & ntest=="OK" & xtest=="OK" & alphatest=="OK" & potest=="OK",
+		//then (perform calculations)
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Binomial distribution calculations starting.");
+			
+			//Convert proportion to decimal
+			If(
+				//if (using %)
+				scale=="%", 
+				//then (convert target proportion to decimal by dividing by 100)
+				target_p02=target_p0/100, 
+				//else (convert target proportion to decimal by dividing by 1,000,000)
+				target_p02=target_p0/1000000
+			);
+			
+			//Default variables
+			n=1;
+			nflag=0;
+			
+			//Loop from 0 to the max defects and sample size less than max sample size and while the flag is 0
+			//Generate list of results
+			For(c=0, c<=x & n<=MxN & nflag==0, c++, 
+				While(
+					//While the binomial distribution probability result using the target proportion, sample size, and number of defects is
+					//greater than or equal to alpha and the flag is 0
+					Binomial Distribution(target_p02, n, c) >= alpha & nflag==0, 
+					//Increment the sample size
+					n++; 
+					//Check if sample size is greater than max sample size
+					If(
+						//if (sample size is greater than max sample size)
+						n > MxN,
+						//then (set flag to 1 to end calculations)
+						nflag=1
+					);
+				);
+				//If sample size is less than or equal to max sample size then insert sample size and defect values into lists
+				If(
+					//if (sample size is less than or equal to max sample size)
+					n <= MxN, 
+					//then (insert sample size and defect values into lists)
+					Insert Into(nlist, n); 
+					Insert Into(clist, c)
+				);
+			);//End For Loop
+			
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Binomial distribution calculations completed.");
+		
+	);//End If (Binomial Distribution)
+
+	/*************************************************************
+	Divider - Hypergeometric Distribution Calculations
+
+	**************************************************************/
+	//Hypergeometric Distribution Calculations
+	If(
+		//if (hypergeometric distribution)
+			dist=="h" & ntest=="OK" & xtest=="OK" & alphatest=="OK" & potest=="OK",
+		//then (perform calculations)
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Hypergeometric distribution calculations starting.");
+			
+			//Convert proportion to decimal
+			If(
+				//if (using %)
+				scale=="%", 
+				//then (convert target proportion to decimal by dividing by 100)
+				target_p02=target_p0/100, 
+				//else (convert target proportion to decimal by dividing by 1,000,000)
+				target_p02=target_p0/1000000
+			);
+			
+			//Calculate the number of defects in the population
+			K = target_p02 * popn;
+			
+			//Default variables
+			n=1;
+			nflag=0;
+			
+			//Loop from 0 to the max defects and sample size less than max sample size and while the flag is 0
+			//Generate list of results
+			For(c=0, c<=x & n<=MxN & nflag==0, c++, 
+				While(
+					//While the hypergeometric distribution probability result using the population, number of defects in population,
+					//sample size, and number of defects is greater than or equal to alpha and the flag is 0
+					Hypergeometric distribution(popn, K, n, c) >= alpha & nflag==0,
+					//Increment the sample size
+					n++;
+					//Check if sample size is greater than max sample size
+					If(
+						//if (sample size is greater than max sample size)
+						n > MxN, 
+						//then (set flag to 1 to end calculations)
+						nflag=1
+					);
+				);
+				//If sample size is less than or equal to max sample size and pouplation then insert sample size and defect values into lists
+				If(
+					//if (sample size is less than or equal to max sample size and population)
+					n <= MxN & n <= popn, 
+					//then (insert sample size and defect values into lists)
+					Insert Into(nlist, n); 
+					Insert Into(clist, c)
+				);
+			);//End For Loop
+		
+			//Log Line
+			Print("X_Defects_Sample_Size_Script: Hypergeometric distribution calculations completed.");
+		
+	);//End If (Hypergeometric Distribution Calculations)
+
+	/*************************************************************
+	Divider - Display Results
+
+	**************************************************************/
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Display results starting.");
+	
+	//Set distribution name for output
+	If(
+		//if (distribution is binomial)
+		dist == "b", 
+		//then (set distribution name to Binomial)
+		distname="Binomial", 
+		//else (set distribution name to Hypergeometric)
+		distname = "Hypergeometric"
+	);
+
+	//Display Results
+	If(
+		//if (user inputs are OK)
+			ntest=="OK" & xtest=="OK" & alphatest=="OK" & potest=="OK",
+		//then (display results)
+			output=New Window("x-Defects Sampling Table",
+				//Determine output window showing % or DPM
+				If(
+					//if (using %)
+					scale=="%",
+					//then (set output window variable to %)
+					scalet="%",
+					//else (set output window variable to DPM)
+					scalet=" DPM"
+				);
+				//Build output window components
+				outlinebox("User Input",
+					hlistbox(
+						vlistbox(
+							textbox("Target Defect Rate"),
+							textbox("Confidence Level"),
+							If(
+								//if (hypergeometric distribution used)
+								dist=="h", 
+								//then (include Population Size textbox)
+								textbox("Population Size")
+							)
+						),
+						textbox("  "), 
+						textbox("  "), 
+						textbox("  "),
+						vlistbox(
+							textbox(char(target_p0)||scalet),
+							textbox(char(conf)||"%"),
+							If(
+								//if (hypergeometric distribution used)
+								dist=="h", 
+								//then (include Population Size value)
+								textbox(char(popn))
+							)
+						)
+					)
+				),
+				If(
+					//if (no items in defect list)
+					NItems(clist)==0, 
+					//then (include text stating no sampling plan)
+					outlinebox("Sample Size Table (" || distname || ")",
+						textbox("No sampling plan could be calculated")
+					),
+					//else (include defect and sample size results)
+					outlinebox("Sample Size Table (" || distname || ")",
+						TableBox( 	
+							Number Col Box("Number of Defects", clist),
+							Number Col Box("Sample Size (n)", nlist)
+						)
+					)
+				),
+				outlinebox("Guidelines",
+					TextBox("Table above contains minimum sample sizes for a given number of defects in order to conclude SB to "||char(target_p0)||scalet )
+				),
+				FooterBox
+			); //Output Window
+			//Size window	
+			output<<size window(400,475);
+	);//End If (Output Window)
+	
+	//Log Line
+	Print("X_Defects_Sample_Size_Script: Display results completed.");
+	
+);//End While
+
+//Log Line
+	Print("X_Defects_Sample_Size_Script: Create user window and determine x-defects sample size results completed.");
+
+//Log Line
+	Print("X_Defects_Sample_Size_Script completed.");
+
+/*************************************************************
+Divider - End of Script
+
+**************************************************************/

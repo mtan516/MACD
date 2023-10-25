@@ -1,0 +1,467 @@
+////////////////////////////////////////////////////
+//// Code to create Matching & Correlation plot ////
+//// comparing T53 to T130.						////
+Close All(Data Tables, No Save);
+Close All(Reports, NoSave);
+Close All(Journals, NoSave);
+
+// Matching scripts //
+Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+//Include( "C:\Users\mtan\Documents\Current Projects\MCA\MCA_JMPSCRIPTS\R2\SOSFunc.jsl" );
+//img = Open("C:\Users\mtan\Desktop\memes\1.PNG", jpg);
+
+
+// User-defined data structure //
+ICOSdb = Dialog(
+	Title( "Finish Data Processing" ),
+	"This script organizes data from the T53 and T130 tools in the Finish Module.",
+	"It will prompt the user for the location of specific files or folders.",
+	"You cannot have any JMP tables open for this script to run properly.",
+	"Does anyone actually read this?",
+	"",
+	"How is your T53 data organized?",
+	ref_data = Radio Buttons( "Folder of files (*.txt)", "Single formatted JMP file" ),
+	"",
+	"How is your T130 data organized?",
+	new_data = Radio Buttons( "Folder of files (*.csv)", "Single formatted JMP file" ),
+	"",
+	"Package Type:",
+	pkg_type = Radio Buttons( "BGA", "LGA" ),
+	HList( Button( "OK" ), Button( "Cancel" ) )
+);
+T53_flag = ICOSdb["ref_data"];
+T130_flag = ICOSdb["new_data"];
+pkg_flag = ICOSdb["pkg_type"];
+n = 1;
+
+
+If( ICOSdb["Button"] != -1,
+
+// Save folder //
+	save_path = Pick Directory( "Select the folder where the final output will be saved." );
+
+// T53 files //
+	If(
+		T53_flag == 2,
+			T53_loc = Pick File(
+				"Select the JMP file that contains the T53 data.",
+				save_path,
+				{"JMP Files|jmp;jsl;jrn", "All Files|*"},
+				1,
+				0,
+				"T53.jmp"
+			),
+		T53_flag == 1, T53_folder = Pick Directory( "Select the folder containing T53 files" )
+	);
+
+// T130 files //
+	If(
+		T130_flag == 2,
+			T130_loc = Pick File(
+				"Select the JMP file that contains the T130 data.",
+				save_path,
+				{"JMP Files|jmp;jsl;jrn", "All Files|*"},
+				1,
+				0,
+				"T130.jmp"
+			),
+		T130_flag == 1 & n == 1,
+			T130_folder = Pick Directory( "Select the folder containing T130 files" );
+
+		T130_flag == 1 & n == 2,
+			T130_folder = Pick Directory( "Select the folder containing subfolders of T130 files" );
+	);
+
+
+//dwin = new window("Dog", img);
+
+
+	If( T53_flag == 1,
+		img = Open( "$ADDIN_HOME(ATTD.FINISH)\seen.jpg", jpg );
+		obj = New Window( "PROCESSING", img );
+	// T53 data scattered in *.txt files //
+		T53_filelist = Files In Directory( T53_folder );
+
+
+		For( k = 1, k <= N Items( T53_filelist ), k++,
+			cfile = T53_filelist[k];
+			If( Contains( cfile, "Tray" ) > 0,
+				dts = Open( T53_folder || cfile, invisible );
+				caption({150,150},"Processing T53S files");
+
+		// Create a Tray identifying column //
+				dts << New Column( "T53 Tray", character, nominal, set each value( cfile) );
+		// Create Request identifying column //
+				dts << New Column( "Request", character, nominal, set each value( Word( 1, cfile, "_" ) ) );
+		// Create Lot identifying column //
+				//dts << New Column( "Lot", character, nominal, set each value( Word( 2, cfile, "_" ) ) );
+			);
+		);
+		caption(remove);
+
+	// Concatenate all tables together //
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			Insert Into( openDTs, Data Table( i ) )
+		);
+	// OpenDTs is now a list of all open tables in JMP //
+		T53dt = openDTS[1];
+		If( N Table() > 1,
+			T53dt = openDTS[1] << Concatenate( openDTs[2 :: N Table()] );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		obj << close window();
+		img = "";
+		T53dt << Current Data Table();
+	// Format columns //
+		T53dt:Sample_ID << Set Name( "2DID" );
+		T53dt:Coplanarity << Set Name( "Coplanarity temp" );
+		T53dt << New Column( "Coplanarity", numeric, continuous, formula( Num(:Coplanarity temp) ), 				EvalFormula);
+		T53dt:Substrate_Flatness << Set Name( "Substrate temp" );
+		T53dt << New Column( "Substrate_Flatness", numeric, continuous, formula( Num(:Substrate temp) ), 					EvalFormula);
+		If(
+			pkg_flag == 1,
+			T53dt:Ball_height << Set Name( "Ball_Height temp" );
+			T53dt << New Column( "Ball_Height", numeric, continuous, formula( Num(:Ball_Height temp) ),EvalFormula);
+		);
+		If(
+			pkg_flag == 2,
+			T53dt:Land_Depth << Set Name( "Ball_Height temp" );
+			T53dt << New Column( "Ball_Height", numeric, continuous, formula( Num(:Ball_Height temp) ),EvalFormula);
+		);
+		Column( T53dt, "X_loc" ) << Set Name( "X" );
+		Column( T53dt, "Y_loc" ) << Set Name( "Y" );
+		T53dt << New Column( "Xt", Width( 10 ), formula( Round(Num( :X ),1) ), EvalFormula );
+		T53dt << New Column( "Yt", Width( 10 ), formula( Round(Num( :Y ),1) ), EvalFormula );
+		T53dt << New Column( "X_loc", Width( 10 ), formula( Round(Num( :Xt ),0) ), EvalFormula );
+		T53dt << New Column( "Y_loc", Width( 10 ), formula( Round(Num( :Yt ),0) ), EvalFormula );
+		T53dt:X_loc << Delete Formula;
+		T53dt:Y_loc << Delete Formula;
+		T53dt:Xt << Delete Formula;
+		T53dt:Yt << Delete Formula;
+		T53dt << Delete Columns( "X", "Y", "Xt", "Yt" );
+
+	// Average in case of multiple runs //
+		mT53dt = T53dt << Summary( Group( :Name( "2DID" ),:X_loc, :Y_loc, :Request), Mean( :Coplanarity ), Mean( :Substrate_Flatness ), Mean( :Ball_Height ), Std Dev( :Coplanarity ) );
+		Column( mT53dt, "Mean(Coplanarity)" ) << Set Name( "T53_CO" );
+		Column( mT53dt, "Mean(Substrate_Flatness)" ) << Set Name( "T53_SC" );
+		Column( mT53dt, "Std Dev(Coplanarity)" ) << Set Name( "T53_CO_SD" );
+		Column( mT53dt, "Mean(Ball_Height)" ) << Set Name( "T53_BH" );
+		Column( mT53dt, "N Rows" ) << Set Name( "T53 Runs" );
+
+	// Saving files //
+		Summarize( save_flag = By( :T53 Runs ) );
+		for(i=1, i<=Ncol(mT53dt),i++,Column(mT53dt,i)<< Set Lock(0););
+
+		Close( mT53dt, save( save_path || "T53.jmp" ) );
+		If( N Items( save_flag ) == 1 & save_flag[1] == "1",
+			Close( T53dt, nosave ),
+			Close( T53dt, save( save_path || "T53_all_runs.jmp" ) )
+		);
+	);
+
+	If( T130_flag == 1,
+		img = Open( "$ADDIN_HOME(ATTD.FINISH)\face.jpg", jpg );
+		obj = New Window( "PROCESSING", img );
+	// T130 data scattered in a single folder //
+		T130_filelist = Files In Directory( T130_folder );
+
+
+		For( k = 1, k <= N Items( T130_filelist ), k++,
+			cfile = T130_filelist[k];
+			If( Contains( cfile, "Tray" ) > 0,
+				dts = Open( T130_folder || cfile, Invisible );
+				caption({150,150},"Processing T130 files now");
+
+				// Create a Tray identifying column //
+				dts << New Column( "T130 Tray", numeric, nominal, set each value( Num( Right( Word( 1, cfile, "." ), 4 ) ) ) );
+			);
+		);
+		obj << close window();
+		img = "";
+		caption(remove);
+
+		// Concatenate all tables together //
+		openDTs = {};
+		For( i = 1, i <= N Table(), i++,
+			Insert Into( openDTs, Data Table( i ) )
+		);
+		// OpenDTs is now a list of all open tables in JMP //
+		T130dt = openDTS[1];
+		If( N Table() > 1,
+			T130dt = openDTS[1] << Concatenate( openDTs[2 :: N Table()] );
+			For( i = 1, i <= N Items( openDTs ), i++,
+				Close( openDTs[i], nosave )
+			);
+		);
+		T130dt << Current Data Table();
+		T130dt:Name("CO [micron]") << Data type( Numeric ) << Set Modeling Type( Continuous );
+		T130dt:Name("CO_RF [micron]") << Data type( Numeric ) << Set Modeling Type( Continuous );
+		// Average in case of multiple runs //
+		mT130dt = T130dt << Summary(
+			Group( :Name( "2DID" ), :Ball nominal X, :Ball nominal Y, :Ball name, :Batch name),
+			Mean(:Name( "CO [micron]" ), :Name( "CO_RF [micron]") )
+			);
+		Column( mT130dt, "Mean(CO [micron])" ) << Set Name( "T130_CO" );
+		mT130dt:Name("T130_CO") << Format("Fixed Dec",6,2);
+		Column( mT130dt, "Mean(CO_RF [micron])" ) << Set Name( "T130_CORF" );
+		mT130dt:Name("T130_CORF") << Format("Fixed Dec",6,2);
+		Column( mT130dt, "N Rows" ) << Set Name( "T130 Runs" );
+		//Summarize( save_flag = By( :T130 Runs ) );
+		for(i=1, i<=Ncol(mT130dt),i++,Column(mT130dt,i)<< Set Lock(0););
+		Close( mT130dt, save( save_path || "T130.jmp" ) );
+		//If( N Items( save_flag ) == 1 & save_flag[1] == "1",
+		Close( T130dt, save( save_path || "T130N_all_runs.jmp" ) )
+		//);
+	);
+
+// Create Key for Joining
+	If(
+		T53_flag == 2, T53dt = Open( T53_loc, Invisible ),
+		T53_flag == 1, T53dt = Open( save_path || "T53.jmp", Invisible )
+	);
+	If(
+		T130_flag == 2, T130dt = Open( T130_loc, Invisible ),
+		T130_flag == 1, T130dt = Open( save_path || "T130.jmp", Invisible )
+	);
+		T53XY = T53dt << Summary( Group( :X_loc, :Y_loc ), Link to original data table( 0 ), Invisible);
+		T53XY << New Column( "XR", Width( 10 ), formula( Round(Num( :X_loc ),-1) ), EvalFormula );
+		T53XY << New Column( "YR", Width( 10 ), formula( Round(Num( :Y_loc ),-1) ), EvalFormula );
+		T53XY << Sort( Replace table, By( :XR, :YR ), Order( Ascending, Ascending ) );
+		T53XY << Delete Columns( "N Rows" );
+		//Wait( 1 );
+		T130XY = T130dt << Summary( Group( :Ball nominal X, :Ball nominal Y, :Ball name ), Link to original data table( 0 ), Invisible);
+		T130XY << Delete Columns( "N Rows" );
+		//Wait( 1 );
+		T130XY << New Column( "XR2", Width( 10 ), formula( Round(Num( :Ball nominal X ),-1) ), EvalFormula );
+		T130XY << New Column( "YR2", Width( 10 ), formula( Round(Num( :Ball nominal Y ),-1) ), EvalFormula );
+		T130XY << Sort( Replace table, By( :XR2, :YR2 ), Order( Ascending, Ascending ) );
+		T130XY << Update( With(T53XY) );
+		T130XY << New Column( "PinCheck",Character,
+			formula( If(Abs(:X_loc - :Ball nominal X) > 1 | Abs(:Y_loc - :Ball nominal Y) > 1, "MisMatch", "OK") )
+			);
+		T53dt << Update(
+			With(T130XY),
+			By Matching Columns(X_loc == X_loc, Y_loc == Y_loc),
+			Add Columns from Update table (:Ball name, :PinCheck)
+			);
+		Close( T130XY, save ( save_path || "Key.jmp" ));
+		Close ( T53XY, nosave);
+// Join tables & reorder
+		T130dt << Update(
+			With(T53dt),
+			By Matching Columns( :Name( "2DID" ) == :Name( "2DID" ), :Ball name == :Ball name)
+			);
+		//T130dt = currentdatatable();
+		Close( T53dt, nosave);
+		Column( T130dt, "2DID" ) << Set Name( "DataMatrix");
+		nc = T130dt << get column names( Numeric );
+		//For( i = 1, i <= N Items( nc ), i++,
+		 // nc[i][T130dt << get rows where( Is Missing( nc[i][] ) )] = 0
+		//); 
+		T130dt << New Column( "T53CO-T130Bias",
+			Format("Fixed Dec",6,2),
+			formula( :T53_CO - :T130_CO )
+			);
+		T130dt << New Column( "MissingT53",
+			formula( Col Sum( :T53_CO, :DataMatrix ) )
+			);
+		T130dt << New Column( "MissingT130",
+			formula( Col Sum( :T130_CO, :DataMatrix ) )
+			);
+		T130dt << Select Where(:MissingT53 == 0 | :MissingT130 == 0);
+		T130dt << delete rows();
+		T130dt << Delete Column( "MissingT53" );
+		T130dt << Delete Column( "MissingT130" );
+		T130dt << Run Formulas;
+		T130dt << Move Selected Columns({"Batch name"}, To First);
+		T130dt << Move Selected Columns({"Ball name"}, After("DataMatrix"));
+		T130dt << Move Selected Columns({"X_loc"}, After("Ball name"));
+		T130dt << Move Selected Columns({"Y_loc"}, After("X_loc"));
+		T130dt << Move Selected Columns({"T53_CO"}, After("Y_loc"));
+		T130dt << Move Selected Columns({"T53_SC"}, After("T53_CO"));
+		T130dt << Move Selected Columns({"T130_CO"}, After("T53_SC"));
+		T130dt << Sort( Replace table, By( :T53_CO ), Order( Ascending ) );
+		T130dt << Clear Select;
+		//T130dt:PinCheck << Delete Formula;
+		T130dt << Select Where(:PinCheck != "OK");
+		If( NRow( T130dt << GetSelectedRows != 0),
+			T130dt << label;
+			T130dt << Colors("Red"),
+			T130dt:PinCheck << Hide;
+		);
+		column(T130dt,"T53_CO_SD") << Format("Fixed Dec",6,2);
+		column(T130dt,"T53_BH") << Format("Fixed Dec",6,2);
+		//Wait( 1 );
+		T130dt:Name("Ball nominal X")<<Hide;
+		T130dt:Name("Ball nominal Y")<<Hide;
+		//T130dt:Name("T53 Ball BH")<<Hide;
+		T130dt:Name("T130 Runs")<<Hide;
+		T130dt:Name("T53 Runs")<<Hide;
+		for(i=1, i<=Ncol(T130dt),i++,Column(T130dt,i)<< Set Lock(0););
+
+		// Attach Scripts to TableS!//
+		//Tune_fnct( Column( T130dt, "T53_CO" ), Column( T130dt, "T130_CO" ) );
+		//T130tune = column(T130dt, ncol(T130dt));
+		//gmetro = T130dt << Group Columns("Metrology", {:T53_SC, :T53_CO, :T130_CO, T130tune, :T130 	Ball CORF});
+		//T130dt << get column group("gmetro");
+		// Add ZCor Function
+		
+		//T130dt << Add Properties to Table(
+		//	{New Script(
+		//		"T53S SCreen",
+		//		Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+		//		//caption("Running ZCor script");
+		//		dt = currentdatatable();
+		//		//Eval(ZCorFun);
+		//		//caption(remove);
+		//		)
+		//	}
+		//);
+		
+		T130dt << Add Properties to Table(
+			{New Script(
+				"ZCor",
+				Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+				dt = currentdatatable();
+				Eval(ZCorFun);
+				)
+			}
+		);
+		// Add Tuning function
+		T130dt << Add Properties to Table(
+			{New Script(
+				"Tune",
+				Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+				caption("Tuning data");
+				dt = currentdatatable();
+				Eval(Tune_fnct);
+				caption(remove);
+				)
+			}
+		);
+		// Add 3D Plot Function
+		T130dt << Add Properties to Table(
+			{New Script(
+				"3D Plot!",
+				Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+				dt = currentdatatable();
+				Eval(getmetrocol);
+				splt = metro;
+				splt[length(splt)+1]="X_loc";
+				splt[length(splt)+1]="Y_loc";
+				dt << Maximize Window( 1 );
+				sp = Surface Plot(
+						Columns( Eval(splt) ),
+						Equation( ., ., ., . ),
+						Show Surface( Off ),
+						Dependent Variables Color( 0 ),
+						Dependent Variables Color( 0 ),
+						Dependent Variables Response Grid( 0 ),
+						Datapoints Choice( Surface ),
+						Datapoints Choice2( Points ),
+						Z Grid Position( 0 ),
+
+						Response( :T53_SC, :T130_CO ),
+						Surface Color Method( "Solid", "Solid", "Solid", "Solid" ),
+						SetVariableAxis( :X_loc, Axis Data( {Format( "Best", 8 ), Inside Ticks( 1 )} ) ),
+						SetVariableAxis( :Y_loc, Axis Data( {Format( "Best", 8 ), Inside Ticks( 1 )} ) ),
+						SetVariableAxis(
+							:T53_CO,
+							Axis Data( {Format( "Best", 8 ), Inside Ticks( 1 )} )
+						),
+
+						SetXVariable( X_loc ),
+						SetYVariable( Y_loc ),
+
+						Frame3D(
+							Set Graph Size( 600, 600 ),
+							Set Hide Lights Border( 1 ),
+							Set Box (0),
+							Set Rotation( -54, 0, 38 )
+						),
+						Local Data Filter(
+							Location( {1891, 291} ),
+							Mode( Select( 0 ), Show( 1 ), Include( 1 ) ),
+							Add Filter(
+								columns( :DataMatrix ),
+								Display( :DataMatrix, Size( 208, 300 ), List Display )
+							)
+						)
+					);
+				Wait(1);
+				sp << Maximize Window( 0 );
+				sp << SetZAxis(
+							Current Value( 0 ),
+							Axis Data(
+								{Min( -150 ), Max( 150 ), Inc( 50 ),
+								Minor Ticks( 1 ), Inside Ticks( 1 )}
+							)
+						);
+				sp << Lock Z Scale( 1 );
+				)
+			}
+		);
+		T130dt << Add Properties to Table(
+			{New Script(
+				"2D & Matching",
+					Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+					dt = currentdatatable();
+					Matching_fnct( {}, Column( dt, "T130_CO" ), Column( dt, "T53_CO" ) );
+					if(Column( dt, 9) != column("Ball nominal X"),
+						Matching_fnct( {}, Column( dt, 9), Column( dt, "T53_CO"));
+					);
+					tempdt = dt << Summary(
+						Group( :X_loc, :Y_loc),
+						Mean(:Name( "T53CO-T130Bias" )),
+						Std Dev( :Name( "T53CO-T130Bias" ) )
+					);
+					biasplot = Bubble Plot(
+						X( :X_loc ),
+						Y( :Y_loc ),
+						Coloring( :Name( "Mean(T53CO-T130Bias)" ) ),
+						Color Levels([-10 -7.5 -5 -2.5 0 2.5 5 7.5 10])
+					);
+					Report(biasplot)[FrameBox(1)] << size to isometric;		
+
+				)
+			}
+		);
+
+		T130dt << Add Properties to Table(
+			{New Script(
+				"Convert to Unit Level",
+					Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+					dt = currentdatatable();
+					Eval(getmetrocol);
+					MCArdt = dt << Summary(
+						Group( :Name( "DataMatrix" ), :Batch name, :Request ),
+						Range( Eval(metro) ),
+						statistics column name format( "column" )
+					);
+					Column( MCArdt, "T53_CO" ) << Set Name( "T53_CO" );
+					Column( MCArdt, "T53_SC" ) << Set Name( "T53_SC" );
+					Column( MCArdt, "T130_CO" ) << Set Name( "T130_CO" );
+					Column( MCArdt, "T130_CORF") << Set Name( "T130_CORF");
+					//Column( MCArdt, ncol(MCArdt) ) << Set Name( "T130_Tuned Unit_CO" );
+					MCArdt << Sort( Replace table, By( :T53_CO ), Order( Ascending ) );
+					//Matching_fnct( {}, Column( MCArdt, "T53_CO" ), Column( MCArdt, "T53_SC" ) );
+					Matching_fnct( {}, Column( MCArdt, "T130_CO" ), Column( MCArdt, "T53_CO" ) );
+					//if(Column( MCArdt, 7) != column("T130_CORF"),
+						//Matching_fnct( {}, Column( MCArdt, 7), Column( MCArdt, "T53_CO"));
+					//);
+					//Matching_fnct( {}, Column( MCArdt, "T130_CO" ), Column( MCArdt, "T53_SC" ) );
+				)
+			}
+		);
+		Close( T130dt, save ( save_path || "Matching.jmp" ));
+		Close All(Data Tables, No Save);
+
+		MCAdt = Open( save_path || "Matching.jmp" );
+		Include( "$ADDIN_HOME(ATTD.FINISH)\SOSFunc.jsl" );
+		//logme("Matching", "MCA");
+		);
+
+

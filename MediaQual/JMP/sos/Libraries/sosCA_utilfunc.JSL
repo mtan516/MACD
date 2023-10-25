@@ -1,0 +1,563 @@
+ /**********************************************************
+ * SOS Commonality UTILITY Function Library
+ * This file contains utility functions and expressions
+ * called by SOS Commonality Analysis scripts
+ *
+ * JMP Version: 5.1.1 - 7.0
+ * 
+ * $Author: Pdbrown $
+ * $Revision: 13 $
+ * $Version:$
+ * $Date: 3/06/08 4:37a $
+ * $Modtime: 8/15/11 4:21a $
+ * $Archive: /SOSdev/SOS2/LIBRARIES/sosCA_utilfunc.JSL $
+ *
+ * $History: sosCA_utilfunc.JSL $
+  * *****************  Version 13  *****************
+ * User: stan27      Date: 8/15/11    Time: 4:37a
+ * Add in 		Dispatch( {}, "1", ScaleBox, {Rotated Labels( 1 )} ), for ::GenerateCAScatterPlot & ::GenerateCATrendChart
+  * *****************  Version 12  *****************
+ * User: stan27      Date: 8/27/09    Time: 4:37a
+ * Add in _window_<<Savehtml(Eval(path_) || Eval(name_) || ".htm") ); into CA_CloseWindow for Auto ProCA
+ * 
+ * *****************  Version 11  *****************
+ * User: Pdbrown      Date: 3/06/08    Time: 4:37a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix min lot exclusion routine updated.
+ *  Missing levels now handled correctly
+ *  lot count of excluded levels is now correct
+ * 
+ * *****************  Version 10  *****************
+ * User: Pdbrown      Date: 2/01/08    Time: 4:17a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update DeselectColumnRows()
+ *  explen calculated only if Modeling Type=Continuous
+ * 
+ * *****************  Version 9  *****************
+ * User: Pdbrown      Date: 1/25/08    Time: 8:21a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * 1. Enhance CA_CloseWindow() with option to save multiple windows to one
+ * journal.
+ * 2. Force exclusion criteria vars to zero if user leaves empty when
+ * creating new control file.
+ * 3. "Missing" levels now excluded from level count always (prev was only
+ * if n_lev=2).
+ * 4. One_samp_per_lev flag is now raised when one level is found that has
+ * only 2 samples (solves problem with Mean Comp).
+ * 5. New functions: FindEmptyGrpCols(), MessageBox().
+ * 6. Turn on quantile plot option in Oneway() platform.
+ * 
+ * *****************  Version 8  *****************
+ * User: Pdbrown      Date: 1/18/08    Time: 10:11a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Enable Quantile Plot
+ * 
+ * *****************  Version 7  *****************
+ * User: Pdbrown      Date: 1/14/08    Time: 5:18p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Correct handling of **MISSING** in exclusion report
+ * 
+ * *****************  Version 6  *****************
+ * User: Pdbrown      Date: 12/17/07   Time: 4:27p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Fix error with  data_colname
+ * 
+ * *****************  Version 5  *****************
+ * User: Pdbrown      Date: 12/17/07   Time: 11:54a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update DetectDateFormat(), FindExcl()
+ * Add logic to select BF or Levene Var test
+ * 
+ * *****************  Version 4  *****************
+ * User: Pdbrown      Date: 11/27/07   Time: 3:36p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * SummarizeInput()
+ *  Remove Max("N Rows") from summary (not used)
+ * 
+ * *****************  Version 3  *****************
+ * User: Pdbrown      Date: 11/18/07   Time: 4:35p
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ * Update DetectDateFormat() to erase "Max()" from datecols.
+ * Add new functions: FindAndExcl(), SummarizeInput(),
+ * DeselectColumnRows(), AnalysisPreChk().
+ * Retire FindAndExclMinX().
+ * GenerateCAOneway()
+ *   Disable means diamonds if (n_oneperlev/n_lev) < 0.4.
+ *   Disable comp circles. Close Means/Std if one_samp_per_lev.
+ *   Replace _t==1 with answitch.
+ * GenerateCAScatterPlot()
+ *   Add _fitQ to control FitLine.
+ * 
+ * *****************  Version 2  *****************
+ * User: Pdbrown      Date: 10/19/07   Time: 4:56a
+ * Updated in $/SOSdev/SOS2/LIBRARIES
+ **********************************************************/
+ 
+//////////////////////////////////////////////////////////////////////////////
+::CA_CloseTable = Function( {dt_, dtname_="", saveQ_=0, path_="C:\"},
+
+If( dtname_ == "", dtname_ = Expr(dt_ << GetName) );
+If( Type(dt_) == "Table",
+  If( Eval(saveQ_) == 1,
+    Close( Eval(dt_), Save(Char(Eval(path_) || Eval(dtname_) || ".jmp")) ),
+
+    Close( Eval(dt_), NoSave );
+  )
+);
+
+);
+
+//////////////////////////////////////////////////////////////////////////////"
+::CA_CloseWindow = Function( {window_list_={""}, name_="", saveQ_=0, path_="C:\"},
+
+If( name_ == "", name_ = "OutputWindow_" || DATE_STAMP );
+If( Type(Eval(window_list_)) != "List", window_list_=EvalList({window_list_}) );
+_window_ = NewWindow(Eval(name_), _outputbox_ = VListBox());
+Thread( Expr( If(Type(_argv) == "DisplayBox", _outputbox_ << Append(OutlineBox(_argv << GetWindowTitle, _argv, <<Close(1))); _argv << CloseWindow) ), EvalList(window_list_) );
+If( Eval(saveQ_) == 1, _window_ << SaveJournal(Eval(path_) || Eval(name_) || ".jrn"));
+//_window_<<Savehtml(Eval(path_) || Eval(name_) || ".htm") );
+_window_ << CloseWindow;
+
+);
+
+//////////////////////////////////////////////////////////////////////////////"
+::DetectDateFormat = Function( {rawdt_}, {_col_name, _colfmts_, _fnd_={}, _datematchvals_={}, n, m},
+  _colfmts_ = {"Best", "Fixed Dec", "PValue", "Scientific", "Currency"};
+  For(n = 1, n <= NCol(rawdt_), n++,
+	  _col_name_ = Column(rawdt_,n) << GetName;
+    For(m = 1, m <= NItems(_colfmts_), m++,
+      InsertInto( _fnd_, 
+      	If( Contains(Char(Column(rawdt_,n) << GetFormat), _colfmts_[m]) & (!Contains(UpperCase(_col_name_), "MAX") | !Contains(UpperCase(_col_name_), "DATE")), 1, 0 )
+      );
+    );
+
+    If( All(Matrix(_fnd_) == 0),      
+			If( Contains(UpperCase(_col_name_), "MAX"),
+        _col_name_ = Munger(Munger(UpperCase(_col_name_),1,"MAX(",""),1,")","");
+        Column(rawdt_,n) << SetName( _col_name_ );
+      );	
+			InsertInto( _datematchvals_, _col_name_ ),
+              	
+			If( Contains( UpperCase(Column(rawdt_,n) << GetName), "DATE"), InsertInto( _datematchvals_, Column(rawdt_,n) << GetName )	);
+    );
+    _fnd_={};
+
+  ); //EndFor
+
+  _datematchvals_
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::GetExclusionLimits = Function( {},{DefaultLocal},
+Result = Dialog(Title("Exclusion Limits"),
+	HList(
+	VList(
+	"Exclude lots with sample size less than:",
+	"",
+	"Exclude Input Variable Levels with # lots less than:"
+	),
+	LineUp(2,VList(
+	samp_ex = EditNumber(),
+	level_ex = EditNumber()
+	))
+	),
+	HList(Button("OK"))
+);
+RemoveFrom(Result);
+EvalList(Result);
+
+EvalList({If(IsMissing(samp_ex),0,samp_ex),If(IsMissing(level_ex),0,level_ex)})
+
+);
+
+//////////////////////////////////////////////////////////////////////////////
+/*
+00 = Cont-Cont
+01 = Cont-Dis
+10 = Dis-Cont
+11 = Dis-Dis
+*/
+::GetTypeID = Function( { x_colid_, y_colid_ },
+	
+	choose_type={};
+	cont_id = { "Numeric", "Continuous" };
+	xin_type = If( (EvalList( { x_colid_ << GetDataType, x_colid_<<GetModelingType} ) == cont_id ), "0", "1" );
+	yin_type = If( (EvalList( { y_colid_ << GetDataType, y_colid_<<GetModelingType} ) == cont_id ), "0", "1" );
+
+	xin_type || yin_type
+
+); //EndFunction 
+
+//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// ObjectName: SetColTypes( dtcols, datecols )
+// Type: Function
+// Description: Autopupulates the Column Type Column in Control File
+//		    Date cols are labeled "X Date" by default, y_func=""
+//		    Col Names containing "FLAG" - Output(Y), y_func=%(1)
+//		    Col names containg "LOT" - Area Lot #, y_func=""
+//		    All others - Input(X), y_func=""	
+//		    Returns list of {coltypes,y_func}
+//
+// Author: PDB 8/28/06
+////////////////////////////////////////////////////////////
+::SetColTypes = Function( {_dtcols, _datecols }, {col_type={},y_func={}},
+
+//Load Date cols
+For( n=1, n<=NItems(_dtcols), n++,
+	If( NRow(Loc( _datecols, _dtcols[n])) !=0, 
+		InsertInto( col_type, "X Date" );
+		InsertInto( y_func, ""),
+
+		If( Contains( Trim(UpperCase(Eval(_dtcols[n]))), "LOT" ) & !Contains( Trim(UpperCase(Eval(_dtcols[n]))), "SLOT" ),
+			InsertInto( col_type, "Area Lot #" );
+			InsertInto( y_func, ""),
+
+			If( Contains( Trim(UpperCase(Eval(_dtcols[n]))), "FLAG" ),	
+				InsertInto( col_type, "Output (Y)");
+				InsertInto( y_func,"%(1)"),
+
+				InsertInto( col_type, "Input (X)");
+				InsertInto( y_func, "");
+			);
+		);
+	);
+); //EndFor
+EvalList({col_type,y_func})
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// ObjectName:SetAreaNames( dtcols, datecols, coltype )
+// Type: Function
+// Description: Decodes Area Names based on op number substring 
+//		    in col name. Mapping is obtained from operation number/area name
+//		    lookup table "Op Numbers with Descriptions_rev2.jmp".
+//		    Returns list area_names
+//
+// Author: PDB 8/28/06
+////////////////////////////////////////////////////////////
+::SetAreaNames = Function( {_dtcols, _datecols, _coltype }, {area_list={}, area_name=""},
+
+arearef_tab = Open( Ref_Path || op_num_template_name );
+op_num_list = Column(arearef_tab,"Operation") << GetValues;
+area_names = Column(arearef_tab,"Area") << GetValues;
+Close( arearef_tab, NoSave);
+
+area_list={};
+area_name="";
+date_list={};
+ni=NItems(_datecols);
+
+For( n=1, n<=NItems(_dtcols), n++,
+	fnd1=0;
+	fnd2=0;
+	For( m=1, m<=NRow(op_num_list), m++,
+		If( Contains( Eval(Uppercase(_dtcols[n])), Char(op_num_list[m]) ),fnd1=m; m=NRow(op_num_list) );
+	);
+	For( p=1, p<=NItems(_datecols), p++,
+		If( Contains( Eval(Uppercase(_datecols[p])), Char(op_num_list[fnd1]) ) & Contains( Eval(Uppercase(_datecols[p])), "OUT" ),fnd2=p; p=NItems(_datecols) );
+	);
+	If( fnd1,
+//		area_name = Munger(_dtcols[n], Munger(_dtcols[n],1,Char(op_num_list[fnd])),-1);
+		InsertInto( area_list, area_names[fnd1] );
+		InsertInto( date_list, If(!Contains(UpperCase(_coltype[n]),"DATE") & !Contains(UpperCase(_coltype[n]),"LOT") & fnd2, _datecols[fnd2],"") ),
+	
+		If( Contains( Eval( Uppercase(_dtcols[n]) ), "SUBSTRATE" ) |  Contains( Eval( Uppercase(_dtcols[n]) ), "SLI" ),
+			InsertInto( area_list, "Substrate" ),
+
+			/*ELSE*/
+			If( Contains( Eval( Uppercase(_dtcols[n]) ), "FAB" ),
+				InsertInto( area_list, "Die Prep" ),
+
+				If( Contains( Eval( Uppercase(_dtcols[n]) ), "FACILITY" ),
+					area_name = Munger( _dtcols[n],1,Munger( _dtcols[n], 1, "Facility")-2 );
+					InsertInto( area_list, area_name),
+
+					InsertInto( area_list, area_name);
+
+				);
+			);
+		);
+		InsertInto( date_list, "" );
+	);
+
+); //EndFor
+
+area_list
+); //EndFunction
+
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::SummarizeInput = Function( {dt_, inputx_, outputy_}, {_grp_rows_, _subdt_},
+  one_lev_chk = 0;
+  one_miss_lev_chk = 0;
+  one_samp_per_lev_chk = 0;
+  do_minex = 1;
+  do_zormy = 1;
+  
+  CurrentDataTable(dt_);
+  _grp_rows_ = dt_ << GetSelectedRows;
+  If( NRow(_grp_rows_) != 0 ,
+    _subdt_ = dt_ << Subset( Rows(_grp_rows_), Invisible);
+    CurrentDataTable(_subdt_);
+    Summarize( 
+      levels_x_prex = By( Column(_subdt_, Eval(inputx_)) ),
+      max_y_prex = Max( Column(_subdt_, Eval(outputy_)) ),
+      //max_samp_prex = Max( Column(_subdt_, "N Rows" ) ),
+      n_perlevel_x_prex = Count              	
+    );                      
+    n_levels_x_prex = NItems(levels_x_prex);
+    rat_oneperlevel_x = NRow(Loc(Matrix(n_perlevel_x_prex)==1))/n_levels_x_prex;
+    Close(_subdt_, NoSave);
+       
+    If( n_levels_x_prex == 1, one_lev_chk = 1 );
+    If( (Trim(levels_x_prex[1]) == "" | Trim(levels_x_prex[1]) == "."),
+      If( !one_lev_chk,     
+        //n_perlevel_x_prex = n_perlevel_x_prex[2::NRow(n_perlevel_x_prex)];
+        If( (1 <= n_levels_x_prex <= 2), one_lev_chk = 1 ),
+        
+        one_miss_lev_chk = 1; do_minex=0; do_zormy=0;
+      );
+    );
+    chk_n_perlev = Loc(Matrix(n_perlevel_x_prex)!=1);
+    If( NRow(chk_n_perlev) == 1 & n_perlevel_x_prex[chk_n_perlev] == 2, one_samp_per_lev_chk = 1; do_minex=0 );
+    If( All(Matrix(n_perlevel_x_prex)==1), one_samp_per_lev_chk = 1; do_minex=0 );
+    
+  );
+  CurrentDataTable(dt_);
+  Eval(_grp_rows_)
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::FindAndExcl = Function( {do_, inputx_, grprws_, arg__, argvals__, limit__=0}, {DefaultLocal},
+
+  _excl_levs_ = {};
+  _ofst_ = 0;
+  _opexpr__ = Match( arg__,
+    ".",
+     EvalExpr( IsMissing(Matrix(Expr(argvals__))) | (Matrix(Expr(argvals__)) < -1.79769313486232E+300) ),
+    "!.",
+     EvalExpr( !IsMissing(Matrix(Expr(argvals__))) | !(Matrix(Expr(argvals__)) < -1.79769313486232E+300) ),
+    ">",
+     EvalExpr( Matrix(Expr(argvals__)) > Expr(limit__) ),
+    "<",
+     EvalExpr( Matrix(Expr(argvals__)) < Expr(limit__) ),
+    "=",
+     EvalExpr( Matrix(Expr(argvals__)) == Expr(limit__) ),
+    Expr("")
+  );
+	If( do_ & Char(NameExpr(_opexpr__)) != "",
+	  _pos_ = Loc( _opexpr__ );
+    _N_pos_ = NRow(_pos_);
+    If( _N_pos_ !=0, 
+      _N_pos_levels_ = EvalExpr( Expr(levels_x_prex)[_pos_] );
+      InsertInto(_excl_levs_, Eval(_N_pos_levels_));
+      Eval(EvalExpr( DeselectColumnRows( Expr(inputx_), Expr(grprws_), _excl_levs_ )));
+      If( NRow(Loc(_excl_levs_, "")) != 0, _excl_levs_[ (Loc(_excl_levs_, "")) ] = "**MISSING**");
+      If( NRow(Loc(_excl_levs_, ".")) != 0,  _excl_levs_[ (Loc(_excl_levs_, ".")) ] = "**MISSING**");				
+			//Eval(EvalExpr( If(NRow(Loc(Expr(levels_x_prex),"")) != 0, _ofst_ = 1) ));
+      _lev_excl_list_ = EvalList({_excl_levs_, Eval(EvalExpr(Matrix(Expr(argvals__))[_pos_])), Eval(EvalExpr((Expr(n_levels_x_prex) - _N_pos_ - _ofst_))), _N_pos_}),
+      
+   		_lev_excl_list_ = EvalList({{}, [], (n_levels_x_prex - _N_pos_), _N_pos_});
+    ),
+    
+    _lev_excl_list_ = EvalList({{}, [], -1, -1});
+  );
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////  
+::DeselectColumnRows = Function( {col_, colrws_, cond_}, {DefaultLocal},
+  _explen_ = -1;
+	If( Column(col_)<<GetModelingType == "Continuous" & !IsMissing(Num(cond_[1])), _explen_ = Length(Substr( cond_[1], Munger(cond_[1],1,"."), 100 ))-1 );
+	_valexpr_ = If( _explen_ >= 0, Expr(Char(Round(Num(_argv), Expr(_explen_)))), Expr(Char(_argv)) );
+  _colvals_ = Thread( EvalExpr(_valexpr_), Eval(Column(col_)[colrws_]) );
+  _tgtmat_ = Matrix( Thread( EvalExpr(Expr(EvalExpr(MatrixAsList(Loc(Expr(_colvals_), _argv))))), Eval(cond_)) );
+  _tgtrws_ = Matrix(colrws_[Eval(_tgtmat_)]);
+  Thread( Expr(Selected(Rowstate(_argv))=0), Eval(_tgtrws_) );
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::AnalysisPreCheck = Function( {grprws_, outputy_, stp_}, {pass_=0},
+  _msglist_ = Match( Eval(stp_),
+    0,
+     { " by user", "."},
+    1,                                      //AllExcluded                   //No Input Values OR All Output ZeroOrMissing After Ecxlusions
+     Thread( EvalExpr( _argv || Expr(Char(N_Lot_Excl)) ), {" for lot sample size less than ", " after excluding lots with sample size less than "} ),
+    2,
+     Thread( EvalExpr( _argv || Expr(Char(N_X_Excl)) ), {" for # lots per level less than ", " after excluding levels with # lots per level less than "} ),
+    3,
+     {" after excluding rows where Output(Y) is missing ", " after excluding rows where Output(Y) is missing "}     
+  );      
+
+  If( NRow(Eval(grprws_)) == 0,
+    InsertInto(All_Grp_No_Data_Flag,"All Levels - Excluded");
+    EmptyColAlertBox=TextBox( "All levels excluded" || _msglist_[1] || ".", <<FontColor(Red)),              
+
+    If( !ZeroOrMissing(All(Matrix(Eval(outputy_)[grprws_])==0)),
+      InsertInto(All_Grp_No_Data_Flag,"All Output(Y) - Zero");
+      EmptyColAlertBox=TextBox("NOTE: Output(Y) values are zero" || _msglist_[2], <<FontColor(Red)),
+    
+      If( All(IsMissing(Matrix(Eval(outputy_)[grprws_]))),
+        InsertInto(All_Grp_No_Data_Flag, "All Output(Y) - Missing");
+        EmptyColAlertBox=TextBox("NOTE: Output(Y) values are missing" || _msglist_[2], <<FontColor(Red)),
+        
+        If( one_miss_lev_chk,                 
+          InsertInto(All_Grp_No_Data_Flag, "No Levels - Missing");
+          EmptyColAlertBox=TextBox("NOTE: Input has no values" || _msglist_[2], <<FontColor(Red)),                  
+        
+          pass_ = 1;
+        )
+      )
+    )
+  );
+
+  Eval(pass_)
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::FindEmptyGrpCols = Function( {grp_names_}, {DefaultLocal},
+_fnd_indxs_ = {};
+For( i=1, i<=NItems(grp_names_), i++,
+	If( NRow(Loc(Thread( Expr(Trim(_argv)), grp_names_[i] ),"")) == NItems(grp_names_[i]), InsertInto(_fnd_indxs_,i) );
+);
+_fnd_indxs_
+
+);
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+::MessageBox=Function({title_, msg_list__={{""}}, txt_size_},{DefaultLocal},
+  _msg_sect_ = OutlineBox(Eval(title_), VListBox());
+  _msg_oplist_ = Thread( EvalExpr( Parse(
+    "_msg_sect_ << Append( TextBox(\!"" || Char(Expr(msg_list__)[_argv][1]) || "\!",
+    << SetFontSize(" || Expr(Char(txt_size_)) || "),
+    << FontColor(" || Char(Expr(msg_list__)[_argv][2]) || "),
+    << SetFontStyle(\!"" || Char(Expr(msg_list__)[_argv][3]) || "\!"),
+    << SetWrap(1000)
+    	
+    ) )" )), (1::NItems(msg_list__))`);
+  EvalList(_msg_oplist_);
+
+  _msg_sect_
+);
+
+::MSG_nosmplsz_warn = Expr(EvalExpr(MessageBox("Warning Message",
+{ {Expr("*SAMPLE SIZE column not specified in Control File."), "Red","Bold"},
+	{Expr("*Unable to find and exclude lots with sample size < " || Char(N_Lot_Excl) || " from analysis."), "Red","Bold"}
+},10)));
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+::GenerateCAOneway = Function( {_x,_y,_z,_t,mswitch,cswitch,answitch}, {_sel_=2},
+  If( _t != 0,
+    OneWay_Chart_Box = HListBox( onewy = Oneway( Y( Eval(_y) ), X( Eval(_x) ),
+      BoxPlots(1),
+      Means(1),
+      MeansAndStd Dev( Eval(mswitch) ),
+      PlotActualByQuantile( Eval(answitch) ),
+      UnEqualVariances( Eval(answitch) ),
+      AllPairs( Eval(answitch) ),
+      MeanErrorBars(0),
+      Mean Diamonds( Eval((rat_oneperlevel_x < 0.4) & answitch) ),
+      ConnectMeans( Eval(cswitch) ),
+      StdDevLines(0),
+      MeanLines(0),
+      XAxisProportional(0),
+      PointsJittered(1),
+      GrandMean(1),
+      By(Eval(_z)),
+      Where(Selected()),
+      SendToReport( 
+        Dispatch({}, "Oneway Plot", FrameBox, MarkerSize(2)),
+        Dispatch({}, "",AxisBox, ShowMajorGrid),
+        Dispatch({}, "",NomAxisBox, RotatedTickLabels)
+      ) )
+    );    
+    OneWay_Chart_Box[OutlineBox("Means and Std Dev?")][TableBox(1)][NumberColBox(1)]<<SetHeading("Lots");
+    Oneway_Chart_Box[OutlineBox("Oneway Anova")]["Summary ?"]<<Close(1);
+    Oneway_Chart_Box[OutlineBox("Oneway Anova")]["Means for ?"]<<Close(1);
+    If( one_samp_per_lev_chk, OneWay_Chart_Box[OutlineBox("Means and Std Dev?")]<<Close(1) );
+
+
+    If( answitch,
+      onewy<<Comparison Circles(0);
+      ANOVA_pval = Oneway_Chart_Box[OutlineBox("Oneway Anova")]["Analysis ?"][TableBox(1)][ColumnBox("Prob > F")]<<Get;
+      VarTest_pval = Oneway_Chart_Box[Outline Box( "Tests ?" )][Table Box( 2 )][ColumnBox(5)] << Get;
+      WelchTest_df = Oneway_Chart_Box[Outline Box( "Tests ?" )][Table Box( 3 )][ColumnBox( "DFNum" )] << Get;
+      WelchTest_pval = Oneway_Chart_Box[Outline Box( "Tests ?" )][Table Box( 3 )][ColumnBox( "Prob > F" )] << Get;
+      Mean_pval = If( VarTest_pval[2] >= alpha | IsMissing(WelchTest_pval[1]), ANOVA_pval[1], WelchTest_pval[1] );
+      If( Mean_pval > alpha & VarTest_pval[2] > alpha & VarTest_pval[3] <= alpha, _sel_=3 );
+      Oneway_Chart_Box[OutlineBox("Tests ?")]<<Close(1);
+      Oneway_Chart_Box[OutlineBox("Means Comparison ?")]<<Close(1),
+      
+      VarTest_pval=[.,.,.];Mean_pval=.;	
+    );
+    Oneway_Chart_Box[OutlineBox("Oneway Anova")]<<Close(1),
+
+    Oneway_Chart_Box=VListBox( OutlineBox( "Means and Std Deviations",EmptyColAlertBox ) );
+    VarTest_pval=[.,.,.];Mean_pval=.;
+  ); //EndIf _t==0
+
+
+  EvalExpr({ Oneway_Chart_Box, Mean_pval, VarTest_pval[Expr(_sel_)] })
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::GenerateCAScatterPlot = Function( {_x, _y, _z, _t, _fitQ},
+  If( _t != 0,
+    Biv_Chart_Box = HListBox( Bivariate( Y( eval(_y) ), X( eval(_x) ), 
+      FitLine({Line of Fit(_fitQ), Line Color("Red")}),
+      By(Eval(_z)),
+      Where(Selected()),
+      SendToReport(   
+		Dispatch( {}, "1", ScaleBox, {Rotated Labels( 1 )} ),     
+        Dispatch({}, "Bivar Plot", FrameBox, Marker Size(2)),
+        Dispatch( {}, "",AxisBox, ShowMajorGrid )
+      ) )
+    );
+    
+    If( _fitQ,
+      Biv_Chart_Box[OutlineBox("Summary of Fit")] << Close(1);
+      Slope_pval = Biv_Chart_Box[OutlineBox("Parameter Estimates")][TableBox(1)][ColumnBox("Prob > |t|")]<<Get;
+      Biv_Chart_Box[OutlineBox("Parameter Estimates")]<<Close(1),
+      
+      Slope_pval=[.,.];
+    ),
+    
+    Biv_Chart_Box=VListBox( OutlineBox( "Linear Fit", EmptyColAlertBox ) );
+    Slope_pval=[.,.];
+  ); //EndIf t
+  VarTest_val = .;
+  
+  {Biv_Chart_Box, Slope_pval[2], varTest_val}
+
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+::GenerateCATrendChart = Function( {x,y,z},
+
+Bivariate( Y( eval(y) ), X( eval(x) ),
+By( Eval(z) ),
+Where( Selected() ),
+SendToReport( 
+  Dispatch( {}, "1", ScaleBox, {Rotated Labels( 1 )} ),
+  Dispatch({}, "Bivar Plot", FrameBox, Marker Size(2)),
+  Dispatch( {}, "",AxisBox, ShowMajorGrid )
+) );
+); //EndFunction
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+Print("SOS CA Utility Functions Loaded.");
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////

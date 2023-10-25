@@ -1,0 +1,176 @@
+/********************************************************************
+  Calculate cpk check for TTD and engineering limit
+  Authors: Xin Guan
+  JMP Version: 12, 14
+  Rev0, June, 2020
+********************************************************************/
+
+clear globals();
+
+
+//Set initial values of variables
+button=1;			//Default setting of User Interface button.  1 is "OK", -1 is "Cancel"
+XLCL=.;    	//Xbar chart lower control limit
+XUCL=.;		//Xbar chart upper control limit
+Xcenter=.;   //Xbar chart center line
+XTTD=0;   //Xbar chart TTD
+sTTD=0;     //Sigma chart TTD
+scenter=.;    //Sigma chart centerline
+sUCL=.; //Sigma chart UCL
+lsl=.;				//Default lower spec limit
+usl=.;				//Default upper spec limit
+type=1;			//Default type (choices are TTD or engineering)
+cpucheck=.;
+cplcheck=.;
+cpkcheck=.;     //output value
+
+/* Dialog Box is active until the user clicks Cancel or generates a Plot */
+
+while(button==1,
+
+ result=Dialog(title("CPK check"),  //menu to choose control limit type
+
+   "Choose an option: ",
+    type=Radiobuttons("Compute Cpk check for TTD","Compute Cpk check for engineering limit"),
+   HList(Button("OK"), Button("Cancel")
+  )
+ );
+
+button = result["Button"];
+type=result["type"];
+  /**Selection of input value**/ 
+
+if(button==1 & type==2,	//type is engineering
+
+	while(button==1,
+
+		result=Dialog(title("Cpk check for engineering limit")," ",
+				VList("Enter control limit and spec limit below:  ",
+					Lineup(2,
+						" "," ",			
+						"Xbar LCL", XLCL=EditNumber(XLCL),
+						"Xbar UCL", XUCL=EditNumber(XUCL),
+						"Sigma UCL", sUCL=EditNumber(sUCL),
+						"LSL", lsl=EditNumber(lsl),
+						"USL", usl=editNumber(usl))," ",
+					
+					"If not applicable, please leave the box blank.", " ",
+
+					" ",
+					"CPK Check Calculation:", " ",
+					Lineup(2,
+						"CPK check", cpkcheck=editnumber(cpkcheck)),
+
+					" ",
+
+					HList(button("OK"), button("Cancel") )
+					)
+			);
+			
+
+			button = result["button"];
+			XLCL=result["XLCL"];
+			XUCL=result["XUCL"];
+			sUCL=result["sUCL"];
+			lsl=result["lsl"];
+			usl=result["usl"];
+			cpkcheck=result["cpkcheck"];
+
+
+		/* Error Testing */
+
+			if(!IsMissing(XLCL) & !IsMissing(XUCL) & (XLCL >= XUCL)  & button==1, Dialog(Title("Error"),"LCL should less than UCL",button("OK"));error1="out";cpkcheck=.,error1="ok");
+			if(IsMissing(XLCL) & IsMissing(XUCL) & button==1, Dialog(Title("Error"),"Missing Control limit!!",button("OK"));error2="out";cpkcheck=.,error2="ok");
+			if(IsMissing(sUCL) & button==1, Dialog(Title("Error"),"Missing Sigma chart upper control limit!",button("OK"));error3="out";cpkcheck=.,error3="ok");
+			if(IsMissing(usl) & IsMissing(lsl) & button==1, Dialog(Title("Error"),"Missing Spec limit!",button("OK"));error4="out";cpkcheck=.,error4="ok");
+			if(!IsMissing(usl) & !IsMissing(lsl) & (lsl >= usl)  & button==1, Dialog(Title("Error"),"LSL should less than USL",button("OK"));error5="out";cpkcheck=.,error5="ok");
+			if(((IsMissing(usl)+IsMissing(XUCL))==1 | (IsMissing(lsl)+IsMissing(XLCL))==1) & button==1, Dialog(Title("Error"),"Same side control limit and spec limit are needed!",button("OK"));error6="out";cpkcheck=.,error6="ok");
+			if(sUCL<=0 & button==1, Dialog(Title("Error"),"Sigma chart upper control limit must be positive!",button("OK"));error7="out";cpkcheck=.,error7="ok");
+
+
+		/* Cpk check Computation */
+		if(error1=="ok"& error2=="ok" & error3=="ok" & error4=="ok" & error5=="ok" & error6=="ok"& error7=="ok" & button==1,
+
+					
+			if(!IsMissing(XUCL)&  !IsMissing(usl), cpucheck=round((usl-XUCL)/(3*sUCL),2), cpucheck=.);
+			if(!IsMissing(XLCL)&  !IsMissing(lsl), cplcheck=round((XLCL-lsl)/(3*sUCL),2), cplcheck=.);
+			cpkcheck=minimum(cpucheck, cplcheck) //if one side limit is missing, will return to the other
+
+		)
+
+	); //end while
+
+);/** End CPK check Calculation **/ 
+
+
+if(button==1 & type==1,	//type is TTD
+
+	while(button==1,
+
+		Result=Dialog(title("CPK check for TTD limit"),
+
+				  VList("Enter control limit:",
+				   Lineup(2,	
+					"Centerline on Xbar chart", Xcenter=EditNumber(Xcenter),
+					"Centerline on sigma chart", scenter=EditNumber(scenter),		
+					"TTD on Xbar chart", XTTD=EditNumber(XTTD),
+					"TTD on sigma chart", sTTD=EditNumber(sTTD)
+				   ),
+				   " ",
+				   "Enter spec limit:", 
+				   Lineup(2,	
+				   "LSL", lsl=EditNumber(lsl),	
+					"USL", usl=EditNumber(usl)
+						
+				   ),
+				   "If not applicable, please leave the box blank.", 
+
+					" ",
+				"CPK Check Calculation:", " ",
+					Lineup(2,
+						"CPK check", cpkcheck=editnumber(cpkcheck)),
+
+					" ",
+
+					HList(button("OK"), button("Cancel") )
+					)
+			);   //end dialog box
+			
+
+			button = result["button"];
+			Xcenter=result["Xcenter"];
+			scenter=result["scenter"];
+			XTTD=result["XTTD"];
+			sTTD=result["sTTD"];
+			usl=result["USL"];
+			lsl=result["LSL"];
+			cpkcheck=result["cpkcheck"];
+
+		/* Error Testing */
+
+			if(IsMissing(Xcenter) & button==1, Dialog(Title("Error"),"Missing Xbar chart centerline!",button("OK"));error1="out";cpkcheck=.,error1="ok");
+			if((XTTD==0 |IsMissing(XTTD)) & (sTTD==0 |IsMissing(sTTD)) & button==1, Dialog(Title("Error"),"Missing at least one TTD value!",button("OK"));error2="out";cpkcheck=.,error2="ok");
+			if(IsMissing(scenter) & button==1, Dialog(Title("Error"),"Missing Sigma chart centerline!",button("OK"));error3="out";cpkcheck=.,error3="ok");
+			if(IsMissing(usl) & IsMissing(lsl) & button==1, Dialog(Title("Error"),"Missing Spec limit!",button("OK"));error4="out";cpkcheck=.,error4="ok");
+			if(!IsMissing(usl) & !IsMissing(lsl) & (lsl >= usl)  & button==1, Dialog(Title("Error"),"LSL should less than USL",button("OK"));error5="out";cpkcheck=.,error5="ok");
+			if((XTTD<0 | sTTD<0) & button==1, Dialog(Title("Error"),"TTD value must be positive!",button("OK"));error6="out";cpkcheck=.,error6="ok");
+			if(scenter<=0 & button==1, Dialog(Title("Error"),"Sigma chart centerline must be positve value!",button("OK"));error7="out";cpkcheck=.,error7="ok");
+            //do we allow to have control limit on the side where is no spec limit??
+
+
+		/* Cpk check Computation */
+		if(error1=="ok"& error2=="ok" & error3=="ok" & error4=="ok" & error5=="ok" & error6=="ok" & error7=="ok" & button==1,
+
+					
+			if(!IsMissing(usl), cpucheck=round((usl-(Xcenter+XTTD))/(3*(scenter+sTTD)),2), cpucheck=.);
+			if(!IsMissing(lsl), cplcheck=round(((Xcenter-XTTD)-lsl)/(3*(scenter+sTTD)),2), cplcheck=.);
+			cpkcheck=minimum(cpucheck, cplcheck) //if one side limit is missing, will return to the other
+
+		)
+	);
+
+);/** End Cpk check for engineering limit**/
+
+
+
+);  //END while

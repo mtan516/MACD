@@ -1,0 +1,936 @@
+/**********************
+AQL and LTPD Sampling Plan Script
+	Author: Tan, Siew Cheng
+	Editor: Wang, Fang & Chee, Dmaien
+	Rev: Version 2.2
+	Date: 2/21/2007
+	JMP Version: 5.1.1
+	Starting fondition:  User inputs AQL or LTPD or both AQL and LTPD based on the required sampling plan, provides sample size if use hypergeometric distribution and selects output option.
+	Output: Inputs Values, Sampling plan with n, c and Actual AQL/ LTPD Probability and OC Curves
+
+	Beta Revision History
+	PB: 2/27/2005
+	1. Revised the n & C search loop for AQL/LTPD and  LTPD sampling plan.
+
+
+	SOS Revision History
+	v1.04: 1. File sosglbls.jsl created to hold global variables that might apply to all scripts. Include added.
+	v2: 1. Remove the ceiling syntax from the kaql and kltpd formula.
+	v2.1: 1. Fix the while and if loops for LTPD hypergeometric distribution and binomial distribution. 
+        v2.2   Fix bugs for JMP 7. remove "," from if(option==1|option==2,,
+        
+
+********************************************************************************************/
+
+//clear values from memory
+clear globals();
+
+//include footerbox path
+Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl");
+
+//Create Dialog Window Request
+result=Dialog(title("Sampling Plan for AQL and / or LTPD"),
+	 	 VList("Enter AQL, LTPD, or both AQL and LTPD, with corresponding","acceptance probabilites below:",
+		       Lineup(4,
+		       " "," ", " "," ",	
+		       " ", des1=char("Defect %")," ", des2=char("Acceptance Probability"),	
+		       "AQL", input_aql=EditNumber(),"1-alpha",pa_aql=EditNumber(0.95),
+			 "LTPD", input_ltpd=EditNumber(),"    beta",pa_ltpd=EditNumber(0.10)),
+		       " ", 
+		       Lineup(2,
+		      	 "Lot Size (N)", lotsize=EditNumber()),
+		       Lineup(2,
+		      	 "                  ", "Leave blank to use binomial distribution.",
+			 "                  ", "Enter lot size to use hypergeometric distribution.")
+		     	),
+
+              Vlist("Output", 
+	              option = radiobuttons("Plan with Minimum Sample Size", "k Smallest Plans","All Plans up to Sample Size n"),
+		      	 " "
+                    ),		
+
+	        HList(Button("OK"), Button("Cancel"))
+                    );
+
+//Read in results from dialog box
+input_aql = result["input_aql"]/100;
+pa_aql = result["pa_aql"];
+input_ltpd = result["input_ltpd"]/100;
+pa_ltpd = result["pa_ltpd"];
+lotsize = result["lotsize"];
+dist = IsMissing(lotsize);
+option = result["option"];
+
+//Select either AQL, LTPD or AQL/LTPD
+if(result["Button"]==1& (IsMissing(input_aql) & !IsMissing(input_ltpd)), ltpdtest="OK", ltpdtest="NO");
+if(result["Button"]==1& (!IsMissing(input_aql) & IsMissing(input_ltpd)), aqltest="OK", aqltest="NO");
+if(result["Button"]==1& (!IsMissing(input_aql) & !IsMissing(input_ltpd)), alltest="OK", alltest="NO");
+
+
+//Double Check Validity of input
+if(result["Button"]==1 & ( (IsMissing(input_aql) & IsMissing(input_ltpd)) | IsMissing(pa_aql) |  IsMissing(pa_ltpd) | 
+			input_aql<=0 | input_aql > 100 | pa_aql<0 | pa_aql>100 | input_ltpd<input_aql | 
+			input_ltpd<0 | input_ltpd>100 | pa_ltpd>pa_aql | pa_ltpd<0 | pa_ltpd>100 
+			), //Condition for Errors
+	
+while (result["Button"]==1 & ( (IsMissing(input_aql) & IsMissing(input_ltpd)) | IsMissing(pa_aql) | IsMissing(pa_ltpd) | 
+			input_aql<=0 | input_aql > 100 | pa_aql<0 | pa_aql>100 | input_ltpd<input_aql | 
+			input_ltpd<0 | input_ltpd>100 | pa_ltpd>pa_aql | pa_ltpd<0 | pa_ltpd>100 
+			),  
+
+Dialog(title("Entry Errors"), 
+	Vlist("Please check the following:", " ", 
+	"All probabilities must be between 0 & 1", " ", 
+	"AQL< LTPD", " ", 
+	"Acceptance Probability for LTPD< Acceptance Probability for AQL", " ", 
+	Button("OK")
+	       )
+	);
+
+result=Dialog(title("Sampling Plan for Both AQL and LTPD"),
+	         VList("Enter AQL, LTPD, or both AQL and LTPD below:",
+		       Lineup(4,
+		       " "," ", " "," ",	
+		       " ", des1=char("Defect %")," ", des2=char("Accepatance Probability"),	
+		       "AQL", input_aql=EditNumber(),"1-alpha",pa_aql=EditNumber(0.95),"LTPD", input_ltpd=EditNumber(),"beta",pa_ltpd=EditNumber(0.10)),
+		       " ", 
+		      Lineup(2,
+		      "Lot Size (n)", lotsize=EditNumber()),
+		      Lineup(2,
+		      "                  ", "Leave blank to use binomial dist.
+Enter lot size to use hypergeometric.")
+		     ),
+
+                    Vlist("Output", 
+	                 option = radiobuttons("Plan with Minimum Sample Size", "k Smallest Plans","All Plans up to Sample Size n"),
+		      " "
+                           ),		
+
+	         HList(Button("OK"), Button("Cancel"))
+                    ); // End Error re-input
+	
+//Read in results from re-input dialog box
+input_aql = result["input_aql"]/100;
+pa_aql = result["pa_aql"];
+input_ltpd = result["input_ltpd"]/100;
+pa_ltpd = result["pa_ltpd"];
+lotsize = result["lotsize"];
+dist = IsMissing(lotsize);
+option = result["option"];
+
+);// end while
+);//end if;
+
+//Option Selection
+
+if(result["Button"]==1,
+
+number_plans=0;
+input_number_plans=1;
+
+//Condition for Option 1 
+if(option==1,input_number_plans=1); 
+
+//Condition for Option 2
+if(option==2,
+result2=Dialog(title("K Smallest Plans"),
+	           VList("Enter the k smallest plans as below:"," ",
+		         Lineup(2,
+		         "k Smallest Plans (must be more than 1)", k=EditNumber(2)
+                                         ),
+		         " ",
+		         HList(Button("OK"), Button("Cancel"))
+                              )
+	           );
+input_number_plans = result2["k"];
+
+if(input_number_plans<=0,
+while(input_number_plans<=0 | Ismissing(input_number_plans),
+result2=Dialog(title("K Smallest Plans"),
+		VList("Please enter the k smallest plans as below:"," ",
+		         Lineup(2,
+		         "k Smallest Plans (must be more than 1)", k=EditNumber(2)
+                                         ),
+		         " ",
+		         HList(Button("OK"), Button("Cancel"))
+                              )
+	          );
+input_number_plans = result2["k"])
+);//end if error for Option 2
+
+);//end if Option 2
+
+
+//Condition for Option 3
+if(option==3,
+Result3=Dialog(title("All Plans up to Sample Size n"),
+                       Vlist("Enter the Maximum Sample Size n as below:"," ",
+                       lineup(2,
+                       "Maximum Sample Size (must be more than 1 and less than Lot Size)", maxsize=EditNumber(250)),
+                       " ",
+                       HList(Button("OK"), Button("Cancel"))
+                              )
+                      );  
+maxsize=result3["maxsize"]; 
+
+if(maxsize<=0 | maxsize>=lotsize | Ismissing(maxsize),
+while(maxsize<=0 | maxsize>=lotsize | Ismissing(maxsize),
+Result3=Dialog(title("All Plans up to Sample Size n"),
+                       Vlist("Enter the Maximum Sample Size n as below:"," ",
+                       lineup(2,
+                       "Maximum Sample Size (must be more than 1  and less than Lot Size)", maxsize=EditNumber(250)),
+                       " ",
+                       HList(Button("OK"), Button("Cancel"))
+                              )
+                       );  
+maxsize=result3["maxsize"])
+)//end if error for Option 3 
+
+);//end if Option 3
+
+/****************
+For AQL/LTPD
+****************/
+
+if(alltest=="OK",
+ 
+n_list={};
+c_list={};
+aql_list={};
+ltpd_list={};
+n_list1={};
+c_list1={};
+aql_list1={};
+ltpd_list1={};
+kaql=(input_aql*lotsize);
+kltpd=(input_ltpd*lotsize);
+
+for (c=0; n=1, (option==1 & number_plans<input_number_plans) | (option==2 & number_plans<input_number_plans) | (option==3 & n<=maxsize), c++,
+While(	(Binomial Distribution(input_ltpd, n,c) >=pa_ltpd & Binomial Distribution(input_aql, n,c) >=pa_aql & dist ==1| Hypergeometric distribution(lotsize, kaql, n,c) >=pa_aql & Hypergeometric distribution(lotsize, kltpd, n,c) >=pa_ltpd & dist ==0)
+, n++);
+
+
+               if(dist==1,
+                  /*** pa calculation with n, c, sampleszie using binomial distribution***/
+			pa1 = Binomial Distribution(input_ltpd, n, c);
+			pa2= Binomial Distribution(input_aql, n, c);
+                   );//end if dist=1
+                 
+	     if(dist==0,
+                   pa1=hypergeometric Distribution(lotsize,kltpd,n,c);
+                   pa2=hypergeometric Distribution(lotsize,kaql,n,c);
+                  );//end for dist=0
+
+if (Binomial Distribution(input_ltpd, n,c) <=pa_ltpd & Binomial Distribution(input_aql, n,c) >=pa_aql & dist ==1| Hypergeometric distribution(lotsize, kaql, n,c) >=pa_aql & Hypergeometric distribution(lotsize, kltpd, n,c) <=pa_ltpd & dist ==0,
+                 number_plans=number_plans+1;
+                  InsertInto(n_list,n);
+                  InsertInto(c_list,c);
+	       InsertInto(ltpd_list,pa1);
+		InsertInto(aql_list,pa2);
+                 startingc = c+1);
+
+);
+
+totaln=N items(n_list);
+n_list1=remove(n_list,totaln);
+totalc=N items(c_list);
+c_list1=remove(c_list,totalc);
+totalltpd=N items(ltpd_list);
+totalaql=N items(aql_list);
+ltpd_list1=remove(ltpd_list,totalltpd);
+aql_list1=remove(aql_list,totalaql);
+
+If(option==2 | option==1, number_plans=number_plans);
+If(option==3, number_plans=number_plans-1);
+
+
+
+if(number_plans>0,
+
+if(dist==1,
+//calculate pmax for binomial distribution
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+input_aql,
+         temp=binresult-binomial distribution(pmax,n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=binomial distribution(pmax,n,c);
+       );
+
+if(option==3,
+output=New Window("AQL/LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","LTPD(%)","Acceptance Probability for LTPD"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(input_ltpd*100),char(pa_ltpd)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("AQL/LTPD Sampling Plans Using Binomial Distribution",
+                                                                         TableBox(
+                                                                            NumberColBox("n",n_list1),
+                                                                            NumberColBox("c",c_list1),
+                                                                            NumberColBox("Actual AQL Probability", aql_list1),
+                                                                           NumberColBox("Actual LTPD Probability", ltpd_list1)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+
+if(option==1 | option==2,
+output=New Window("AQL/LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","LTPD(%)","Acceptance Probability for LTPD"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(input_ltpd*100),char(pa_ltpd)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("AQL/LTPD Sampling Plans Using Binomial Distribution",
+                                                                         TableBox(
+                                                                            NumberColBox("n",n_list),
+                                                                            NumberColBox("c",c_list),
+                                                                            NumberColBox("Actual AQL Probability", aql_list),
+                                                                           NumberColBox("Actual LTPD Probability", ltpd_list)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);                
+
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                 myn_list=xx;
+                                                    myc_list=yy;
+                                                     myplan=zz,
+                                                 For (i=1,i<=myplan,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Binomial Distribution(x/100, myn_list[i], myc_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)), expr(xx), n_list, expr(yy), c_list, expr(zz), number_plans));// end outline box
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+
+                            axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                           axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+		     axisy<<add ref line(eval(pa_ltpd*100), "Dashed", "red");
+		     axisx<<add ref line(eval(input_ltpd*100), "Dashed", "red");
+		     axisy<<add ref line(eval(pa_aql*100), "Dashed", "blue");
+		     axisx<<add ref line(eval(input_aql*100), "Dashed", "blue");
+                            output<<append(occurve)
+
+);//end if dist=1 
+
+if(dist==0,
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+input_aql,
+         temp=binresult-Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+       );
+
+
+//generate OC curve using hypergeometric distribution
+if(option==3,
+output=New Window("AQL/LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","LTPD(%)","Acceptance Probability for LTPD","Lot Size"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(input_ltpd*100),char(pa_ltpd),char(lot size)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("AQL/LTPD Sampling Plans Using Hypergeometric Distribution",
+                                                                         TableBox(
+                                                                            NumberColBox("n",n_list1),
+                                                                            NumberColBox("c",c_list1),
+                                                                            NumberColBox("Actual AQL Probability", aql_list1),
+                                                                           NumberColBox("Actual LTPD Probability", ltpd_list1)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+
+if(option==1 | option==2,
+output=New Window("AQL/LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","LTPD(%)","Acceptance Probability for LTPD","Lot Size"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(input_ltpd*100),char(pa_ltpd),char(lot size)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("AQL/LTPD Sampling Plans Using Hypergeometric Distribution",
+                                                                         TableBox(
+                                                                            NumberColBox("n",n_list),
+                                                                            NumberColBox("c",c_list),
+                                                                            NumberColBox("Actual AQL Probability", aql_list),
+                                                                           NumberColBox("Actual LTPD Probability", ltpd_list)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);            
+
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                 myn_list=xx;
+                                                   myc_list=yy;
+                                                   mylot=zz;
+                                                   myplan=ss,
+                                                 For (i=1,i<=number_plans,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Hypergeometric Distribution(lotsize,floor(x*lotsize/100), n_list[i], c_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));// end outline box
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+
+                             axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+		     axisy<<add ref line(eval(pa_ltpd*100), "Dashed", "red");
+		     axisx<<add ref line(eval(input_ltpd*100), "Dashed", "red");
+		     axisy<<add ref line(eval(pa_aql*100), "Dashed", "blue");
+		     axisx<<add ref line(eval(input_aql*100), "Dashed", "blue");
+                output<<append(occurve)
+
+   );//end if dist=2
+
+);//end if number_plans==0
+
+if(number_plans==0, 
+   Dialog("No sampling plans can be found which meet the stated requirements.", " ",  Button("OK"))
+  );//end if number_plans==0	
+
+);//end all test==ok
+
+
+/****************
+For AQL
+****************/
+if( aqltest=="OK", 
+
+n_list={};
+c_list={};
+aql_list={};
+n_list1={};
+c_list1={};
+aql_list1={};
+kaql=(input_aql*lotsize);
+                 
+
+for (c=0; n=1, (option==1 & number_plans<input_number_plans ) | (option==2 & number_plans<input_number_plans ) | (option==3 & n<=maxsize) , c++,
+while((Binomial Distribution(input_aql, n,c) >=pa_aql & dist==1) | (Hypergeometric distribution(lotsize, kaql, n,c) >=pa_aql & dist==0) , n++);
+
+
+               if(dist==1,
+                  /*** PA AQL calculation with n, c, sampleszie using binomial distribution***/
+		pa = Binomial Distribution(input_aql, n-1, c);
+                   );//end if dist=1
+                 
+	     if(dist==0,
+                   pa=hypergeometric Distribution(lotsize,kaql,n-1,c);
+                  );//end for dist=0
+
+if ((Binomial Distribution(input_aql, n,c) <=pa_aql & dist ==1) | (Hypergeometric distribution(lotsize, kaql, n,c) <=pa_aql & dist ==0)  ,
+                 number_plans=number_plans+1;
+                  InsertInto(n_list,n-1);
+                  InsertInto(c_list,c);
+	       InsertInto(aql_list,pa);
+                 startingc = c+1;
+)
+);
+
+totaln=N items(n_list);
+n_list1=remove(n_list,totaln);
+totalc=N items(c_list);
+c_list1=remove(c_list,totalc);
+totalaql=N items(aql_list);
+aql_list1=remove(aql_list,totalaql);
+
+If(option==2 | option==1, number_plans=number_plans);
+If(option==3, number_plans=number_plans-1);
+
+if(number_plans>0,
+
+if(dist==1,
+         //calculate pmax for binomial distribution
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+0.001,
+         temp=binresult-binomial distribution(pmax,n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=binomial distribution(pmax,n,c);
+       );
+
+//generate OC curve using binomial distribution
+
+if(option==3,
+                       output=New Window("AQL Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("AQL Sampling Plans Using Binomial Distribution",
+                                                                           TableBox(
+                                                                            NumberColBox("n",n_list1),
+                                                                            NumberColBox("c",c_list1),
+
+                                                                            NumberColBox("Actual AQL Probability", aql_list1)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+
+if(option==1 | option==2,
+                       output=New Window("AQL Sampling Plans",
+
+					    outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql)})
+                                       
+                                     ) ),
+
+
+                                                            outlinebox("AQL Sampling Plans Using Binomial Distribution",
+                                                                           TableBox(
+                                                                            NumberColBox("n",n_list),
+                                                                            NumberColBox("c",c_list),
+
+                                                                            NumberColBox("Actual AQL Probability", aql_list)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+
+
+            eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                 myn_list=xx;
+                                                 myc_list=yy;
+                                                  myplan=zz,
+                                                 For (i=1,i<=myplan,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Binomial Distribution(x/100, myn_list[i], myc_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)),expr(xx), n_list, expr(yy), c_list, expr(zz), number_plans));// end outline box
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+                            axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                           axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+
+		     axisy<<add ref line(eval(pa_aql*100), "Dashed", "blue");
+		     axisx<<add ref line(eval(input_aql*100), "Dashed", "blue");
+                            output<<append(occurve)
+
+);//end if dist=1
+
+if(dist==0,
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+(pmax*0.1),
+         temp=binresult-Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+       );
+
+//generate OC curve using hypergeometric distribution
+
+if(option==3,
+output=New Window("AQL Sampling Plans",
+
+ 					outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","Lot Size"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(lotsize)})
+                                       
+                                     ) ),
+
+                       outlinebox("AQL Sampling Plans Using Hypergeometric Distribution",
+                                     TableBox(
+                                                    NumberColBox("n",n_list1),
+                                                    NumberColBox("c",c_list1),
+
+                                                    NumberColBox("Actual AQL Probability", aql_list1)
+                                                    )
+                                         )
+                              );
+);
+
+if(option==1|option==2,,
+output=New Window("AQL Sampling Plan",
+
+ 					outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"AQL(%)", "Acceptance Probability for AQL","Lot Size"}),
+                                                     StringColBox("Value",{char(input_aql*100),char(pa_aql),char(lotsize)})
+                                       
+                                     ) ),
+
+                       outlinebox("AQL Sampling Plans Using Hypergeometric Distribution",
+                                     TableBox(
+                                                    NumberColBox("n",n_list),
+                                                    NumberColBox("c",c_list),
+
+                                                    NumberColBox("Actual AQL Probability", aql_list)
+                                                    )
+                                         )
+                              );
+);
+
+
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                 myn_list=xx;
+                                                   myc_list=yy;
+                                                   mylot=zz;
+                                                   myplan=ss,
+                                                 For (i=1,i<=number_plans,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Hypergeometric Distribution(mylot,floor(x*lotsize/100), myn_list[i], myc_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));// end outline box
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+
+
+                             axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+
+		     axisy<<add ref line(eval(pa_aql*100), "Dashed", "blue");
+		     axisx<<add ref line(eval(input_aql*100), "Dashed", "blue");
+                output<<append(occurve)
+
+   );//end if dist=0
+
+
+
+);//end if number_plans>0
+
+
+if(number_plans==0, 
+   Dialog("No sampling plans can be found which meet the stated requirements.", " ",  Button("OK"))
+  );//end if number_plans==0	
+
+);//aqltest=="ok"
+
+/****************
+For LTPD
+****************/
+
+if( ltpdtest=="OK", 
+
+n_list={};
+c_list={};
+aql_list={};
+n_list1={};
+c_list1={};
+ltpd_list={};
+ltpd_list1={};
+kltpd=(input_ltpd*lotsize);
+
+for (c=0; n=1, (option==1 & number_plans<input_number_plans ) | (option==2 & number_plans<input_number_plans ) | (option==3 & n<=maxsize) , c++,
+while((Binomial Distribution(input_ltpd, n,c) >=pa_ltpd & dist==1) | (Hypergeometric distribution(lotsize, kltpd, n,c) >=pa_ltpd & dist==0) , n++);
+
+
+               if(dist==1,
+                  /*** PA LTPD calculation with n, c, sampleszie using binomial distribution***/
+		pa = Binomial Distribution(input_ltpd, n, c);
+                   );//end if dist=1
+                 
+	     if(dist==0,
+                   pa=hypergeometric Distribution(lotsize,kltpd,n,c);
+                  );//end for dist=0
+
+if ((Binomial Distribution(input_ltpd, n,c) <=pa_ltpd & dist ==1) | (Hypergeometric distribution(lotsize, kltpd, n,c) <=pa_ltpd & dist ==0)  ,
+                 number_plans=number_plans+1;
+                  InsertInto(n_list,n);
+                  InsertInto(c_list,c);
+	       InsertInto(ltpd_list,pa);
+                 startingc = c+1;
+)
+);
+totaln=N items(n_list);
+n_list1=remove(n_list,totaln);
+totalc=N items(c_list);
+c_list1=remove(c_list,totalc);
+totalltpd=N items(ltpd_list);
+ltpd_list1=remove(ltpd_list,totalltpd);
+
+If(option==2 | option==1, number_plans=number_plans);
+If(option==3, number_plans=number_plans-1);
+
+if(number_plans>0,
+
+if(dist==1,
+//calculate pmax for binomial distribution
+
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+0.001,
+         temp=binresult-binomial distribution(pmax,n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=binomial distribution(pmax,n,c);
+       );
+//generate OC curve using binomial distribution
+
+if(option==3,
+                       output=New Window("LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                       
+                                       TableBox(
+                                                     StringColBox("Parameter",{"LTPD(%)", "Acceptance Probability for LTPD"}),
+                                                     StringColBox("Value",{char(input_ltpd*100),char(pa_ltpd)})
+                                       
+                                     ) ),
+
+					    
+                                                            outlinebox("LTPD Sampling Plans Using Binomial Distribution",
+                                                                           TableBox(
+                                                                            NumberColBox("n",n_list1),
+                                                                            NumberColBox("c",c_list1),
+
+                                                                            NumberColBox("Actual LTPD Probability", ltpd_list1)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+
+if(option==1 | option==2 ,
+                       output=New Window("LTPD Sampling Plans",
+
+					    outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"LTPD(%)", "Acceptance Probability for LTPD"}),
+                                                     StringColBox("Value",{char(input_ltpd*100),char(pa_ltpd)})
+                                       
+                                     ) ),
+
+
+                                                            outlinebox("LTPD Sampling Plans Using Binomial Distribution",
+                                                                           TableBox(
+                                                                            NumberColBox("n",n_list),
+                                                                            NumberColBox("c",c_list),
+
+                                                                            NumberColBox("Actual LTPD Probability", ltpd_list)
+                                                                                        )
+                                                                            )
+                                                         );
+                     
+);
+                 
+
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                   myn_list=xx;
+                                                   myc_list=yy;
+                                                   myplan=zz,
+                                                 For (i=1,i<=myplan,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Binomial Distribution(x/100, myn_list[i], myc_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)), expr(xx), n_list, expr(yy), c_list, expr(zz), number_plans));
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+
+
+                          axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                           axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+		     axisy<<add ref line(eval(pa_ltpd*100), "Dashed", "red");
+		     axisx<<add ref line(eval(input_ltpd*100), "Dashed", "red");
+                            output<<append(occurve);
+);//end if dist=1
+
+if(dist==0 ,
+pmax=0;
+   n=n_list[1];
+   c=c_list[1];
+   binresult=2;
+   stopid=1;
+   for (pmax=0,stopid==1&pmax<=1,pmax=pmax+(0.001),
+         temp=binresult-Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+         if(temp<0.0001,stopid=0);
+        binresult=Hypergeometric distribution(lotsize,floor(pmax*lotsize),n,c);
+       );
+
+//generate OC curve using hypergeometric distribution
+if(option==3,
+output=New Window("LTPD Sampling Plans",
+
+ 					outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"LTPD(%)", "Acceptance Probability for LTPD","Lot Size"}),
+                                                     StringColBox("Value",{char(input_ltpd*100),char(pa_ltpd),char(lotsize)})
+                                       
+                                     ) ),
+
+                       outlinebox("LTPD Sampling Plans Using Hypergeometric Distribution",
+                                     TableBox(
+                                                    NumberColBox("n",n_list1),
+                                                    NumberColBox("c",c_list1),
+
+                                                    NumberColBox("Actual LTPD Probability", ltpd_list1)
+                                                    )
+                                         )
+                              );
+);
+
+if(option==1|option==2,
+output=New Window("LTPD Sampling Plan",
+
+ 					outlinebox("Input Values",
+                                       TableBox(
+                                                     StringColBox("Parameter",{"LTPD(%)", "Acceptance Probability for LTPD","Lot Size"}),
+                                                     StringColBox("Value",{char(input_ltpd*100),char(pa_ltpd),char(lotsize)})
+                                       
+                                     ) ),
+
+                       outlinebox("LTPD Sampling Plans Using Hypergeometric Distribution",
+                                     TableBox(
+                                                    NumberColBox("n",n_list),
+                                                    NumberColBox("c",c_list),
+
+                                                    NumberColBox("Actual LTPD Probability", ltpd_list)
+                                                    )
+                                         )
+                              );
+);
+            
+             eval(substitute(expr(occurve=Outlinebox( "OC Curve",
+                                                HListBox(Graph Box(FrameSize(600,400),XScale(0,pmax*100),YScale(0,100),
+                                                  xName("Lot Quality in Percent"),YName("Probability of Acceptance(100%)"),
+                                                 myn_list=xx;
+                                                 myc_list=yy;
+                                                 mylot=zz;
+                                                 myplan=ss,
+                                                 For (i=1,i<=myplan,i++, 
+				            Pen color(i+2);
+                                                        Pen size(1);
+                                                        Y Function(100*Hypergeometric Distribution(mylot,floor(x*mylot/100), myn_list[i], myc_list[i]), x))
+					),
+				Legend=Vlist Box(
+					)//end for
+					)//end graph box
+				)), expr(xx), n_list, expr(yy), c_list, expr(zz),lotsize, expr(ss), number_plans));
+                            For (i=1,i<=number_plans,i++,
+                                 a=Text Box(concat("¡ê- (n=",char(n_list[i]),", c=",char(c_list[i]),")"));
+                                a<<Font Color(i+2);
+                                 legend<<append(a)
+                               );
+
+                             axisy = occurve[axisbox(1)];
+		      axisy << Show Major Grid(1);
+                            axisx=occurve[axisbox(2)];
+                            axisx<<show Major Grid(1);
+                           axisx<< Show Minor Grid(1);
+		     axisy<<add ref line(eval(pa_ltpd*100), "Dashed", "red");
+		     axisx<<add ref line(eval(input_ltpd*100), "Dashed", "red");
+                output<<append(occurve)
+
+   );//end if dist=2
+
+);//end if number_plans==1
+
+if(number_plans==0, 
+   Dialog("No sampling plans can be found which meet the stated requirements.", " ",  Button("OK"))
+  );//end if number_plans==0	
+
+);//ltpdtest=="ok"
+output<<append(footerbox);
+);//end if result["Button"]==1

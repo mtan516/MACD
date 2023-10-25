@@ -1,0 +1,247 @@
+/***********************************
+One Sample and Two Sample Variance Test 
+Rev: 1.04
+Date: 03/08/2006
+JMP Version: 5.1.1
+Starting Condition: User select One Sample or 2 Sample
+Output: Input n and Std Dev value and get the analysis done with test statistics/ probability value & guideline for decision
+	
+SOS Revision History
+v1.04: 1. File sosglbls.jsl created to hold global variables that might apply to all scripts. Include added. 
+*/
+
+clear globals();
+Try(Include("$ADDIN_HOME(com.intel.sos)\libraries\sosglbls.jsl"),
+	::FooterBox=VListBox(textbox(" "))
+    );
+
+//Include("c:\Program Files\SOS1\libraries\sosglbls.jsl");
+/*Set Initial values of Variables*/
+button =1;
+samplestd=.;
+n=.;
+hypostd=.;
+alpha=0.05;
+alpha3=0.05;
+chistat=.;
+probchi=.;
+problesschi=.;
+probechi=.;
+dec=.;
+samplestd=.;
+por=.;
+npor=.;
+new=.;
+nnew=.;
+f=.;
+prob=.;
+probmore=.;
+probless=.;
+scale="One Sample";
+label1="POR";
+label2="NEW";
+
+
+while(button==1,
+
+ If(scale=="One Sample",a="One Sample";b="Two Sample",scale=="Two Sample",a="One Sample";b="Two Sample"); /** Define Order for Combo-Box **/
+
+ result=Dialog(title("Variance Test"),
+   "Choose one of the tests below: ",
+    type=radiobuttons(a,b),
+   HList(Button("OK"), Button("Cancel")
+  )
+ );
+
+button = result["Button"];
+type=result["type"];
+if(type==1,scale=a);
+if(type==2,scale=b);/**Selection of One Sample or Two Sample Variance Test**/ 
+
+
+
+if(button==1 & scale=="One Sample",	
+
+ while(button==1,
+	result=Dialog(title("One Sample Variance Test")," ",
+		VList("Enter Hypothesized Std. Dev., Sample Std. Dev., Sample Size and Alpha below:",
+			Lineup(2,
+				" "," ",	
+				"Hypothesized Std. Dev.", hypostd=EditNumber(hypostd),		
+				"Sample Std. Dev. (s)", samplestd=EditNumber(samplestd),
+		             "Sample Size (n)", n=EditNumber(n),
+          		       "Alpha", alpha=EditNumber(alpha))," ",
+			
+			HList(Button("OK"), Button("Cancel") )
+			)
+
+	);
+
+	button = result["Button"];
+	
+	samplestd=result["samplestd"];
+	n=result["n"];
+	hypostd=result["hypostd"];
+	alpha=result["alpha"];
+
+	if(button==1,
+	if(n<=0, Dialog(Title("Error"),"Sample Size must be greater than 0",button("OK"));etest1="error",etest1="OK");
+	if(IsMissing(samplestd) | IsMissing(n) | IsMissing(hypostd) | IsMissing(alpha) & button==1, Dialog(Title("Error"),"Missing Value!",button("OK"));etest2="error",etest2="OK");
+	if(alpha<=0, Dialog(Title("Error"),"Alpha value must be greater than 0",button("OK"));etest3="error",etest3="OK");
+	if(hypostd<=0, Dialog(Title("Error"),"Hypothesis Std. Dev. must be greater than 0",button("OK"));etest4="error",etest4="OK"));
+
+	if(button==1 & etest1=="OK" & etest2=="OK"& etest3=="OK"& etest4=="OK",
+	chistat=(n-1) * (samplestd^2)/ (hypostd^2);
+	probchi=1-ChiSquare Distribution(chistat,(n-1), 0);
+	problesschi=ChiSquare Distribution(chistat,(n-1), 0);
+	if (probchi<=problesschi, probechi=2*probchi, probechi=2*problesschi);
+
+	
+	
+w1=newwindow("One Sample Variance Test Results",
+
+outlinebox("Input Values",
+hlistbox(vlistbox(tb1=textbox("Hypothesized Std. Dev. (sigma)"),
+tb2=textbox("Sample Std. Dev. (s)"),
+tb3=textbox("Sample Size (n)"),
+tb4=textbox("Alpha")),
+textbox("            "),
+vlistbox(tb5=textbox(char(hypostd)),
+tb6=textbox(char(samplestd)),
+tb7=textbox(char(n)),
+tb8=textbox(char(alpha))))),
+
+outlinebox("Chi Square Test",
+hlistbox(vlistbox(cal1=textbox("Chi Square Test Statistic"),
+cal2=textbox("Prob > |Chi Square|"),
+cal3=textbox("Prob < Chi Square"),
+cal4=textbox("Prob > Chi Square")),
+textbox("            "),
+vlistbox(cal5=textbox(round(chistat,5)),
+cal6=textbox(round(probechi, 4)),
+cal7=textbox(round(problesschi,4)),
+cal8=textbox(round(probchi,4))))),
+
+
+outlinebox("Decision Guidelines",
+hlistbox(vlistbox(dec1=textbox("Null Hypothesis"),
+dec2=textbox("Sigma <= "||char(hypostd)),
+dec3=textbox("Sigma >= "||char(hypostd)),
+dec4=textbox("Sigma  =  "||char(hypostd))),
+textbox("      "),
+vlistbox(dec5=textbox("Alternative Hypothesis"),
+dec6=textbox("Sigma > "||char(hypostd)),
+dec7=textbox("Sigma < "||char(hypostd)),
+dec8=textbox("Sigma <> "||char(hypostd))),
+textbox("      "),
+vlistbox(dec9=textbox("Decision to reject Null Hypothesis"),
+dec10=textbox("If Prob > Chi Square less than"||" " ||char(alpha)),
+dec11=textbox("If Prob < Chi Square less than"||" "||char(alpha)),
+dec12=textbox("If Prob > |Chi Square| less than"||" "||char(alpha)))),
+footerbox,
+button=-1
+
+);
+);
+
+);
+	
+);
+
+);/** One Sample Variance Test Calculation by Chi Square Distribution**/ 
+
+if(button==1 & scale=="Two Sample",	
+while(button==1,
+      
+	result=Dialog(title("Two Sample Variance Test")," ",
+		VList("Enter Std. Dev., Sample Size, Label and Alpha below:",
+			Lineup(3,
+				" "," ", " ",	
+				"Sample", sample1=char("                1"),sample2=char("                  2"),	
+				" ", " ", " ",	
+				"Std. Dev. (s)", por=EditNumber(por),new=EditNumber(new),
+		             "Sample Size (n)", npor=EditNumber(npor),nnew=EditNumber(nnew),
+                   	"Label", label1=Edittext(label1), label2=Edittext(label2),
+				"Alpha", alpha3=Editnumber(alpha3))," ",
+						
+			HList(Button("OK"), Button("Cancel") )
+			)
+	);
+
+	button = result["Button"];
+	
+	por=result["por"];
+	npor=result["npor"];
+	new=result["new"];
+	nnew=result["nnew"];
+	alpha3=result["alpha3"];
+	label1=result["label1"];
+	label2=result["label2"];
+	
+	if(button==1,
+	if(IsMissing(por) | IsMissing(npor) | IsMissing(new) | IsMissing(nnew) & button==1, Dialog(Title("Error"),"Missing Value!",button("OK"));etest1="error",etest1="OK");
+	if(npor<=0, Dialog(Title("Error"),"Sample Size for POR must be greater than 0",button("OK"));etest2="error",etest2="OK");
+	if(nnew<=0, Dialog(Title("Error"),"Sample Size for NEW must be greater than 0",button("OK"));etest3="error",etest3="OK");
+	if(alpha3<=0, Dialog(Title("Error"),"Alpha value must be greater than 0",button("OK"));etest4="error",etest4="OK"));
+
+	if(button==1 & etest1=="OK" & etest2=="OK"& etest3=="OK"& etest4=="OK",
+	
+	f=(por^2)/(new^2);
+
+	probmore=F Distribution(f,(npor-1),(nnew-1), 0);
+	
+	probmore=1-F Distribution(f,(npor-1),(nnew-1), 0);
+
+	probless=1-probmore;
+	if(f>=1, prob=(1 - F Distribution(f, (npor-1), (nnew-1)))*2, prob=F Distribution(f, (npor-1), (nnew-1))*2);
+
+w1=newwindow("Two Sample Variance Test Results",
+
+outlinebox("Input Values",
+hlistbox(
+StringColBox("Level",{label1,label2}),
+NumberColBox("Sample Size",{npor,nnew}),
+NumberColBox("Std. Dev",{por,new}),
+NumberColBox("Alpha",{alpha3})
+)),
+
+outlinebox("F Test",
+hlistbox(vlistbox(cal1=textbox("F Ratio"),
+cal2=textbox("Prob > F (2-sided)"),
+cal3=textbox("Prob > F"),
+cal4=textbox("Prob < F")),
+textbox("            "),
+vlistbox(cal5=textbox(round(f,5)),
+cal6=textbox(round(prob,4)),
+cal7=textbox(round(probmore,4)),
+cal8=textbox(round(probless,4))))),
+
+outlinebox("Decision Guidelines",
+hlistbox(vlistbox(dec1=textbox("Null Hypothesis"),
+dec2=textbox(char(label1)||" sigma <= "||char(label2)||" sigma"),
+dec3=textbox(char(label1)||" sigma => "||char(label2)||" sigma"),
+dec4=textbox(char(label1)||" sigma =   "||char(label2)||" sigma" )),
+textbox("      "),
+vlistbox(dec5=textbox("Alternative Hypothesis"),
+dec6=textbox(char(label1)||" sigma >  "||char(label2)||" sigma"),
+dec7=textbox(char(label1)||" sigma <  "||char(label2)||" sigma"),
+dec8=textbox(char(label1)||" sigma <> "||char(label2)||" sigma" )),
+textbox("      "),
+vlistbox(dec9=textbox("Decision to reject Null Hypothesis"),
+dec10=textbox("If Prob> F less than"||" " ||char(alpha3)),
+dec11=textbox("If Prob< F less than"||" "||char(alpha3)),
+dec12=textbox("If Prob> F (2-sided) less than"||" "||char(alpha3)))),
+
+footerbox,
+button=-1
+
+
+);
+);
+);
+);
+);/** Two Sample Test Calculation by F Distribution**/
+
+	
+);
+
