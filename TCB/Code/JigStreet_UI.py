@@ -3,6 +3,7 @@ import os, sys
 import wx
 import wx.lib.agw.multidirdialog as MDD
 import JigStreet_Rev1 as js
+import JigStreet_Rev1_1 as js2
 
 wildcard = "dxf (*.dxf)|*.dxf|" \
             "All files (*.*)|*.*"
@@ -35,11 +36,14 @@ class MyForm(wx.Frame):
         self.txt = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, value = "0.65")
         
         # Button to run
-        self.runJig = wx.Button(panel, label="Run the Script with selected file")
+        self.runJigraw = wx.Button(panel, label="Run the Script with selected raw dxf file")
+        self.runJigraw.Bind(wx.EVT_BUTTON, self.runscriptraw)
+        self.runJig = wx.Button(panel, label="Run the Script with selected scaled file")
         self.runJig.Bind(wx.EVT_BUTTON, self.runscript)
+
         
         # logger
-        self.log = wx.TextCtrl(panel, -1, size=(500, 250), style=wx.TE_MULTILINE|wx.TE_READONLY|wx.HSCROLL)
+        self.log = wx.TextCtrl(panel, -1, size=(500, 500), style=wx.TE_MULTILINE|wx.TE_READONLY|wx.HSCROLL)
         redir = RedirectText(self.log)
         sys.stdout = redir
         
@@ -48,7 +52,9 @@ class MyForm(wx.Frame):
         sizer.Add(openFileDlgBtn, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.label, 0, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.txt, 0, wx.ALL|wx.CENTER, 5)
+        sizer.Add(self.runJigraw, 1, wx.ALL|wx.CENTER, 5)
         sizer.Add(self.runJig, 1, wx.ALL|wx.CENTER, 5)
+
         sizer.Add(self.log, 1, wx.ALL|wx.CENTER, 5)
 
         # sizer.Add(saveFileDlgBtn, 0, wx.ALL|wx.CENTER, 5)
@@ -86,7 +92,11 @@ class MyForm(wx.Frame):
         js.processjigstreet(self.path, cmargin)
         
     # #----------------------------------------------------------------------
-    
+    def runscriptraw(self,event):
+        print(self.path)
+        cmargin = float(self.txt.GetValue())
+        print(str(cmargin) + " is the component boundary box expand multiplier.")
+        js2.processjigstreetraw(self.path, cmargin)
         
 
         
