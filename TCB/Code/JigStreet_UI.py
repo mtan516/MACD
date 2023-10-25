@@ -25,6 +25,7 @@ class MyForm(wx.Frame):
                           "MACD Simple Auto Jig Street UI")
         panel = wx.Panel(self, wx.ID_ANY)
         self.currentDirectory = os.getcwd()
+        #self.SetSize(700, 700)
         self.Centre()
         
         # create the buttons and bindings
